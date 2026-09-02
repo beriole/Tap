@@ -1,14 +1,30 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
-import { getPlatformStats } from "@/server/stats";
+import { getAdminOverview, getPlatformStats } from "@/server/stats";
+import { cardUrl } from "@/config/site";
+import { DailyBars } from "@/components/app/figures";
+import {
+  DataTable,
+  EmptyState,
+  PageBody,
+  PageHeader,
+  SectionTitle,
+  StatusBadge,
+  Surface,
+  Td,
+  Th,
+  Token,
+} from "@/components/app/ui";
 
 export const metadata: Metadata = { title: "Analytics" };
 
 /** §16 - Analytics : vue globale et par carte/profil. */
 export default async function AdminAnalyticsPage() {
   await requireAdmin();
-  const stats = await getPlatformStats();
+  const [stats, overview] = await Promise.all([getPlatformStats(), getAdminOverview()]);
 
   const topCards = await prisma.nfcCard.findMany({
     orderBy: { scans: { _count: "desc" } },
@@ -19,46 +35,106 @@ export default async function AdminAnalyticsPage() {
     },
   });
 
+  const scanned = topCards.filter((c) => c._count.scans > 0);
+  const best = scanned[0]?._count.scans ?? 1;
+
+  const daily = overview.trend.map((scans, i) => ({
+    date: new Date(Date.now() - (overview.trend.length - 1 - i) * 86_400_000)
+      .toISOString()
+      .slice(0, 10),
+    scans,
+    clicks: 0,
+  }));
+
   return (
-    <section className="space-y-6">
-      <h1 className="text-xl font-semibold">Analytics</h1>
+    <>
+      <PageHeader
+        eyebrow="Administration"
+        title="Analytics"
+        description="Ce que produisent les cartes en circulation. Aucune adresse IP ni identifiant de visiteur n'est conserve (§15)."
+        stats={[
+          { label: "Scans · 30 j", value: stats.scans30d, trend: overview.trend },
+          { label: "Cartes actives", value: stats.activeCards, tone: "plain" },
+          { label: "Cartes en stock", value: stats.unassignedCards, tone: "plain" },
+          { label: "Clients", value: stats.clients, tone: "plain" },
+        ]}
+      />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Scans (30 j)" value={stats.scans30d} />
-        <Stat label="Cartes actives" value={stats.activeCards} />
-        <Stat label="Cartes libres" value={stats.unassignedCards} />
-        <Stat label="Clients" value={stats.clients} />
-      </div>
+      <PageBody className="space-y-6">
+        <Surface>
+          <SectionTitle hint="30 derniers jours">Scans par jour, toutes cartes</SectionTitle>
+          <DailyBars data={daily} />
+        </Surface>
 
-      <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--border)]">
-        <table className="w-full min-w-[32rem] text-sm">
-          <thead className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--muted)]">
-            <tr>
-              <th className="px-4 py-3">Carte</th>
-              <th className="px-4 py-3">Profil</th>
-              <th className="px-4 py-3">Scans</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--border)]">
-            {topCards.map((card) => (
-              <tr key={card.id}>
-                <td className="px-4 py-3 font-mono">{card.publicToken}</td>
-                <td className="px-4 py-3">{card.assignedProfile?.displayName ?? "-"}</td>
-                <td className="px-4 py-3 tabular-nums">{card._count.scans}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-[var(--radius-card)] border border-[var(--border)] p-4">
-      <p className="text-xs text-[var(--muted)]">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
-    </div>
+        <section>
+          <SectionTitle hint="Depuis le debut">Classement des cartes</SectionTitle>
+          {scanned.length === 0 ? (
+            <EmptyState
+              title="Aucun scan enregistre"
+              body="Le classement se remplira des la mise en circulation du premier lot."
+              actionHref="/admin/cards"
+              actionLabel="Voir les cartes"
+            />
+          ) : (
+            <DataTable
+              caption="Cartes classees par nombre de scans"
+              head={
+                <>
+                  <Th>Carte</Th>
+                  <Th>Profil</Th>
+                  <Th>Etat</Th>
+                  <Th className="w-[38%]">Scans</Th>
+                  <Th className="text-right">Profil public</Th>
+                </>
+              }
+            >
+              {scanned.map((card) => (
+                <tr key={card.id} className="transition-colors hover:bg-[var(--console-paper)]">
+                  <Td>
+                    <Token>{card.publicToken}</Token>
+                  </Td>
+                  <Td className="max-w-[14rem] truncate">
+                    {card.assignedProfile?.displayName ?? (
+                      <span className="text-[var(--muted)]">Non attribuee</span>
+                    )}
+                  </Td>
+                  <Td>
+                    <StatusBadge status={card.status} />
+                  </Td>
+                  <Td>
+                    {/* La barre donne le rapport entre cartes avant meme qu on
+                        ait lu les nombres ; le chiffre reste pour la precision. */}
+                    <div className="flex items-center gap-3">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--console-paper)]">
+                        <div
+                          className="h-full rounded-full bg-[var(--brand-copper)]"
+                          style={{
+                            width: `${Math.max((card._count.scans / best) * 100, 3)}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="w-10 shrink-0 text-right font-[family-name:var(--font-mono)] text-[0.8rem] tabular-nums">
+                        {card._count.scans}
+                      </span>
+                    </div>
+                  </Td>
+                  <Td className="text-right">
+                    <Link
+                      href={cardUrl(card.publicToken)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[0.8rem] text-[var(--muted)] transition-colors hover:text-[var(--brand-copper-deep)]"
+                    >
+                      Ouvrir
+                      <ArrowUpRight className="size-3.5" />
+                    </Link>
+                  </Td>
+                </tr>
+              ))}
+            </DataTable>
+          )}
+        </section>
+      </PageBody>
+    </>
   );
 }

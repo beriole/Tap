@@ -108,7 +108,7 @@ export function AppShell({
       : { href: "/admin", label: "Administration", icon: Shield };
 
   return (
-    <div className="min-h-dvh bg-[var(--surface)]">
+    <div className="min-h-dvh bg-[var(--console-paper)]">
       {/* Colonne fixe - ecrans larges */}
       <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-[var(--brand-line)] bg-[var(--brand-ink)] p-4 lg:flex">
         <Link href="/" className="flex items-center gap-2.5 px-2 py-3">
@@ -125,13 +125,29 @@ export function AppShell({
               href={item.href}
               aria-current={isActive(item) ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.88rem] transition-colors",
+                "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.88rem] transition-colors duration-200",
                 isActive(item)
-                  ? "bg-white/10 font-medium text-[var(--brand-paper)]"
-                  : "text-white/45 hover:bg-white/5 hover:text-white/80",
+                  ? "bg-white/[0.07] font-medium text-[var(--brand-paper)]"
+                  : "text-white/40 hover:bg-white/[0.04] hover:text-white/80",
               )}
             >
-              <item.icon className="size-[1.05rem] shrink-0" />
+              {/* Repere cuivre de la page courante : une barre qui grandit
+                  depuis le centre, plutot qu un aplat qui apparait sec. */}
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute left-0 top-1/2 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--brand-copper)] transition-all duration-300",
+                  isActive(item) ? "h-5 opacity-100" : "h-0 opacity-0",
+                )}
+              />
+              <item.icon
+                className={cn(
+                  "size-[1.05rem] shrink-0 transition-transform duration-200",
+                  isActive(item)
+                    ? "text-[var(--brand-copper)]"
+                    : "group-hover:translate-x-0.5",
+                )}
+              />
               <span className="flex-1">{item.label}</span>
               <LinkSpinner />
             </Link>
@@ -174,10 +190,14 @@ export function AppShell({
         </div>
       </aside>
 
-      {/* Barre superieure - petits ecrans */}
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-[var(--border)] bg-[var(--background)]/85 px-4 py-3 backdrop-blur-xl lg:hidden">
-        <Link href="/" className="flex items-center gap-2">
-          <LogoMark className="h-5 text-[var(--brand-ink)]" lineColor="var(--brand-paper)" />
+      {/* Barre superieure - petits ecrans.
+
+          Elle est d encre, comme la bande de titre qui la suit immediatement :
+          les deux ne forment ainsi qu une seule surface. En clair sur fond
+          sombre, la couture se voyait a chaque page. */}
+      <header className="sticky top-0 z-30 flex items-center justify-between bg-[var(--console-band)] px-4 py-3 lg:hidden">
+        <Link href="/" className="flex items-center gap-2 text-[var(--brand-paper)]">
+          <LogoMark className="h-5 text-[var(--brand-paper)]" lineColor="var(--brand-ink)" />
           <span className="font-[family-name:var(--font-grotesk)] font-bold tracking-[-0.03em]">
             Tap
           </span>
@@ -187,7 +207,7 @@ export function AppShell({
             <Link
               href={crossSpace.href}
               aria-label={crossSpace.label}
-              className="flex h-9 items-center gap-1.5 rounded-lg border border-[var(--brand-copper)]/30 bg-[var(--brand-copper)]/10 px-2.5 text-[0.72rem] font-medium text-[var(--brand-copper-deep)]"
+              className="flex h-9 items-center gap-1.5 rounded-lg border border-[var(--brand-copper)]/35 bg-[var(--brand-copper)]/15 px-2.5 text-[0.72rem] font-medium text-[var(--brand-copper)]"
             >
               <crossSpace.icon className="size-3.5" />
               {space === "admin" ? "Ma carte" : "Admin"}
@@ -197,7 +217,7 @@ export function AppShell({
             <button
               type="submit"
               aria-label="Se deconnecter"
-              className="flex size-9 items-center justify-center rounded-lg text-[var(--muted)]"
+              className="flex size-9 items-center justify-center rounded-lg text-white/45 transition-colors hover:text-white/80"
             >
               <LogOut className="size-4" />
             </button>
@@ -205,27 +225,44 @@ export function AppShell({
         </div>
       </header>
 
-      <main className="px-4 pb-28 pt-6 sm:px-6 lg:ml-60 lg:px-10 lg:pb-14 lg:pt-10">
-        {/* L espace client lit du texte et des formulaires : une colonne
-            etroite. L administration lit des tableaux : il lui faut la largeur. */}
-        <div className={cn("mx-auto w-full", space === "admin" ? "max-w-6xl" : "max-w-4xl")}>
-          {children}
-        </div>
+      {/* La bande d en-tete de chaque page saigne sur toute la largeur : <main>
+          ne pose donc aucune marge horizontale, ce sont PageHeader et PageBody
+          qui gerent la leur.
+
+          L espace client lit du texte et des formulaires : une colonne etroite.
+          L administration lit des tableaux : il lui faut la largeur. La mesure
+          est portee par une variable pour n etre decidee qu ici. */}
+      <main
+        className="pb-28 lg:ml-60 lg:pb-0"
+        style={
+          { "--console-measure": space === "admin" ? "72rem" : "58rem" } as React.CSSProperties
+        }
+      >
+        {children}
       </main>
 
       {/* Onglets - petits ecrans. Cinq maximum : au-dela, la cible devient
           trop etroite pour un pouce. */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-[var(--border)] bg-[var(--background)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-[var(--console-hairline)] bg-[var(--console-card)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
         {nav.slice(0, 5).map((item) => (
           <Link
             key={item.href}
             href={item.href}
             aria-current={isActive(item) ? "page" : undefined}
             className={cn(
-              "flex flex-1 flex-col items-center gap-1 py-2.5 text-[0.62rem]",
+              "relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[0.62rem] transition-colors",
               isActive(item) ? "text-[var(--brand-copper-deep)]" : "text-[var(--muted)]",
             )}
           >
+            {/* Le repere est en haut de l onglet : au pouce, le bas est masque
+                par la main au moment meme ou l on cherche a se situer. */}
+            <span
+              aria-hidden
+              className={cn(
+                "absolute top-0 h-[2px] rounded-b-full bg-[var(--brand-copper)] transition-all duration-300",
+                isActive(item) ? "w-8 opacity-100" : "w-0 opacity-0",
+              )}
+            />
             <span className="relative flex h-[1.15rem] items-center">
               <item.icon className="size-[1.15rem]" />
               <LinkSpinner className="absolute -right-3.5 top-0" />

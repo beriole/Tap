@@ -51,7 +51,7 @@ export function CreateClientForm() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="tap-target w-fit rounded-[var(--radius-button)] bg-[var(--foreground)] px-5 text-sm font-medium text-[var(--background)]"
+        className="tap-target w-fit rounded-[var(--radius-button)] bg-[var(--brand-copper)] px-5 text-sm font-semibold text-[#231206] transition-transform hover:-translate-y-0.5"
       >
         <Plus className="size-4" /> Nouveau client
       </button>
@@ -61,7 +61,7 @@ export function CreateClientForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="rounded-[var(--radius-card)] border border-[var(--border)] p-5"
+      className="rounded-2xl border border-[var(--console-hairline)] bg-[var(--console-card)] p-5 sm:p-6"
     >
       <h2 className="text-sm font-medium">Nouveau client</h2>
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -73,14 +73,14 @@ export function CreateClientForm() {
         <button
           type="submit"
           disabled={pending}
-          className="tap-target rounded-[var(--radius-button)] bg-[var(--foreground)] px-5 text-sm font-medium text-[var(--background)] disabled:opacity-60"
+          className="tap-target rounded-[var(--radius-button)] bg-[var(--brand-copper)] px-5 text-sm font-semibold text-[#231206] transition-transform hover:-translate-y-0.5 disabled:opacity-60"
         >
           {pending ? "Creation..." : "Creer"}
         </button>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="tap-target rounded-[var(--radius-button)] border border-[var(--border)] px-5 text-sm"
+          className="tap-target rounded-[var(--radius-button)] border border-[var(--console-hairline)] px-5 text-sm"
         >
           Annuler
         </button>
@@ -90,7 +90,7 @@ export function CreateClientForm() {
         <div className="mt-3 text-sm">
           <p className={result.ok ? "text-[var(--accent)]" : "text-red-600"}>{result.text}</p>
           {result.url && (
-            <code className="mt-1 block break-all rounded bg-[var(--surface)] p-2 text-xs">
+            <code className="mt-1 block break-all rounded bg-[var(--console-paper)] p-2 text-xs">
               {result.url}
             </code>
           )}
@@ -157,7 +157,7 @@ function Action({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex size-9 items-center justify-center rounded-lg border border-[var(--border)] text-[var(--muted)] transition-colors hover:text-[var(--foreground)] disabled:opacity-40"
+      className="flex size-9 items-center justify-center rounded-lg border border-[var(--console-hairline)] text-[var(--muted)] transition-colors hover:text-[var(--foreground)] disabled:opacity-40"
     >
       {children}
     </button>
@@ -168,7 +168,7 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className="w-full rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm"
+      className="w-full rounded-[var(--radius-button)] border border-[var(--console-hairline)] bg-[var(--console-paper)] px-3 py-2.5 text-sm"
     />
   );
 }

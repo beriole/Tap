@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { ProfileEditor } from "@/components/dashboard/profile-editor";
-import { PageHeader } from "@/components/app/ui";
+import { PageBody, PageHeader } from "@/components/app/ui";
 
 export const metadata: Metadata = { title: "Editeur de profil" };
 
@@ -18,7 +18,9 @@ export default async function ProfileEditorPage() {
         title="Profil"
         description="Identite, coordonnees, adresse et visibilite. Les modifications sont visibles immediatement apres publication."
       />
-      <ProfileEditor profile={profile} />
+      <PageBody>
+        <ProfileEditor profile={profile} />
+      </PageBody>
     </>
   );
 }

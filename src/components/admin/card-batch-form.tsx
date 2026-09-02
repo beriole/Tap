@@ -30,9 +30,11 @@ export function CardBatchForm() {
   }
 
   return (
-    <div className="rounded-[var(--radius-card)] border border-[var(--border)] p-5">
-      <h2 className="text-sm font-medium">Creer un lot</h2>
-      <form action={submit} className="mt-3 flex flex-wrap items-end gap-3">
+    <div className="rounded-2xl border border-[var(--console-hairline)] bg-[var(--console-card)] p-5 sm:p-6">
+      <h2 className="mb-4 font-[family-name:var(--font-grotesk)] text-[0.82rem] font-semibold uppercase tracking-[0.12em]">
+        Creer un lot
+      </h2>
+      <form action={submit} className="flex flex-wrap items-end gap-3">
         <label className="block">
           <span className="mb-1.5 block text-xs text-[var(--muted)]">Quantite</span>
           <input
@@ -41,7 +43,7 @@ export function CardBatchForm() {
             min={1}
             max={500}
             defaultValue={10}
-            className="w-28 rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm"
+            className="w-28 rounded-[var(--radius-button)] border border-[var(--console-hairline)] bg-[var(--console-paper)] px-3 py-2.5 text-sm"
           />
         </label>
         <label className="block">
@@ -49,13 +51,13 @@ export function CardBatchForm() {
           <input
             name="batch"
             placeholder="LOT-2026-01"
-            className="rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm"
+            className="rounded-[var(--radius-button)] border border-[var(--console-hairline)] bg-[var(--console-paper)] px-3 py-2.5 text-sm"
           />
         </label>
         <button
           type="submit"
           disabled={pending}
-          className="tap-target rounded-[var(--radius-button)] bg-[var(--foreground)] px-5 text-sm font-medium text-[var(--background)] disabled:opacity-60"
+          className="tap-target rounded-[var(--radius-button)] bg-[var(--brand-copper)] px-5 text-sm font-semibold text-[#231206] transition-transform hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-60"
         >
           {pending ? "Creation..." : "Generer"}
         </button>
@@ -70,7 +72,7 @@ export function CardBatchForm() {
             readOnly
             rows={Math.min(10, created.length)}
             value={created.map((c) => c.url).join("\n")}
-            className="mt-2 w-full rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--surface)] p-3 font-mono text-xs"
+            className="mt-2 w-full rounded-[var(--radius-button)] border border-[var(--console-hairline)] bg-[var(--console-paper)] p-3 font-mono text-xs"
           />
         </div>
       )}

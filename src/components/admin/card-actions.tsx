@@ -77,7 +77,7 @@ export function CardRowActions({
           disabled={pending}
           defaultValue={assignedProfileId ?? ""}
           onChange={(e) => assign(e.target.value)}
-          className="max-w-[11rem] rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs disabled:opacity-50"
+          className="max-w-[11rem] rounded-lg border border-[var(--console-hairline)] bg-[var(--console-paper)] px-2 py-1.5 text-xs disabled:opacity-50"
         >
           <option value="">— non attribuee —</option>
           {profiles.map((p) => (
@@ -92,7 +92,7 @@ export function CardRowActions({
           disabled={pending}
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs disabled:opacity-50"
+          className="rounded-lg border border-[var(--console-hairline)] bg-[var(--console-paper)] px-2 py-1.5 text-xs disabled:opacity-50"
         >
           {STATUSES.map((s) => (
             <option key={s.value} value={s.value}>

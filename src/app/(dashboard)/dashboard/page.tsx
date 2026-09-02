@@ -7,7 +7,14 @@ import { requireUser } from "@/lib/auth";
 import { cardUrl } from "@/config/site";
 import { getProfileStats } from "@/server/stats";
 import { previewProfile } from "@/server/card-resolution";
-import { EmptyState, PageHeader, Pill, SectionTitle, StatTile, Surface } from "@/components/app/ui";
+import {
+  EmptyState,
+  PageBody,
+  PageHeader,
+  Pill,
+  SectionTitle,
+  Surface,
+} from "@/components/app/ui";
 import { PhoneFrame } from "@/components/marketing/phone";
 import { ThemeRenderer } from "@/components/themes/theme-renderer";
 
@@ -33,12 +40,14 @@ export default async function DashboardHome() {
           title="Votre profil reste a creer"
           description="Renseignez votre identite et vos coordonnees : votre carte pointera dessus des la publication."
         />
-        <EmptyState
-          title="Aucun profil"
-          body="Commencez par votre nom, votre poste et vos coordonnees. Vous choisirez le theme ensuite."
-          actionHref="/dashboard/profile"
-          actionLabel="Creer mon profil"
-        />
+        <PageBody>
+          <EmptyState
+            title="Aucun profil"
+            body="Commencez par votre nom, votre poste et vos coordonnees. Vous choisirez le theme ensuite."
+            actionHref="/dashboard/profile"
+            actionLabel="Creer mon profil"
+          />
+        </PageBody>
       </>
     );
   }
@@ -46,6 +55,7 @@ export default async function DashboardHome() {
   const stats = await getProfileStats(profile.id, 30);
   const token = profile.cards[0]?.publicToken;
   const preview = await previewProfile(profile.id);
+  const topLinks = stats.topLinks.slice(0, 3);
 
   return (
     <>
@@ -67,7 +77,7 @@ export default async function DashboardHome() {
                 href={cardUrl(token)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="tap-target rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 text-[0.85rem] font-medium"
+                className="tap-target rounded-xl border border-[var(--console-hair-strong)] bg-white/5 px-4 text-[0.85rem] font-medium text-[var(--console-on-band)] transition-colors hover:bg-white/10"
               >
                 Voir en ligne
                 <ArrowUpRight className="size-4" />
@@ -75,73 +85,135 @@ export default async function DashboardHome() {
             )}
           </div>
         }
+        stats={[
+          {
+            label: "Scans",
+            value: stats.totalScans,
+            trend: stats.daily.map((d) => d.scans),
+          },
+          { label: "7 jours", value: stats.scans7d, tone: "plain" },
+          { label: "30 jours", value: stats.scans30d, tone: "plain" },
+          { label: "Liens publies", value: profile._count.links, tone: "plain" },
+        ]}
+        /* L apercu vit DANS la bande et deborde vers le bas : ce n est pas une
+           vignette posee a cote du texte, c est la piece maitresse de l ecran -
+           la page reelle, rendue par les memes composants qu apres un scan. */
+        aside={
+          <div className="relative -mb-40">
+            {/* Le telephone est noir et la bande aussi : sans lumiere derriere
+                lui, il disparaissait purement et simplement dans l encre.
+                La lueur s arrete au tiers superieur : plus bas, l appareil
+                repose deja sur le papier - et une lueur qui debordait la
+                delavait la carte voisine, QR Code compris. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -inset-x-10 -top-12 h-2/5 bg-[radial-gradient(closest-side,rgb(217_142_90/0.24),transparent_75%)]"
+            />
+            <div className="relative rounded-[2.2rem] shadow-[0_30px_90px_-30px_rgb(0_0_0/0.9)] ring-1 ring-white/10">
+              <PhoneFrame width={248} height={504}>
+                <ThemeRenderer profile={preview} preview />
+              </PhoneFrame>
+            </div>
+            <p className="relative mt-3 flex items-center justify-center gap-2 text-[0.72rem] text-[var(--console-on-band-dim)]">
+              {/* live-dot peint tout son cadre : il lui faut un element a lui,
+                  sinon la pastille recouvre le texte qu elle accompagne. */}
+              <span className="live-dot size-1.5 shrink-0 text-[var(--state-live)]" aria-hidden />
+              Apercu en direct
+            </p>
+          </div>
+        }
       />
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-start">
-        <div className="space-y-5">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatTile label="Scans" value={stats.totalScans} hint="depuis le debut" />
-            <StatTile label="7 jours" value={stats.scans7d} tone="accent" />
-            <StatTile label="30 jours" value={stats.scans30d} />
-            <StatTile label="Liens" value={profile._count.links} hint="dont masques" />
-          </div>
-
-          <Surface>
-            <SectionTitle>Votre carte NFC</SectionTitle>
-            {token ? (
-              <>
-                <div className="flex flex-wrap items-center gap-3">
-                  <code className="min-w-0 flex-1 truncate rounded-xl bg-[var(--surface)] px-3.5 py-3 font-[family-name:var(--font-mono)] text-[0.82rem]">
-                    {cardUrl(token)}
-                  </code>
-                  <Image
-                    src={`/api/qr/${token}`}
-                    alt="QR Code de votre carte"
-                    width={72}
-                    height={72}
-                    unoptimized
-                    className="shrink-0 rounded-lg bg-white p-1"
-                  />
-                </div>
-                <p className="mt-3 flex items-start gap-2 text-[0.8rem] leading-relaxed text-[var(--muted)]">
-                  <Copy className="mt-0.5 size-3.5 shrink-0" />
-                  Cette adresse est gravee dans la puce et ne changera jamais. Le QR Code mene
-                  exactement au meme endroit.
+      {/* La colonne de gauche laisse la place a l apercu qui redescend de la
+          bande : sans cette reserve, les fiches passeraient dessous. */}
+      <PageBody className="lg:pr-[19rem]">
+        <div className="grid gap-6">
+          <div className="space-y-5">
+            <Surface>
+              <SectionTitle>Votre carte NFC</SectionTitle>
+              {token ? (
+                <>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <code className="min-w-0 flex-1 truncate rounded-xl bg-[var(--console-paper)] px-3.5 py-3 font-[family-name:var(--font-mono)] text-[0.82rem]">
+                      {cardUrl(token)}
+                    </code>
+                    <Image
+                      src={`/api/qr/${token}`}
+                      alt="QR Code de votre carte"
+                      width={72}
+                      height={72}
+                      unoptimized
+                      className="shrink-0 rounded-lg bg-white p-1"
+                    />
+                  </div>
+                  <p className="mt-3 flex items-start gap-2 text-[0.8rem] leading-relaxed text-[var(--muted)]">
+                    <Copy className="mt-0.5 size-3.5 shrink-0" />
+                    Cette adresse est gravee dans la puce et ne changera jamais. Le QR Code mene
+                    exactement au meme endroit.
+                  </p>
+                </>
+              ) : (
+                <p className="text-[0.87rem] leading-relaxed text-[var(--muted)]">
+                  Aucune carte active n est encore associee a ce profil. Votre administrateur
+                  l associera apres l encodage de la puce.
                 </p>
-              </>
-            ) : (
-              <p className="text-[0.87rem] leading-relaxed text-[var(--muted)]">
-                Aucune carte active n est encore associee a ce profil. Votre administrateur
-                l associera apres l encodage de la puce.
-              </p>
-            )}
-          </Surface>
+              )}
+            </Surface>
 
-          <Surface>
-            <SectionTitle>Continuer</SectionTitle>
-            <ul className="grid gap-2 sm:grid-cols-2">
-              <Shortcut href="/dashboard/profile" icon={Pencil} label="Modifier le profil" />
-              <Shortcut href="/dashboard/links" icon={Link2} label="Gerer les liens" />
-              <Shortcut
-                href="/dashboard/theme"
-                icon={Palette}
-                label={`Theme : ${profile.theme?.theme.name ?? "aucun"}`}
-              />
+            <Surface>
+              <SectionTitle>Continuer</SectionTitle>
+              <ul className="grid gap-2 sm:grid-cols-2">
+                <Shortcut href="/dashboard/profile" icon={Pencil} label="Modifier le profil" />
+                <Shortcut href="/dashboard/links" icon={Link2} label="Gerer les liens" />
+                <Shortcut
+                  href="/dashboard/theme"
+                  icon={Palette}
+                  label={`Theme : ${profile.theme?.theme.name ?? "aucun"}`}
+                />
+              </ul>
+            </Surface>
+          </div>
+        </div>
+
+        {/* Sous l apercu, la page reprend toute sa largeur : reserver la
+            colonne de droite jusqu en bas laissait un vide inutile. */}
+        {topLinks.length > 0 && (
+          <Surface className="mt-6 lg:-mr-[19rem]">
+            <SectionTitle
+              hint={
+                <Link href="/dashboard/stats" className="hover:underline">
+                  Toutes les statistiques
+                </Link>
+              }
+            >
+              Ce que vos visiteurs ouvrent le plus
+            </SectionTitle>
+            <ul className="grid gap-3 sm:grid-cols-3">
+              {topLinks.map((l, i) => (
+                <li
+                  key={l.linkId}
+                  className="rounded-xl border border-[var(--console-hairline)] bg-[var(--console-paper)] p-3.5"
+                >
+                  <p className="flex items-baseline gap-2">
+                    <span className="font-[family-name:var(--font-mono)] text-[0.68rem] text-[var(--muted)]">
+                      {i + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[0.86rem] font-medium">
+                      {l.label}
+                    </span>
+                  </p>
+                  <p className="console-figure mt-1.5 text-[1.35rem] text-[var(--brand-copper-deep)]">
+                    {l.count}
+                    <span className="ml-1.5 font-[family-name:var(--font-sans)] text-[0.72rem] font-normal text-[var(--muted)]">
+                      ouverture{l.count > 1 ? "s" : ""}
+                    </span>
+                  </p>
+                </li>
+              ))}
             </ul>
           </Surface>
-        </div>
-
-        {/* L apercu n est pas une vignette decorative : c est la page reelle,
-            rendue par les memes composants que apres un scan. */}
-        <div className="hidden justify-self-center lg:block">
-          <PhoneFrame width={252} height={512}>
-            <ThemeRenderer profile={preview} preview />
-          </PhoneFrame>
-          <p className="mt-3 text-center text-[0.72rem] text-[var(--muted)]">
-            Apercu en direct
-          </p>
-        </div>
-      </div>
+        )}
+      </PageBody>
     </>
   );
 }
@@ -159,7 +231,7 @@ function Shortcut({
     <li>
       <Link
         href={href}
-        className="group flex items-center gap-3 rounded-xl border border-[var(--border)] px-3.5 py-3 text-[0.85rem] transition-colors hover:border-[var(--brand-copper)]"
+        className="group flex items-center gap-3 rounded-xl border border-[var(--console-hairline)] px-3.5 py-3 text-[0.85rem] transition-all hover:-translate-y-0.5 hover:border-[var(--brand-copper)] hover:bg-[var(--console-paper)]"
       >
         <Icon className="size-4 shrink-0 text-[var(--muted)]" />
         <span className="min-w-0 flex-1 truncate">{label}</span>

@@ -142,6 +142,113 @@ body {
   letter-spacing: 0.24em;
 }
 
+/* ---------------------------------------------------------------------------
+ * La console : espaces client et administrateur.
+ *
+ * Le probleme a resoudre : les deux espaces etaient des panneaux blancs
+ * arrondis flottant sur un gris froid, une seule graisse de caracteres, des
+ * chiffres sans contexte, et deux tiers de page vides. Rien ne disait ce qui
+ * comptait ni quoi faire ensuite.
+ *
+ * Le parti pris : la console emprunte a l objet que vend l entreprise. Une
+ * bande d encre en haut de chaque ecran - meme matiere que la colonne, meme
+ * matiere que la carte physique - qui porte l identite de la page, ses
+ * chiffres et son action. Dessous, un papier CHAUD et non un gris froid, car
+ * on y lit des tableaux denses toute la journee : le sombre integral ferait
+ * joli et se lirait mal.
+ *
+ * Tout l accent tient en un seul metal, le cuivre. Le bleu signal reste
+ * reserve au sans-contact et aux etats "en direct" - jamais un bouton, jamais
+ * un titre.
+ * ------------------------------------------------------------------------ */
+
+:root {
+  --console-band: #0b0e14;
+  --console-band-soft: #141926;
+  --console-hair: rgb(255 255 255 / 0.09);
+  --console-hair-strong: rgb(255 255 255 / 0.16);
+  --console-on-band: #f2ede6;
+  --console-on-band-dim: rgb(242 237 230 / 0.52);
+
+  /* Papier chaud : #f6f6f7 tirait vers le bleu et rendait tout clinique. */
+  --console-paper: #faf8f4;
+  --console-card: #ffffff;
+  --console-hairline: #e9e4dc;
+
+  /* Etats d une carte et d un compte. Les enums bruts (ACTIVE, SUSPENDED)
+     etaient affiches tels quels : du vocabulaire de base de donnees livre a
+     l utilisateur. Ils ont maintenant une couleur et un mot francais. */
+  --state-live: #0f9b6c;
+  --state-live-bg: #e6f6ef;
+  --state-warn: #b57314;
+  --state-warn-bg: #fdf2e0;
+  --state-stop: #c0453f;
+  --state-stop-bg: #fdecec;
+  --state-idle: #6b7280;
+  --state-idle-bg: #f1efec;
+}
+
+/*
+ * Bande d encre : pleine largeur, elle sort des marges de <main>.
+ *
+ * Elle ne rogne PAS son contenu : certaines pages y font deborder un element
+ * vers le bas (l apercu telephone). Ce sont les couches decoratives qui sont
+ * confinees, dans .console-veil.
+ */
+@utility console-band {
+  position: relative;
+  isolation: isolate;
+  background: var(--console-band);
+  color: var(--console-on-band);
+}
+
+@utility console-veil {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/*
+ * Lueur cuivre rasante depuis le coin superieur gauche.
+ *
+ * Un aplat d encre pur parait mort ; cette lueur donne une direction de
+ * lumiere unique a toute la console, la meme sur chaque ecran.
+ */
+@utility console-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(70rem 22rem at 8% -30%, rgb(217 142 90 / 0.16), transparent 62%),
+    radial-gradient(40rem 18rem at 92% -20%, rgb(125 211 252 / 0.07), transparent 60%);
+}
+
+/* Chiffre de tete : serif optique, chasse fixe, cuivre. */
+@utility console-figure {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 0.92;
+}
+
+/* Entree de la console : une seule cascade au chargement, jamais en boucle. */
+@keyframes console-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility console-enter {
+  animation: console-rise 0.55s var(--ease-settle) both;
+}
+
 /*
  * Signature : les ondes du sans-contact.
  *

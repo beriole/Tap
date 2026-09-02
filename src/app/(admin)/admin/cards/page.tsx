@@ -4,7 +4,16 @@ import { requireAdmin } from "@/lib/auth";
 import { cardUrl } from "@/config/site";
 import { CardBatchForm } from "@/components/admin/card-batch-form";
 import { CardRowActions } from "@/components/admin/card-actions";
-import { PageHeader } from "@/components/app/ui";
+import {
+  DataTable,
+  EmptyState,
+  PageBody,
+  PageHeader,
+  StatusBadge,
+  Td,
+  Th,
+  Token,
+} from "@/components/app/ui";
 
 export const metadata: Metadata = { title: "Cartes NFC" };
 
@@ -32,60 +41,83 @@ export default async function AdminCardsPage() {
     },
   });
 
+  const counts = cards.reduce<Record<string, number>>((acc, c) => {
+    acc[c.status] = (acc[c.status] ?? 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <>
       <PageHeader
         eyebrow="Administration"
         title="Cartes NFC"
         description="Chaque carte porte un token public aleatoire. L URL generee est ecrite une seule fois en NDEF dans la puce NTAG213, puis relue pour verification."
+        stats={[
+          { label: "Cartes", value: cards.length, tone: "plain" },
+          { label: "Actives", value: counts.ACTIVE ?? 0 },
+          { label: "En stock", value: counts.UNASSIGNED ?? 0, tone: "plain" },
+          { label: "Suspendues", value: counts.SUSPENDED ?? 0, tone: "plain" },
+          { label: "Perdues", value: counts.LOST ?? 0, tone: "plain" },
+        ]}
       />
+      <PageBody className="space-y-6">
+        <CardBatchForm />
 
-      <CardBatchForm />
-
-      <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--border)]">
-        <table className="w-full min-w-[48rem] text-sm">
-          <thead className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--muted)]">
-            <tr>
-              <th className="px-4 py-3">Token</th>
-              <th className="px-4 py-3">URL a encoder</th>
-              <th className="px-4 py-3">Statut</th>
-              <th className="px-4 py-3">Profil associe</th>
-              <th className="px-4 py-3">Scans</th>
-              <th className="px-4 py-3">Lot</th>
-              <th className="px-4 py-3">Association / etat</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--border)]">
+        {cards.length === 0 ? (
+          <EmptyState
+            title="Aucune carte enregistree"
+            body="Generez un premier lot ci-dessus : chaque carte recevra un token aleatoire et son URL a encoder."
+          />
+        ) : (
+          <DataTable
+            caption="Cartes NFC enregistrees"
+            head={
+              <>
+                <Th>Token</Th>
+                <Th>Etat</Th>
+                <Th>Profil associe</Th>
+                <Th className="text-right">Scans</Th>
+                <Th>Lot</Th>
+                <Th>Association / etat</Th>
+              </>
+            }
+          >
             {cards.map((card) => (
-              <tr key={card.id}>
-                <td className="px-4 py-3 font-mono">{card.publicToken}</td>
-                <td className="px-4 py-3 font-mono text-xs text-[var(--muted)]">
-                  {cardUrl(card.publicToken)}
-                </td>
-                <td className="px-4 py-3">{card.status}</td>
-                <td className="px-4 py-3">{card.assignedProfile?.displayName ?? "-"}</td>
-                <td className="px-4 py-3 tabular-nums">{card._count.scans}</td>
-                <td className="px-4 py-3 text-[var(--muted)]">{card.batch ?? "-"}</td>
-                <td className="px-4 py-3">
+              <tr key={card.id} className="transition-colors hover:bg-[var(--console-paper)]">
+                <Td>
+                  {/* L URL complete etait repetee en toutes lettres sur chaque
+                      ligne : douze fois le meme prefixe, pour une seule partie
+                      qui change. On montre le token, l URL passe en second. */}
+                  <Token>{card.publicToken}</Token>
+                  <span className="mt-1 block font-[family-name:var(--font-mono)] text-[0.68rem] text-[var(--muted)]">
+                    {cardUrl(card.publicToken).replace(/^https?:\/\//, "")}
+                  </span>
+                </Td>
+                <Td>
+                  <StatusBadge status={card.status} />
+                </Td>
+                <Td className="max-w-[13rem] truncate">
+                  {card.assignedProfile?.displayName ?? (
+                    <span className="text-[var(--muted)]">—</span>
+                  )}
+                </Td>
+                <Td className="text-right font-[family-name:var(--font-mono)] text-[0.82rem] tabular-nums">
+                  {card._count.scans}
+                </Td>
+                <Td className="text-[0.78rem] text-[var(--muted)]">{card.batch ?? "—"}</Td>
+                <Td>
                   <CardRowActions
                     cardId={card.id}
                     status={card.status}
                     assignedProfileId={card.assignedProfileId}
                     profiles={profileOptions}
                   />
-                </td>
+                </Td>
               </tr>
             ))}
-            {cards.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-[var(--muted)]">
-                  Aucune carte enregistree.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+          </DataTable>
+        )}
+      </PageBody>
     </>
   );
 }

@@ -93,3 +93,95 @@ export async function getPlatformStats() {
   ]);
   return { clients, activeCards, unassignedCards, scans30d, newAccounts30d };
 }
+
+/**
+ * De quoi remplir le tableau de bord d administration.
+ *
+ * Il n affichait que cinq nombres sur une page vide aux deux tiers. Un
+ * back-office doit dire ce qui demande une intervention, pas seulement
+ * combien de choses existent : on remonte donc aussi la tendance, les
+ * dernieres arrivees, et ce qui reste en souffrance.
+ */
+export type AdminOverview = {
+  trend: number[];
+  attention: { lost: number; suspended: number; invited: number; unlinked: number };
+  recentCards: { token: string; label: string | null; status: string; owner: string | null; at: Date }[];
+  recentClients: { name: string | null; email: string; status: string; at: Date }[];
+  topProfiles: { name: string; token: string | null; scans: number }[];
+};
+
+export async function getAdminOverview(days = 30): Promise<AdminOverview> {
+  const since = daysAgo(days);
+
+  const [scanRows, lost, suspended, invited, unlinked, recentCards, recentClients, topCards] =
+    await Promise.all([
+      prisma.scanEvent.findMany({ where: { timestamp: { gte: since } }, select: { timestamp: true } }),
+      prisma.nfcCard.count({ where: { status: "LOST" } }),
+      prisma.nfcCard.count({ where: { status: "SUSPENDED" } }),
+      prisma.user.count({ where: { status: "INVITED" } }),
+      // Un client actif sans aucune carte : compte cree, carte jamais remise.
+      prisma.user.count({
+        where: { role: "CLIENT", status: "ACTIVE", profiles: { every: { cards: { none: {} } } } },
+      }),
+      prisma.nfcCard.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        select: {
+          publicToken: true,
+          label: true,
+          status: true,
+          createdAt: true,
+          assignedProfile: { select: { displayName: true } },
+        },
+      }),
+      prisma.user.findMany({
+        where: { role: "CLIENT" },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: { name: true, email: true, status: true, createdAt: true },
+      }),
+      prisma.nfcCard.findMany({
+        where: { assignedProfileId: { not: null } },
+        select: {
+          publicToken: true,
+          assignedProfile: { select: { displayName: true } },
+          _count: { select: { scans: true } },
+        },
+      }),
+    ]);
+
+  const buckets = new Map<string, number>();
+  for (let i = days - 1; i >= 0; i -= 1) {
+    buckets.set(daysAgo(i).toISOString().slice(0, 10), 0);
+  }
+  for (const row of scanRows) {
+    const key = row.timestamp.toISOString().slice(0, 10);
+    if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
+  }
+
+  return {
+    trend: [...buckets.values()],
+    attention: { lost, suspended, invited, unlinked },
+    recentCards: recentCards.map((c) => ({
+      token: c.publicToken,
+      label: c.label,
+      status: c.status,
+      owner: c.assignedProfile?.displayName ?? null,
+      at: c.createdAt,
+    })),
+    recentClients: recentClients.map((u) => ({
+      name: u.name,
+      email: u.email,
+      status: u.status,
+      at: u.createdAt,
+    })),
+    topProfiles: topCards
+      .map((c) => ({
+        name: c.assignedProfile?.displayName ?? "Profil supprime",
+        token: c.publicToken,
+        scans: c._count.scans,
+      }))
+      .sort((a, b) => b.scans - a.scans)
+      .slice(0, 5),
+  };
+}

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { LinkManager } from "@/components/dashboard/link-manager";
-import { PageHeader } from "@/components/app/ui";
+import { PageBody, PageHeader } from "@/components/app/ui";
 
 export const metadata: Metadata = { title: "Liens" };
 
@@ -21,7 +21,9 @@ export default async function LinksPage() {
         title="Liens"
         description="Ajoutez, reordonnez et masquez vos liens. Un lien masque reste enregistre, il n apparait simplement plus sur le profil."
       />
-      <LinkManager links={profile?.links ?? []} />
+      <PageBody>
+        <LinkManager links={profile?.links ?? []} />
+      </PageBody>
     </>
   );
 }
