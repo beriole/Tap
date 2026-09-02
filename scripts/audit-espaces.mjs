@@ -55,7 +55,7 @@ console.log("--- Espace administrateur ---");
 const admin = await signIn(ADMIN_EMAIL, ADMIN_PASSWORD);
 ok("Un administrateur arrive dans le back-office", new URL(admin.url()).pathname.startsWith("/admin"), new URL(admin.url()).pathname);
 await screen(admin, "/admin", ["Dashboard", "Clients", "Cartes actives", "Scans"]);
-await screen(admin, "/admin/cards", ["Cartes NFC", "URL a encoder", "SEEDA23", "Creer un lot", "Generer"]);
+await screen(admin, "/admin/cards", ["Cartes NFC", "Token", "SEEDA23", "Creer un lot", "Generer"]);
 await screen(admin, "/admin/clients", [CLIENT_EMAIL, ADMIN_EMAIL]);
 await screen(admin, "/admin/analytics", ["Analytics"]);
 await screen(admin, "/admin/themes", ["Themes", "Executive", "Signal"]);
@@ -88,7 +88,7 @@ await screen(client, "/dashboard", ["Awa"]);
 }
 await screen(client, "/dashboard/links", ["WhatsApp", "LinkedIn", "Reserver un echange"]);
 await screen(client, "/dashboard/theme", ["Executive"]);
-await screen(client, "/dashboard/stats", ["Statistiques", "30 jours", "Clics par action", "Liens les plus utilises"]);
+await screen(client, "/dashboard/stats", ["Statistiques", "30 jours", "Ce que font les visiteurs", "Liens les plus utilises"]);
 await screen(client, "/dashboard/preview", ["Awa"]);
 await screen(client, "/dashboard/security", ["mot de passe"]);
 

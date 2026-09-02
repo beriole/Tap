@@ -15,14 +15,33 @@ const stamp = new Intl.DateTimeFormat("fr-FR", {
 });
 
 /**
- * Les actions du journal sont stockees en majuscules techniques
- * (CARD_SUSPEND, CLIENT_INVITE…). On les rend lisibles ici plutot que de
- * livrer le vocabulaire du code a l administrateur.
+ * Les actions du journal sont stockees en codes techniques - `card.assign`,
+ * `client.reset_access`. On les traduit ici plutot que de livrer le
+ * vocabulaire du code a l administrateur.
+ *
+ * Le code brut reste affiche a cote, en petit : c est lui qui sert quand il
+ * faut relier une ligne du journal a une trace serveur.
  */
+const ACTIONS: Record<string, string> = {
+  "card.assign": "Carte associee a un profil",
+  "card.unassign": "Carte detachee de son profil",
+  "card.status": "Etat d une carte modifie",
+  "card.batch": "Lot de cartes cree",
+  "client.create": "Compte client cree",
+  "client.suspend": "Acces client suspendu",
+  "client.reactivate": "Acces client retabli",
+  "client.reset_access": "Reinitialisation d acces envoyee",
+  "admin.create": "Compte administrateur cree",
+  "account.activated": "Compte active par son titulaire",
+  "account.password_changed": "Mot de passe change",
+  "account.password_reset": "Mot de passe reinitialise",
+};
+
 function readable(action: string): string {
+  if (ACTIONS[action]) return ACTIONS[action];
+  // Repli pour une action ajoutee sans etre traduite : lisible, jamais vide.
   return action
-    .toLowerCase()
-    .replace(/_/g, " ")
+    .replace(/[._]/g, " ")
     .replace(/^\w/, (c) => c.toUpperCase());
 }
 
@@ -89,8 +108,13 @@ export default async function AdminSettingsPage() {
                         {stamp.format(entry.createdAt)}
                       </span>
                     </span>
-                    <span className="mt-0.5 block truncate text-[0.78rem] text-[var(--muted)]">
-                      {entry.actor?.email ?? "systeme"}
+                    <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[0.78rem] text-[var(--muted)]">
+                      <span className="truncate">{entry.actor?.email ?? "systeme"}</span>
+                      {/* Le code brut reste lisible : c est lui qui relie une
+                          ligne du journal a une trace serveur. */}
+                      <span className="font-[family-name:var(--font-mono)] text-[0.7rem] opacity-70">
+                        {entry.action}
+                      </span>
                     </span>
                   </span>
                 </li>
