@@ -14,3 +14,9 @@ next-env.d.ts.bak
 /prisma/*.db
 coverage/
 .uploads/
+
+# Identifiants de deploiement — ne doit JAMAIS etre versionne
+.env.deploy
+
+# Secrets generes pour le deploiement — ne doit JAMAIS etre versionne
+.deploy-secrets
