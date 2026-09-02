@@ -31,8 +31,23 @@ npm run db:seed               # thèmes + admin + profil de démo (/c/SEEDA23)
 npm run dev
 ```
 
-Comptes créés par le seed : `admin@tap.exemple` (SUPERADMIN) et `demo@tap.exemple` (client).
-Les mots de passe sont ceux du `.env` — **à changer avant toute mise en ligne**.
+Le seed crée trois comptes et affiche les mots de passe générés une seule fois :
+
+| Compte | Rôle | Contenu |
+|---|---|---|
+| `SEED_ADMIN_EMAIL` (défaut `admin@tap.exemple`) | SUPERADMIN | propriétaire de la plateforme, sans profil |
+| `manager@tap.exemple` | ADMIN | profil complet + carte `/c/SEEDM47` — sert à montrer les deux espaces avec un seul login |
+| `demo@tap.exemple` | CLIENT | profil complet, 12 liens, thème, abonnement, carte `/c/SEEDA23` |
+
+Les mots de passe ne sont **jamais** écrits dans le dépôt. Fixez-les par
+`SEED_ADMIN_PASSWORD`, `SEED_STAFF_PASSWORD` et `SEED_DEMO_PASSWORD`, ou laissez
+le seed les tirer au hasard et notez ce qu'il affiche. Rejouer le seed ne change
+jamais un mot de passe existant.
+
+Le seed crée aussi soixante jours de scans et de clics **fictifs** sur les deux
+cartes de démonstration : sans eux, les pages Statistiques et Analytics sont des
+cadres vides, impossibles à juger. Poser `SEED_HISTORY=false` dès que la
+plateforme sert de vrais clients, pour que les chiffres agrégés restent exacts.
 
 ## Structure
 
@@ -97,17 +112,24 @@ En production, le serveur **refuse de démarrer** si `DATABASE_URL`,
 
 ## Vérification automatisée
 
-Trois audits pilotent un vrai navigateur et exercent les fonctions réelles —
+Quatre audits pilotent un vrai navigateur et exercent les fonctions réelles —
 pas seulement le fait que les pages répondent :
 
 ```bash
-npm run audit:vitrine                        # page d'accueil : liens, structure, responsive
-npm run audit:admin   admin@… motdepasse     # back-office : cartes, clients, audit
-npm run audit:parcours admin@… motdepasse    # parcours commercial de bout en bout
+npm run audit:vitrine                             # page d'accueil : liens, structure, responsive
+npm run audit:admin    admin@… mdp                # back-office : cartes, clients, journal d'audit
+npm run audit:espaces  admin@… mdp client@… mdp   # les deux espaces, écran par écran
+npm run audit:parcours admin@… mdp                # parcours commercial de bout en bout
 ```
 
-Le dernier va de la carte vierge au contact enregistré : création de carte,
-compte client, activation, profil, association, scan, vCard, suspension.
+`audit:espaces` est en **lecture seule** : il peut donc être lancé contre la
+production. Il vérifie que chaque écran des deux espaces *affiche* ce qu'il
+annonce — un 200 qui rend un cadre vide reste un échec —, que l'aiguillage
+après connexion mène chacun chez lui, et qu'un client ne voit ni n'atteint le
+back-office.
+
+`audit:parcours` va de la carte vierge au contact enregistré : création de
+carte, compte client, activation, profil, association, scan, vCard, suspension.
 **Il écrit dans la base visée** — jamais contre une production en service.
 
 ## À brancher avant production

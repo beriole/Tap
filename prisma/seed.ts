@@ -177,7 +177,9 @@ async function main() {
   const demoCreated = !(await prisma.user.findUnique({ where: { email: "demo@tap.exemple" } }));
   const demo = await prisma.user.upsert({
     where: { email: "demo@tap.exemple" },
-    update: { role: "CLIENT", status: "ACTIVE" },
+    // Le nom est mis a jour aussi : sans cela un compte deja cree gardait
+    // un libelle obsolete dans la barre laterale, different du profil public.
+    update: { name: "Awa Ndiaye", role: "CLIENT", status: "ACTIVE" },
     create: {
       email: "demo@tap.exemple",
       name: "Awa Ndiaye",
@@ -274,7 +276,7 @@ async function main() {
   const staffCreated = !(await prisma.user.findUnique({ where: { email: "manager@tap.exemple" } }));
   const staff = await prisma.user.upsert({
     where: { email: "manager@tap.exemple" },
-    update: { role: "ADMIN", status: "ACTIVE" },
+    update: { name: "Serge Mbala", role: "ADMIN", status: "ACTIVE" },
     create: {
       email: "manager@tap.exemple",
       name: "Serge Mbala",
