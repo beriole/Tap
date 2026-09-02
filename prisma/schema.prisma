@@ -1,0 +1,419 @@
+// Modele de donnees - Cahier des charges §10 "Modele de donnees principal"
+// PostgreSQL + Prisma (§8 stack retenue)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  VISITOR
+  CLIENT
+  ADMIN
+  SUPERADMIN
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+/// §5.6 - Etats d'une carte physique
+enum CardStatus {
+  UNASSIGNED
+  ACTIVE
+  SUSPENDED
+  LOST
+  REPLACED
+}
+
+/// §5.3 - Categories de liens natifs (la liste reste ouverte via CUSTOM)
+enum LinkType {
+  PHONE
+  WHATSAPP
+  EMAIL
+  TELEGRAM
+  MESSENGER
+  LINKEDIN
+  INSTAGRAM
+  FACEBOOK
+  TIKTOK
+  X
+  YOUTUBE
+  GITHUB
+  BEHANCE
+  DRIBBBLE
+  PORTFOLIO
+  RESUME
+  WEBSITE
+  SHOP
+  CATALOG
+  MENU
+  BOOKING
+  FORM
+  PAYMENT
+  MAPS
+  CUSTOM
+}
+
+enum ThemeMode {
+  LIGHT
+  DARK
+  AUTO
+}
+
+enum ButtonStyle {
+  SOLID
+  OUTLINE
+  PILL
+  ICON_TEXT
+}
+
+/// §15 - Actions tracees cote visiteur
+enum ClickAction {
+  LINK
+  CALL
+  WHATSAPP
+  EMAIL
+  VCARD
+  SHARE
+  COPY_LINK
+  QR
+  DIRECTIONS
+}
+
+enum PlanKey {
+  FREE
+  PREMIUM
+  BUSINESS
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+// ---------------------------------------------------------------------------
+// Comptes et authentification (§5.1)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  passwordHash  String?
+  name          String?
+  avatarUrl     String?
+  role          Role       @default(CLIENT)
+  status        UserStatus @default(INVITED)
+  emailVerified DateTime?
+  lastLoginAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  profiles     Profile[]
+  accounts     Account[]
+  sessions     Session[]
+  tokens       VerificationToken[]
+  subscription Subscription?
+  auditLogs    AuditLog[]          @relation("AuditActor")
+
+  @@index([role, status])
+}
+
+/// Comptes OAuth (Google/Apple - evolution §5.1)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Verification e-mail, invitation apres achat, reinitialisation de mot de passe
+model VerificationToken {
+  id         String   @id @default(cuid())
+  identifier String
+  token      String   @unique
+  purpose    String   @default("EMAIL_VERIFICATION")
+  expires    DateTime
+  userId     String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Profil public (§5.2)
+// ---------------------------------------------------------------------------
+
+model Profile {
+  id          String  @id @default(cuid())
+  userId      String
+  slug        String? @unique // reserve : URL vanity / domaine personnalise (§21)
+  isPublished Boolean @default(false)
+
+  // Identite
+  displayName String
+  firstName   String?
+  lastName    String?
+  title       String?
+  company     String?
+  tagline     String?
+  bio         String?
+
+  // Contact
+  phone       String?
+  whatsapp    String?
+  emailPublic String?
+  website     String?
+
+  // Adresse / localisation
+  address String?
+  city    String?
+  country String?
+  lat     Float?
+  lng     Float?
+  mapUrl  String?
+
+  // Medias
+  avatarUrl String?
+  coverUrl  String?
+  logoUrl   String?
+
+  // Presentation
+  introText    String?
+  availability String?
+  ctaLabel     String?
+  ctaUrl       String?
+
+  /// §5.2 "Visibilite" : afficher/masquer chaque champ ou bloc individuellement.
+  /// Forme : { "phone": true, "address": false, "bio": true, ... }
+  fieldVisibility Json @default("{}")
+
+  /// §13 - indexation configurable
+  seoIndexable Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  links  ProfileLink[]
+  theme  ProfileTheme?
+  cards  NfcCard[]
+  clicks ClickEvent[]
+
+  @@index([userId])
+}
+
+/// §5.3 - Liens dynamiques : type, titre, valeur, icone, position, visibilite, style
+model ProfileLink {
+  id        String   @id @default(cuid())
+  profileId String
+  type      LinkType
+  label     String
+  /// Sous-titre affiche sous le libelle par les themes en pilules
+  /// ("Ecrivez-moi", "Send me an intro!"). Facultatif : a defaut, le theme
+  /// retombe sur le sous-titre standard du type de lien.
+  description String?
+  /// URL HTTPS validee, ou valeur brute pour tel:/mailto:/wa.me (§11)
+  value     String
+  icon      String?
+  color     String?
+  style     ButtonStyle?
+  position  Int      @default(0)
+  isVisible Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  clicks  ClickEvent[]
+
+  @@index([profileId, position])
+}
+
+// ---------------------------------------------------------------------------
+// Cartes NFC (§5.6, §14)
+// ---------------------------------------------------------------------------
+
+model NfcCard {
+  id String @id @default(cuid())
+
+  /// Jeton public aleatoire non sequentiel, ex. A7K2M9Q (§5.6, §12)
+  publicToken String     @unique
+  /// Empreinte optionnelle de l'UID de la puce, jamais l'UID en clair
+  uidHash     String?    @unique
+  status      CardStatus @default(UNASSIGNED)
+  batch       String?
+  label       String?
+  notes       String?
+
+  assignedProfileId String?
+  activatedAt       DateTime?
+  suspendedAt       DateTime?
+  replacedByCardId  String?   @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignedProfile Profile?    @relation(fields: [assignedProfileId], references: [id], onDelete: SetNull)
+  replacedBy      NfcCard?    @relation("CardReplacement", fields: [replacedByCardId], references: [id])
+  replaces        NfcCard?    @relation("CardReplacement")
+  scans           ScanEvent[]
+
+  @@index([status])
+  @@index([assignedProfileId])
+}
+
+// ---------------------------------------------------------------------------
+// Themes (§6, §17)
+// ---------------------------------------------------------------------------
+
+/// Un theme = un composant de rendu independant. La base ne stocke que la cle
+/// et des options validees, jamais du HTML libre (§17).
+model Theme {
+  id           String    @id @default(cuid())
+  key          String    @unique // "minimal", "executive", "creator", ...
+  name         String
+  category     String?
+  description  String?
+  previewUrl   String?
+  /// Schema JSON des options acceptees par le theme (variantes, palettes autorisees)
+  configSchema Json      @default("{}")
+  allowedPlans PlanKey[] @default([FREE])
+  position     Int       @default(0)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  profileThemes ProfileTheme[]
+}
+
+model ProfileTheme {
+  id          String      @id @default(cuid())
+  profileId   String      @unique
+  themeId     String
+  accentColor String      @default("#2563EB")
+  mode        ThemeMode   @default(LIGHT)
+  variant     String?
+  fontPair    String?
+  buttonStyle ButtonStyle @default(SOLID)
+  /// Options specifiques au theme, validees contre Theme.configSchema
+  customConfig Json       @default("{}")
+  updatedAt    DateTime   @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  theme   Theme   @relation(fields: [themeId], references: [id])
+
+  @@index([themeId])
+}
+
+// ---------------------------------------------------------------------------
+// Statistiques - donnees minimisees (§12, §15)
+// ---------------------------------------------------------------------------
+
+model ScanEvent {
+  id           String   @id @default(cuid())
+  cardId       String
+  timestamp    DateTime @default(now())
+  coarseDevice String? // "ios" | "android" | "other"
+  referrer     String?
+  country      String?
+  region       String?
+  source       String   @default("NFC") // NFC | QR | LINK
+
+  card NfcCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([cardId, timestamp])
+}
+
+model ClickEvent {
+  id        String      @id @default(cuid())
+  profileId String
+  linkId    String?
+  action    ClickAction
+  timestamp DateTime    @default(now())
+
+  profile Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  link    ProfileLink? @relation(fields: [linkId], references: [id], onDelete: SetNull)
+
+  @@index([profileId, timestamp])
+  @@index([linkId])
+}
+
+// ---------------------------------------------------------------------------
+// Offres - phase ulterieure (§18 P2)
+// ---------------------------------------------------------------------------
+
+model Subscription {
+  id        String             @id @default(cuid())
+  userId    String             @unique
+  plan      PlanKey            @default(FREE)
+  status    SubscriptionStatus @default(ACTIVE)
+  renewalAt DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Journal d'audit des operations admin sensibles (§12)
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String // "card.assign", "user.suspend", "theme.disable", ...
+  targetType String?
+  targetId   String?
+  metadata   Json     @default("{}")
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([targetType, targetId])
+}
+
+/// Parametres globaux de la plateforme (§16 - Parametres)
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
