@@ -23,10 +23,14 @@ const stamp = new Intl.DateTimeFormat("fr-FR", {
  * faut relier une ligne du journal a une trace serveur.
  */
 const ACTIONS: Record<string, string> = {
+  "card.batch.create": "Lot de cartes genere",
   "card.assign": "Carte associee a un profil",
   "card.unassign": "Carte detachee de son profil",
-  "card.status": "Etat d une carte modifie",
-  "card.batch": "Lot de cartes cree",
+  "card.status.active": "Carte activee",
+  "card.status.suspended": "Carte suspendue",
+  "card.status.lost": "Carte declaree perdue",
+  "card.status.replaced": "Carte remplacee",
+  "card.status.unassigned": "Carte remise en stock",
   "client.create": "Compte client cree",
   "client.suspend": "Acces client suspendu",
   "client.reactivate": "Acces client retabli",

@@ -161,7 +161,9 @@ try {
   // --- Journal d audit -----------------------------------------------------
   await page.goto(`${BASE}/admin/settings`, { waitUntil: "networkidle0" });
   const auditLines = await page.evaluate(
-    () => document.body.innerText.match(/client\.|card\./g)?.length ?? 0,
+    // Le journal affiche desormais un libelle francais ; le code technique
+    // reste imprime a cote, et c est lui qu on compte.
+    () => document.body.innerText.match(/\b(client|card|account|admin)\.[a-z_.]+/g)?.length ?? 0,
   );
   record("Operations tracees dans le journal d audit", auditLines > 0, `${auditLines} entree(s) visibles`);
 } finally {
