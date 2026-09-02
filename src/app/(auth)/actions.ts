@@ -16,6 +16,9 @@ export type LoginState = { error: string | null };
  * La version precedente renvoyait vers /login?error=credentials sans rien
  * afficher : l utilisateur voyait la page se recharger, vide, et concluait que
  * le bouton ne marchait pas.
+ *
+ * La destination est /post-login, qui lit le role et renvoie vers /admin ou
+ * /dashboard : ici, on ne sait pas encore qui se connecte.
  */
 export async function login(_prev: LoginState, formData: FormData): Promise<LoginState> {
   const email = String(formData.get("email") ?? "").trim();
@@ -26,7 +29,7 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   }
 
   try {
-    await signIn("credentials", { email, password, redirectTo: "/dashboard" });
+    await signIn("credentials", { email, password, redirectTo: "/post-login" });
     return { error: null };
   } catch (error) {
     if (error instanceof AuthError) {

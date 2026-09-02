@@ -93,6 +93,20 @@ export function AppShell({
   const isActive = (item: NavItem) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
 
+  /**
+   * Passerelle entre les deux espaces.
+   *
+   * Un administrateur possede lui aussi une carte : il a donc besoin des deux
+   * cotes. Sans ce lien, arrive dans l un il n avait aucun moyen d apprendre
+   * que l autre existait - le back-office etait invisible depuis l interieur
+   * du produit.
+   */
+  const isStaff = user.role === "ADMIN" || user.role === "SUPERADMIN";
+  const crossSpace: NavItem =
+    space === "admin"
+      ? { href: "/dashboard", label: "Mon espace client", icon: User }
+      : { href: "/admin", label: "Administration", icon: Shield };
+
   return (
     <div className="min-h-dvh bg-[var(--surface)]">
       {/* Colonne fixe - ecrans larges */}
@@ -123,6 +137,17 @@ export function AppShell({
             </Link>
           ))}
         </nav>
+
+        {isStaff && (
+          <Link
+            href={crossSpace.href}
+            className="mb-3 flex items-center gap-3 rounded-xl border border-[var(--brand-copper)]/30 bg-[var(--brand-copper)]/10 px-3 py-2.5 text-[0.82rem] text-[var(--brand-copper)] transition-colors hover:bg-[var(--brand-copper)]/20"
+          >
+            <crossSpace.icon className="size-[1.05rem] shrink-0" />
+            <span className="flex-1">{crossSpace.label}</span>
+            <LinkSpinner />
+          </Link>
+        )}
 
         <div className="border-t border-white/8 pt-3">
           <div className="flex items-center gap-2.5 px-2 py-2">
@@ -157,15 +182,27 @@ export function AppShell({
             Tap
           </span>
         </Link>
-        <form action={logout}>
-          <button
-            type="submit"
-            aria-label="Se deconnecter"
-            className="flex size-9 items-center justify-center rounded-lg text-[var(--muted)]"
-          >
-            <LogOut className="size-4" />
-          </button>
-        </form>
+        <div className="flex items-center gap-1">
+          {isStaff && (
+            <Link
+              href={crossSpace.href}
+              aria-label={crossSpace.label}
+              className="flex h-9 items-center gap-1.5 rounded-lg border border-[var(--brand-copper)]/30 bg-[var(--brand-copper)]/10 px-2.5 text-[0.72rem] font-medium text-[var(--brand-copper-deep)]"
+            >
+              <crossSpace.icon className="size-3.5" />
+              {space === "admin" ? "Ma carte" : "Admin"}
+            </Link>
+          )}
+          <form action={logout}>
+            <button
+              type="submit"
+              aria-label="Se deconnecter"
+              className="flex size-9 items-center justify-center rounded-lg text-[var(--muted)]"
+            >
+              <LogOut className="size-4" />
+            </button>
+          </form>
+        </div>
       </header>
 
       <main className="px-4 pb-28 pt-6 sm:px-6 lg:ml-60 lg:px-10 lg:pb-14 lg:pt-10">
