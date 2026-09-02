@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { THEMES } from "../src/config/themes";
@@ -54,6 +55,12 @@ async function main() {
   console.log(`Administrateur : ${adminEmail}`);
 
   // 3. Client de demonstration + carte active ----------------------------
+  //
+  // Le mot de passe n est JAMAIS ecrit en dur : ce fichier est versionne, et
+  // un compte de demonstration reste un compte reel sur l instance publiee.
+  // Sans SEED_DEMO_PASSWORD, on en tire un au hasard et on l affiche une fois.
+  const demoPassword =
+    process.env.SEED_DEMO_PASSWORD ?? `Demo${randomBytes(9).toString("base64url")}9A`;
   const demo = await prisma.user.upsert({
     where: { email: "demo@tap.exemple" },
     update: {},
@@ -63,7 +70,7 @@ async function main() {
       role: "CLIENT",
       status: "ACTIVE",
       emailVerified: new Date(),
-      passwordHash: await bcrypt.hash("Demo!2026Demo", 12),
+      passwordHash: await bcrypt.hash(demoPassword, 12),
     },
   });
 
@@ -131,6 +138,9 @@ async function main() {
   });
 
   console.log(`Profil de demonstration accessible sur /c/${card.publicToken}`);
+  if (!process.env.SEED_DEMO_PASSWORD) {
+    console.log(`Mot de passe du compte de demonstration : ${demoPassword}`);
+  }
 }
 
 main()
