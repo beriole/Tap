@@ -19,7 +19,8 @@
     "audit:vitrine": "node scripts/audit-vitrine.mjs",
     "audit:admin": "node scripts/audit-admin.mjs",
     "audit:parcours": "node scripts/audit-parcours.mjs",
-    "audit:espaces": "node scripts/audit-espaces.mjs"
+    "audit:espaces": "node scripts/audit-espaces.mjs",
+    "audit:partages": "node scripts/audit-partages.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
