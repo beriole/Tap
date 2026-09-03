@@ -34,7 +34,7 @@ export function ThemeExecutive({ profile, preview }: ThemeProps) {
             alt=""
             fill
             priority
-            sizes="100vw"
+            sizes="50vw"
             className="object-cover opacity-35"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#080b14]/60 to-[#080b14]" />

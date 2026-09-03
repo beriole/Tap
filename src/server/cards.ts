@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { generateCardToken } from "@/lib/tokens";
 import { cardUrl } from "@/config/site";
 import { writeAudit } from "@/server/audit";
+import { revalidateCard } from "@/server/card-resolution";
 
 /** §14 - creation d un lot puis encodage NDEF des URL generees. */
 export async function createCardBatch(input: {
@@ -62,6 +63,8 @@ export async function assignCard(input: {
     metadata: { profileId: input.profileId },
   });
 
+  revalidateCard(card.publicToken);
+
   return card;
 }
 
@@ -90,6 +93,8 @@ export async function setCardStatus(input: {
     targetId: card.id,
     metadata: { notes: input.notes ?? null },
   });
+
+  revalidateCard(card.publicToken);
 
   return card;
 }

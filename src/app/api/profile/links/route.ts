@@ -1,3 +1,4 @@
+import { revalidateProfileCards } from "@/server/card-resolution";
 import { NextResponse } from "next/server";
 import type { LinkType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
     },
   });
 
+  await revalidateProfileCards(profileId);
   return NextResponse.json({ link }, { status: 201 });
 }
 
@@ -57,7 +59,7 @@ export async function PATCH(request: Request) {
   const { id, ...data } = parsed.data;
   const owned = await prisma.profileLink.findFirst({
     where: { id, profile: { userId: user.id } },
-    select: { id: true, type: true },
+    select: { id: true, type: true, profileId: true },
   });
   if (!owned) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
 
@@ -74,6 +76,7 @@ export async function PATCH(request: Request) {
     where: { id },
     data: { ...data, type: data.type as LinkType | undefined },
   });
+  await revalidateProfileCards(owned.profileId);
   return NextResponse.json({ link });
 }
 
@@ -90,10 +93,11 @@ export async function DELETE(request: Request) {
 
   const owned = await prisma.profileLink.findFirst({
     where: { id, profile: { userId: user.id } },
-    select: { id: true },
+    select: { id: true, profileId: true },
   });
   if (!owned) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
 
   await prisma.profileLink.delete({ where: { id } });
+  await revalidateProfileCards(owned.profileId);
   return new NextResponse(null, { status: 204 });
 }

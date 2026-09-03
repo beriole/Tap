@@ -21,6 +21,28 @@ export function isValidCardToken(token: string): boolean {
   return new RegExp(`^[${ALPHABET}]{6,12}$`).test(token);
 }
 
+/**
+ * Jeton d un lien de partage restreint (§ liens par niveau).
+ *
+ * Volontairement EN MINUSCULES et plus long que celui d une carte : les deux
+ * cohabitent dans les memes routes publiques (vCard, QR), et l oeil comme le
+ * code doivent pouvoir les distinguer sans ambiguite. Un jeton de carte se lit
+ * A7K2M9Q, un lien de partage se lit k3m9pq7rst.
+ *
+ * Dix caracteres sur 31 symboles : personne ne devine le lien d une ceremonie.
+ */
+const SHARE_ALPHABET = ALPHABET.toLowerCase();
+
+export function generateShareSlug(length = 10): string {
+  let out = "";
+  for (let i = 0; i < length; i += 1) out += SHARE_ALPHABET[randomInt(SHARE_ALPHABET.length)];
+  return out;
+}
+
+export function isValidShareSlug(slug: string): boolean {
+  return new RegExp(`^[${SHARE_ALPHABET}]{8,16}$`).test(slug);
+}
+
 /** Jetons opaques pour invitation, verification e-mail et reinitialisation. */
 export function generateSecureToken(bytes = 32): string {
   return randomBytes(bytes).toString("base64url");

@@ -35,7 +35,7 @@ export function ThemeAurora({ profile, preview }: ThemeProps) {
           alt=""
           fill
           priority
-          sizes="100vw"
+          sizes="25vw"
           className="scale-110 object-cover opacity-45 blur-2xl"
         />
       )}

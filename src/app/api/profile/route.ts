@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { profileSchema } from "@/lib/validations/profile";
-import { siteConfig } from "@/config/site";
+import { revalidateProfileCards } from "@/server/card-resolution";
 
 /** GET : profil du client connecte (jamais celui d un autre - §12, §20). */
 export async function GET() {
@@ -42,13 +41,7 @@ export async function PUT(request: Request) {
     ? await prisma.profile.update({ where: { id: existing.id }, data })
     : await prisma.profile.create({ data });
 
-  const cards = await prisma.nfcCard.findMany({
-    where: { assignedProfileId: profile.id },
-    select: { publicToken: true },
-  });
-  for (const card of cards) {
-    revalidatePath(`${siteConfig.cardPath}/${card.publicToken}`);
-  }
+  await revalidateProfileCards(profile.id);
 
   return NextResponse.json({ profile });
 }

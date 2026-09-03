@@ -35,7 +35,7 @@ export function ThemeOnyx({ profile, preview }: ThemeProps) {
             alt=""
             fill
             priority
-            sizes="100vw"
+            sizes="50vw"
             className="object-cover opacity-30"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0A0A0C]/70 to-[#0A0A0C]" />

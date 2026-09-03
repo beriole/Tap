@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { reorderSchema } from "@/lib/validations/link";
+import { revalidateProfileCards } from "@/server/card-resolution";
 
 /** §6.2 - "Ordre des liens par glisser-deposer." Ecriture atomique. */
 export async function PUT(request: Request) {
@@ -13,7 +14,7 @@ export async function PUT(request: Request) {
 
   const owned = await prisma.profileLink.findMany({
     where: { id: { in: parsed.data.order }, profile: { userId: user.id } },
-    select: { id: true },
+    select: { id: true, profileId: true },
   });
   if (owned.length !== parsed.data.order.length) {
     return NextResponse.json({ error: "Liens invalides" }, { status: 403 });
@@ -24,6 +25,8 @@ export async function PUT(request: Request) {
       prisma.profileLink.update({ where: { id }, data: { position } }),
     ),
   );
+
+  await revalidateProfileCards(owned[0].profileId);
 
   return new NextResponse(null, { status: 204 });
 }

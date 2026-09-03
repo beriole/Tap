@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { deleteObject, putObject, storageDriver } from "@/lib/storage";
+import { revalidateProfileCards } from "@/server/card-resolution";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/avif"];
@@ -67,6 +68,8 @@ export async function POST(request: Request) {
   if (previous && previous !== stored.url) {
     await deleteObject(previous);
   }
+
+  await revalidateProfileCards(profile.id);
 
   return NextResponse.json({ url: stored.url, driver: storageDriver() });
 }

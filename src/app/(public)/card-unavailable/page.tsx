@@ -9,6 +9,10 @@ const MESSAGES: Record<string, string> = {
   suspended: "Cette carte a ete desactivee par son proprietaire.",
   unassigned: "Cette carte n est pas encore associee a un profil.",
   unpublished: "Ce profil n est pas encore publie.",
+  // Liens de partage restreints : meme page neutre, meme discretion. On ne
+  // dit jamais de QUI il s agissait.
+  disabled: "Ce lien de partage a ete desactive par son proprietaire.",
+  expired: "Ce lien de partage a expire.",
 };
 
 /**

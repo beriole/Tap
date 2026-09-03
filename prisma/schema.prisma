@@ -232,10 +232,11 @@ model Profile {
   updatedAt DateTime @updatedAt
 
   user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  links  ProfileLink[]
-  theme  ProfileTheme?
-  cards  NfcCard[]
-  clicks ClickEvent[]
+  links      ProfileLink[]
+  theme      ProfileTheme?
+  cards      NfcCard[]
+  clicks     ClickEvent[]
+  shareLinks ShareLink[]
 
   @@index([userId])
 }
@@ -321,6 +322,58 @@ model Theme {
   updatedAt    DateTime  @updatedAt
 
   profileThemes ProfileTheme[]
+  shareLinks    ShareLink[]
+}
+
+/// Lien de partage restreint : une vue partielle du profil, sous sa propre
+/// adresse et son propre habillage.
+///
+/// La carte NFC porte l identite complete et son URL ne change jamais. Il
+/// existe pourtant des situations - une ceremonie, un salon, un premier
+/// contact commercial - ou l on ne veut donner qu une partie de soi. Plutot
+/// que de modifier le profil avant et apres chaque occasion, on cree un lien
+/// qui n expose que ce qu on a choisi.
+///
+/// Les donnees ne sont jamais dupliquees : le lien ne stocke qu un masque.
+/// Corriger son numero de telephone le corrige partout, du meme geste.
+model ShareLink {
+  id        String @id @default(cuid())
+  profileId String
+  /// Jeton public en minuscules, distinct des jetons de carte (§tokens.ts)
+  slug      String @unique
+  /// Nom donne par le client : "Ceremonie", "Salon de Douala"
+  label     String
+  /// Memo prive, jamais expose au visiteur
+  note      String?
+
+  /// Champs exposes, meme forme que Profile.fieldVisibility.
+  /// ATTENTION : ici la logique est INVERSEE par rapport au profil. Un champ
+  /// absent est MASQUE. Un lien restreint n expose que ce qui a ete coche
+  /// explicitement - un champ ajoute plus tard au produit ne peut donc pas
+  /// apparaitre tout seul dans un partage deja distribue.
+  fieldVisibility Json @default("{}")
+
+  /// Identifiants des ProfileLink exposes. Liste vide = aucun lien affiche.
+  linkIds String[]
+
+  // Habillage propre au lien. Tout est facultatif : a defaut, celui du profil.
+  themeId     String?
+  accentColor String?
+  mode        ThemeMode?
+  buttonStyle ButtonStyle?
+
+  isActive  Boolean   @default(true)
+  /// Un lien de circonstance peut expirer de lui-meme
+  expiresAt DateTime?
+  views     Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  theme   Theme?  @relation(fields: [themeId], references: [id], onDelete: SetNull)
+
+  @@index([profileId])
 }
 
 model ProfileTheme {

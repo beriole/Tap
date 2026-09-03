@@ -35,7 +35,7 @@ export function ThemeAtelier({ profile, preview }: ThemeProps) {
             alt=""
             fill
             priority
-            sizes="100vw"
+            sizes="50vw"
             className="object-cover opacity-40"
           />
         )}

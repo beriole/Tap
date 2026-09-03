@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
 import { generateSecureToken } from "@/lib/tokens";
 import { writeAudit } from "@/server/audit";
+import { revalidateProfileCards } from "@/server/card-resolution";
 
 /**
  * §16 - Clients : creer, suspendre, reactiver, reinitialiser l acces.
@@ -142,6 +143,12 @@ export async function PATCH(request: Request) {
   if (status === "SUSPENDED") {
     await prisma.session.deleteMany({ where: { userId: target.id } });
   }
+
+  const profiles = await prisma.profile.findMany({
+    where: { userId: target.id },
+    select: { id: true },
+  });
+  for (const profile of profiles) await revalidateProfileCards(profile.id);
 
   await writeAudit({
     actorId: admin.id,

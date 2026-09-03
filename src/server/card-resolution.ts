@@ -1,6 +1,8 @@
 import "server-only";
 import { cache } from "react";
+import { revalidateTag, unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { cardTag, shareTag } from "@/lib/cache-tags";
 import { cardUrl } from "@/config/site";
 import { LINK_TYPES } from "@/config/link-types";
 import { LINK_SUBTITLES } from "@/config/brand";
@@ -19,14 +21,50 @@ import type { CardResolution, PublicLink, PublicProfile, ThemeKey } from "@/type
  *    contenu (on ne charge donc meme pas le profil dans ce cas) ;
  *  - un lien masque reste en base mais n est jamais serialise vers le public.
  */
+
+/**
+ * Chargement de la carte et de son profil.
+ *
+ * UNE seule requete, et non deux enchainees. Le scan est le moment qui compte :
+ * deux allers-retours SQL sequentiels coutaient une centaine de millisecondes
+ * pendant que deux personnes attendent, la carte encore en main.
+ *
+ * Le resultat est mis en cache et n est relu en base qu apres invalidation
+ * explicite : un scan ne touche donc plus la base du tout pour s afficher.
+ * L enregistrement du scan, lui, reste cote serveur - il se produit APRES la
+ * reponse (`after`), donc il ne retarde rien et aucun bloqueur de scripts ne
+ * peut le faire disparaitre des statistiques.
+ */
+function loadCard(token: string) {
+  return unstable_cache(
+    async () =>
+      prisma.nfcCard.findUnique({
+        where: { publicToken: token },
+        select: {
+          id: true,
+          status: true,
+          assignedProfileId: true,
+          assignedProfile: {
+            include: {
+              user: { select: { status: true } },
+              theme: { include: { theme: true } },
+              links: { where: { isVisible: true }, orderBy: { position: "asc" } },
+            },
+          },
+        },
+      }),
+    ["card-resolution", token],
+    // Une heure de filet de securite : meme si une invalidation etait
+    // manquee un jour, la carte se remettrait a jour d elle-meme.
+    { tags: [cardTag(token)], revalidate: 3600 },
+  )();
+}
+
 export const resolveCard = cache(async (rawToken: string): Promise<CardResolution> => {
   const token = rawToken.trim().toUpperCase();
   if (!isValidCardToken(token)) return { ok: false, reason: "NOT_FOUND", status: null };
 
-  const card = await prisma.nfcCard.findUnique({
-    where: { publicToken: token },
-    select: { id: true, status: true, assignedProfileId: true },
-  });
+  const card = await loadCard(token);
 
   if (!card) return { ok: false, reason: "NOT_FOUND", status: null };
   if (card.status === "SUSPENDED" || card.status === "LOST" || card.status === "REPLACED") {
@@ -36,21 +74,40 @@ export const resolveCard = cache(async (rawToken: string): Promise<CardResolutio
     return { ok: false, reason: "UNASSIGNED", status: card.status };
   }
 
-  const profile = await prisma.profile.findUnique({
-    where: { id: card.assignedProfileId },
-    include: {
-      user: { select: { status: true } },
-      theme: { include: { theme: true } },
-      links: { where: { isVisible: true }, orderBy: { position: "asc" } },
-    },
-  });
-
+  const profile = card.assignedProfile;
   if (!profile || !profile.isPublished || profile.user.status === "SUSPENDED") {
     return { ok: false, reason: "UNPUBLISHED", status: card.status };
   }
 
   return { ok: true, cardId: card.id, profile: toPublicProfile(profile, token) };
 });
+
+/** Invalide une carte precise (changement d etat, d association). */
+export function revalidateCard(token: string) {
+  revalidateTag(cardTag(token));
+}
+
+/**
+ * Invalide toutes les cartes qui pointent vers un profil.
+ *
+ * La recherche des jetons se fait ici, dans le chemin d ECRITURE, ou une
+ * requete de plus ne coute rien a personne. La lecture, elle, reste a zero
+ * requete.
+ */
+export async function revalidateProfileCards(profileId: string) {
+  const [cards, shares] = await Promise.all([
+    prisma.nfcCard.findMany({
+      where: { assignedProfileId: profileId },
+      select: { publicToken: true },
+    }),
+    // Les liens de partage montrent les memes donnees derriere un masque :
+    // les oublier ici laisserait un ancien numero visible dans un partage
+    // deja remis a quelqu un.
+    prisma.shareLink.findMany({ where: { profileId }, select: { slug: true } }),
+  ]);
+  for (const card of cards) revalidateTag(cardTag(card.publicToken));
+  for (const share of shares) revalidateTag(shareTag(share.slug));
+}
 
 type ProfileWithRelations = Awaited<ReturnType<typeof loadProfile>>;
 async function loadProfile(id: string) {
@@ -65,6 +122,28 @@ async function loadProfile(id: string) {
 }
 
 /**
+ * Restriction appliquee par-dessus le profil, pour un lien de partage.
+ *
+ * Le masque ne remplace pas les donnees : il decide, champ par champ, de ce
+ * qui sort. Un seul mapper sert donc la carte et le partage restreint - le
+ * jour ou un champ change de forme, il ne change qu a un endroit.
+ */
+export type ProfileOverlay = {
+  /** Renvoie true si le champ doit sortir. */
+  allow: (key: string) => boolean;
+  /** Identifiants des liens autorises ; null = tous les liens visibles. */
+  linkIds: Set<string> | null;
+  /** Adresse publique de cette vue, si elle differe de celle de la carte. */
+  canonicalUrl?: string;
+  theme?: {
+    key: ThemeKey;
+    accentColor: string | null;
+    mode: PublicProfile["theme"]["mode"] | null;
+    buttonStyle: PublicProfile["theme"]["buttonStyle"] | null;
+  };
+};
+
+/**
  * §17 - "Tous les themes recoivent le meme objet de donnees normalise."
  * Ce mapper est le seul endroit ou le schema Prisma touche la couche de rendu :
  * changer de theme ne change donc jamais la structure des donnees.
@@ -72,14 +151,18 @@ async function loadProfile(id: string) {
 export function toPublicProfile(
   profile: NonNullable<ProfileWithRelations>,
   cardToken: string,
+  overlay?: ProfileOverlay,
 ): PublicProfile {
   const visibility = (profile.fieldVisibility ?? {}) as Record<string, boolean>;
-  const shown = (key: string) => visibility[key] !== false;
+  // Sur le profil, un champ non renseigne est VISIBLE par defaut.
+  // Sur un lien restreint, il est MASQUE : c est une liste d autorisation.
+  const shown = overlay ? overlay.allow : (key: string) => visibility[key] !== false;
 
   // flatMap plutot que map + filter : une URL rejetee par sanitizeHref (§11)
   // disparait simplement du profil public, sans etape de narrowing.
   const links: PublicLink[] = profile.links
     .filter((l) => l.isVisible)
+    .filter((l) => !overlay?.linkIds || overlay.linkIds.has(l.id))
     .flatMap((l) => {
       const def = LINK_TYPES[l.type];
       const checked = sanitizeHref(def ? def.toHref(l.value) : l.value);
@@ -99,14 +182,18 @@ export function toPublicProfile(
       ];
     });
 
-  const themeKey = (profile.theme?.theme.key ?? "minimal") as ThemeKey;
+  // Le lien de partage peut porter son propre habillage ; a defaut il herite
+  // de celui du profil, comme n importe quel scan de carte.
+  const themeKey = (overlay?.theme?.key ?? profile.theme?.theme.key ?? "minimal") as ThemeKey;
   const definition = getThemeDefinition(themeKey) ?? THEMES[0];
 
   return {
     id: profile.id,
     cardToken,
-    canonicalUrl: cardUrl(cardToken),
-    seoIndexable: profile.seoIndexable,
+    canonicalUrl: overlay?.canonicalUrl ?? cardUrl(cardToken),
+    // Une vue restreinte n a rien a faire dans un moteur de recherche : elle
+    // a ete creee pour etre donnee a quelqu un, pas pour etre trouvee.
+    seoIndexable: overlay ? false : profile.seoIndexable,
 
     identity: {
       displayName: profile.displayName,
@@ -148,11 +235,12 @@ export function toPublicProfile(
 
     theme: {
       key: themeKey,
-      accentColor: profile.theme?.accentColor ?? definition.defaultAccent,
-      mode: profile.theme?.mode ?? definition.defaultMode,
+      accentColor:
+        overlay?.theme?.accentColor ?? profile.theme?.accentColor ?? definition.defaultAccent,
+      mode: overlay?.theme?.mode ?? profile.theme?.mode ?? definition.defaultMode,
       variant: profile.theme?.variant ?? null,
       fontPair: profile.theme?.fontPair ?? null,
-      buttonStyle: profile.theme?.buttonStyle ?? "SOLID",
+      buttonStyle: overlay?.theme?.buttonStyle ?? profile.theme?.buttonStyle ?? "SOLID",
       customConfig: (profile.theme?.customConfig ?? {}) as Record<string, unknown>,
     },
   };

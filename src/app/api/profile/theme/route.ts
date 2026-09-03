@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { profileThemeSchema } from "@/lib/validations/theme";
+import { revalidateProfileCards } from "@/server/card-resolution";
 
 /**
  * §20 - "Le changement de theme conserve toutes les informations et tous les
@@ -37,6 +38,8 @@ export async function PUT(request: Request) {
     create: { profileId: profile.id, themeId: theme.id, ...settings },
     update: { themeId: theme.id, ...settings },
   });
+
+  await revalidateProfileCards(profile.id);
 
   return NextResponse.json({ theme: saved });
 }
