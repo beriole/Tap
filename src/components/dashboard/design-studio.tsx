@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowUpRight, Check, Loader2, Maximize2, X } from "lucide-react";
 import {
+  FAMILIES,
   PREMIUM_ENGINES,
   SHAPES,
+  type EngineFamily,
   type PhotoFocus,
   type PremiumEngine,
   type PremiumShape,
@@ -65,6 +67,8 @@ export function DesignStudio({
   const [fullscreen, setFullscreen] = useState<PremiumEngine | null>(null);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [family, setFamily] = useState<EngineFamily | "all">("all");
+  const shown = PREMIUM_ENGINES.filter((e) => family === "all" || e.family === family);
 
   const engine = PREMIUM_ENGINES.find((e) => e.key === draft.engine)!;
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved) || isLegacy;
@@ -130,19 +134,47 @@ export function DesignStudio({
     <div className="space-y-10">
       {isLegacy && (
         <p className="rounded-2xl border border-[var(--state-warn)]/25 bg-[var(--state-warn-bg)] px-4 py-3 text-[0.85rem] text-[var(--state-warn)]">
-          Votre carte utilise encore un design de l’ancienne collection. Choisissez l’un des trois
+          Votre carte utilise encore un design de l’ancienne collection. Choisissez l’un des douze
           designs ci-dessous : vos informations et vos liens restent exactement les mêmes.
         </p>
       )}
 
       {/* ------------------------------------------ 1. Choisir une direction */}
       <section>
-        <SectionTitle hint="Avec vos propres informations">Trois designs</SectionTitle>
-        <ul className="-mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-2 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0">
-          {PREMIUM_ENGINES.map((e) => {
+        <SectionTitle hint="Avec vos propres informations">Douze designs</SectionTitle>
+
+        {/* Douze designs se choisissent mieux par intention que par defilement. */}
+        <div role="tablist" aria-label="Familles de designs" className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0">
+          {[{ key: "all" as const, label: "Tous" }, ...FAMILIES].map((f) => {
+            const count =
+              f.key === "all" ? PREMIUM_ENGINES.length : PREMIUM_ENGINES.filter((e) => e.family === f.key).length;
+            const on = family === f.key;
+            return (
+              <button
+                key={f.key}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                onClick={() => setFamily(f.key)}
+                className={cn(
+                  "flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[0.8rem] font-medium transition-colors duration-200",
+                  on
+                    ? "border-[var(--brand-ink)] bg-[var(--brand-ink)] text-[var(--brand-paper)]"
+                    : "border-[var(--console-hairline)] bg-[var(--console-card)] hover:border-[var(--muted)]",
+                )}
+              >
+                {f.label}
+                <span className={cn("text-[0.7rem]", on ? "text-white/60" : "text-[var(--muted)]")}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <ul className="-mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
+          {shown.map((e) => {
             const active = saved.engine === e.key && !isLegacy;
             return (
-              <li key={e.key} className="w-[272px] shrink-0 snap-center lg:w-auto">
+              <li key={e.key} className="w-[272px] shrink-0 snap-center md:w-auto">
                 <div
                   className={cn(
                     "rounded-[28px] border p-4 transition-colors duration-300",
@@ -162,6 +194,7 @@ export function DesignStudio({
                       width={232}
                       height={476}
                       interactive={false}
+                      lazy
                     />
                     <span className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full bg-black/45 text-white opacity-0 backdrop-blur transition-opacity duration-200 group-hover:opacity-100">
                       <Maximize2 className="size-3.5" />
@@ -174,6 +207,7 @@ export function DesignStudio({
                         {e.name}
                       </h3>
                       <p className="mt-0.5 text-[0.78rem] text-[var(--muted)]">{e.tags.join(" · ")}</p>
+                      <p className="mt-2 text-[0.76rem] leading-snug text-[var(--muted)]">{e.audience}</p>
                     </div>
                     {active && (
                       <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-[var(--state-live-bg)] px-2.5 py-1 text-[0.7rem] font-medium text-[var(--state-live)]">
@@ -438,14 +472,38 @@ function Device({
   width,
   height,
   interactive = true,
+  lazy = false,
 }: {
   src: string;
   width: number;
   height: number;
   /** Miniature d une carte : l iframe capterait le clic destine au bouton. */
   interactive?: boolean;
+  /**
+   * Ne charger l apercu qu a l approche de l ecran. Douze iframes chargees
+   * d un coup, c est douze pages completes a rendre avant que le studio
+   * reponde.
+   */
+  lazy?: boolean;
 }) {
   const scale = width / 390;
+  const holder = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(!lazy);
+
+  useEffect(() => {
+    if (visible || !holder.current) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setVisible(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "320px" },
+    );
+    io.observe(holder.current);
+    return () => io.disconnect();
+  }, [visible]);
   // Deux calques a cle STABLE : changer la cle d une iframe la recree et la
   // recharge. Le calque arriere charge la nouvelle adresse ; une fois pret,
   // il passe devant et l ancien s efface.
@@ -486,9 +544,15 @@ function Device({
       className="relative rounded-[2.4rem] bg-[#0b0b0d] p-[7px] shadow-[0_2px_6px_rgb(0_0_0/0.08),0_30px_70px_-34px_rgb(0_0_0/0.55)]"
       style={{ width: width + 14 }}
     >
-      <div className="relative overflow-hidden rounded-[2rem] bg-[#111]" style={{ width, height }}>
-        {layer("a")}
-        {layer("b")}
+      <div ref={holder} className="relative overflow-hidden rounded-[2rem] bg-[#111]" style={{ width, height }}>
+        {visible ? (
+          <>
+            {layer("a")}
+            {layer("b")}
+          </>
+        ) : (
+          <span aria-hidden className="pc-skeleton absolute inset-0 text-white" />
+        )}
       </div>
     </div>
   );

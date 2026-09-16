@@ -17,7 +17,30 @@
  * reglage ne peut casser le rendu.
  */
 
-export type PremiumEngine = "signature" | "obsidian" | "immersive";
+export type PremiumEngine =
+  | "signature"
+  | "obsidian"
+  | "immersive"
+  | "swiss"
+  | "journal"
+  | "carte"
+  | "serene"
+  | "block"
+  | "terminal"
+  | "table"
+  | "instant"
+  | "corporate";
+
+/** Familles affichees en filtre dans le studio : douze designs se choisissent mieux par intention. */
+export type EngineFamily = "professionnel" | "prestige" | "creatif" | "accueil" | "tech";
+
+export const FAMILIES: { key: EngineFamily; label: string }[] = [
+  { key: "professionnel", label: "Professionnel" },
+  { key: "prestige", label: "Prestige" },
+  { key: "creatif", label: "Créatif" },
+  { key: "accueil", label: "Commerce et bien-être" },
+  { key: "tech", label: "Tech" },
+];
 
 /** Jetons de surface d une variante. Tous les moteurs lisent les memes noms. */
 export type VariantTokens = {
@@ -41,6 +64,11 @@ export type VariantTokens = {
   ctaBg: string;
   ctaInk: string;
   scheme: "light" | "dark";
+  /**
+   * Couleurs propres a une composition : la carte physique de Carte, le bloc
+   * de Block, le bandeau de Corporate. Exposees en --pc-x-<nom>.
+   */
+  extra?: Record<string, string>;
 };
 
 export type PremiumVariant = {
@@ -54,6 +82,9 @@ export type PremiumVariant = {
 export type PremiumEngineDefinition = {
   key: PremiumEngine;
   name: string;
+  family: EngineFamily;
+  /** Pour qui ce design a ete compose. */
+  audience: string;
   /** Les trois mots affiches sous l apercu dans le studio. */
   tags: [string, string, string];
   pitch: string;
@@ -96,6 +127,8 @@ export const PREMIUM_ENGINES: PremiumEngineDefinition[] = [
   {
     key: "signature",
     name: "Signature",
+    family: "professionnel",
+    audience: "Consultants, avocats, cadres, professions libérales",
     tags: ["Minimal", "Professional", "Elegant"],
     pitch:
       "Une mise en page de papier a lettres : le nom compose sur deux lignes, le portrait a sa droite, et l espace pour tout le reste.",
@@ -179,6 +212,8 @@ export const PREMIUM_ENGINES: PremiumEngineDefinition[] = [
   {
     key: "obsidian",
     name: "Obsidian",
+    family: "prestige",
+    audience: "Dirigeants, immobilier premium, marques de luxe",
     tags: ["Luxury", "Executive", "Exclusive"],
     pitch:
       "Un portrait tire comme une epreuve, un nom en capitales d imprimerie fines, et presque rien d autre. L or n apparait que la ou il signale.",
@@ -262,6 +297,8 @@ export const PREMIUM_ENGINES: PremiumEngineDefinition[] = [
   {
     key: "immersive",
     name: "Immersive",
+    family: "creatif",
+    audience: "Photographes, créateurs, artistes, mannequins",
     tags: ["Visual", "Creative", "Bold"],
     pitch:
       "La photo est la page. Le nom se pose dessus, et un panneau flottant garde le contact a portee de pouce.",
@@ -338,6 +375,473 @@ export const PREMIUM_ENGINES: PremiumEngineDefinition[] = [
           ctaBg: "#111111",
           ctaInk: "#FFFFFF",
           scheme: "light",
+        },
+      },
+    ],
+  },
+  {
+    key: "swiss",
+    name: "Swiss",
+    family: "professionnel",
+    audience: "Architectes, designers, agences, ingénieurs",
+    tags: ["Grid", "Typographic", "Precise"],
+    pitch:
+      "Une affiche suisse : un nom immense ferme par un point de couleur, une fiche technique en deux colonnes, une photo en noir et blanc.",
+    defaultShape: "sharp",
+    palette: ["#E1251B", "#1F4BFF", "#111111", "#FF8A00"],
+    variants: [
+      {
+        key: "paper",
+        name: "Paper",
+        mood: "Papier blanc, point rouge",
+        tokens: {
+          bg: "#F4F4F1",
+          surface: "#E9E9E4",
+          ink: "#111111",
+          ink2: "#555552",
+          ink3: "#838380",
+          line: "rgba(17, 17, 17, 0.12)",
+          press: "rgba(17, 17, 17, 0.05)",
+          accent: "#E1251B",
+          ctaBg: "#E1251B",
+          ctaInk: "#FFFFFF",
+          scheme: "light"
+        },
+      },
+      {
+        key: "ink",
+        name: "Ink",
+        mood: "Noir encre, point vermillon",
+        tokens: {
+          bg: "#0E0E0E",
+          surface: "#1A1A1A",
+          ink: "#F2F2F0",
+          ink2: "#A6A6A2",
+          ink3: "#6E6E6B",
+          line: "rgba(242, 242, 240, 0.12)",
+          press: "rgba(242, 242, 240, 0.05)",
+          accent: "#FF4B3E",
+          ctaBg: "#FF4B3E",
+          ctaInk: "#0E0E0E",
+          scheme: "dark"
+        },
+      },
+    ],
+  },
+  {
+    key: "journal",
+    name: "Journal",
+    family: "prestige",
+    audience: "Auteurs, journalistes, conférenciers, conseils",
+    tags: ["Editorial", "Narrative", "Literary"],
+    pitch:
+      "Une une de magazine : le nom en manchette, le portrait en photo d ouverture avec sa legende, une lettrine et un sommaire.",
+    defaultShape: "sharp",
+    palette: ["#9E2A1E", "#1F3A5F", "#1A1714", "#D9B26A"],
+    variants: [
+      {
+        key: "newsprint",
+        name: "Newsprint",
+        mood: "Papier journal, encre brune",
+        tokens: {
+          bg: "#F3EEE3",
+          surface: "#E8E1D2",
+          ink: "#1A1714",
+          ink2: "#57504A",
+          ink3: "#857D74",
+          line: "rgba(26, 23, 20, 0.12)",
+          press: "rgba(26, 23, 20, 0.05)",
+          accent: "#9E2A1E",
+          ctaBg: "#1A1714",
+          ctaInk: "#F3EEE3",
+          scheme: "light"
+        },
+      },
+      {
+        key: "noir",
+        name: "Noir",
+        mood: "Edition du soir",
+        tokens: {
+          bg: "#121110",
+          surface: "#1C1A18",
+          ink: "#EDE6DA",
+          ink2: "#A89F92",
+          ink3: "#716A61",
+          line: "rgba(237, 230, 218, 0.12)",
+          press: "rgba(237, 230, 218, 0.05)",
+          accent: "#D9B26A",
+          ctaBg: "#EDE6DA",
+          ctaInk: "#121110",
+          scheme: "dark"
+        },
+      },
+    ],
+  },
+  {
+    key: "carte",
+    name: "Carte",
+    family: "professionnel",
+    audience: "Entrepreneurs, commerciaux, fondateurs",
+    tags: ["Tangible", "Signature", "Modern"],
+    pitch:
+      "La carte physique, reproduite en tete de page et sensible au toucher. Le reste de la page se range sous elle.",
+    defaultShape: "soft",
+    palette: ["#D7B98E", "#8FB3FF", "#E5E5E5", "#B9D8C2"],
+    variants: [
+      {
+        key: "matte",
+        name: "Matte",
+        mood: "Carte noire mate sur lin clair",
+        tokens: {
+          bg: "#E9E7E2",
+          surface: "#DEDBD4",
+          ink: "#151515",
+          ink2: "#56544F",
+          ink3: "#84817B",
+          line: "rgba(21, 21, 21, 0.12)",
+          press: "rgba(21, 21, 21, 0.05)",
+          accent: "#D7B98E",
+          ctaBg: "#151515",
+          ctaInk: "#F4F2EE",
+          scheme: "light",
+          extra: {
+            card: "#141414",
+            cardInk: "#F4F2EE",
+            cardInk2: "rgba(244, 242, 238, 0.6)"
+          }
+        },
+      },
+      {
+        key: "pearl",
+        name: "Pearl",
+        mood: "Carte nacree sur fond nuit",
+        tokens: {
+          bg: "#111214",
+          surface: "#1B1C1F",
+          ink: "#F2F1EE",
+          ink2: "#A3A3A6",
+          ink3: "#6F6F72",
+          line: "rgba(242, 241, 238, 0.12)",
+          press: "rgba(242, 241, 238, 0.05)",
+          accent: "#8FB3FF",
+          ctaBg: "#F2F1EE",
+          ctaInk: "#111214",
+          scheme: "dark",
+          extra: {
+            card: "#F3F1EC",
+            cardInk: "#141414",
+            cardInk2: "rgba(20, 20, 20, 0.58)"
+          }
+        },
+      },
+    ],
+  },
+  {
+    key: "serene",
+    name: "Serene",
+    family: "accueil",
+    audience: "Coachs, thérapeutes, beauté, bien-être",
+    tags: ["Soft", "Calm", "Warm"],
+    pitch:
+      "Un portrait dans une arche, un nom en serif douce, des teintes poudrees : une page qui accueille avant de presenter.",
+    defaultShape: "pill",
+    palette: ["#A86B5B", "#5E7F66", "#8C6FA8", "#B98A4E"],
+    variants: [
+      {
+        key: "blush",
+        name: "Blush",
+        mood: "Rose poudre, terre cuite",
+        tokens: {
+          bg: "#F7EFEA",
+          surface: "#FFFFFF",
+          ink: "#3A2E2A",
+          ink2: "#6E5E58",
+          ink3: "#95857E",
+          line: "rgba(58, 46, 42, 0.12)",
+          press: "rgba(58, 46, 42, 0.05)",
+          accent: "#C98B7A",
+          ctaBg: "#A86B5B",
+          ctaInk: "#FFFFFF",
+          scheme: "light"
+        },
+      },
+      {
+        key: "sage",
+        name: "Sage",
+        mood: "Vert sauge, lin",
+        tokens: {
+          bg: "#EEF1EA",
+          surface: "#FFFFFF",
+          ink: "#2F3A33",
+          ink2: "#5E6B62",
+          ink3: "#86918A",
+          line: "rgba(47, 58, 51, 0.12)",
+          press: "rgba(47, 58, 51, 0.05)",
+          accent: "#7E9C86",
+          ctaBg: "#5E7F66",
+          ctaInk: "#FFFFFF",
+          scheme: "light"
+        },
+      },
+    ],
+  },
+  {
+    key: "block",
+    name: "Block",
+    family: "creatif",
+    audience: "Agences, architectes, sport, marques, événementiel",
+    tags: ["Bold", "Graphic", "Architectural"],
+    pitch:
+      "Une photo bichrome coupee net par un aplat de couleur, et un nom en capitales condensees qui chevauche la frontiere.",
+    defaultShape: "sharp",
+    palette: ["#C8553D", "#2F4BFF", "#1F7A5A", "#111111"],
+    variants: [
+      {
+        key: "clay",
+        name: "Clay",
+        mood: "Terre cuite sur papier",
+        tokens: {
+          bg: "#EDE6DC",
+          surface: "#E2D9CC",
+          ink: "#1B1714",
+          ink2: "#5A524B",
+          ink3: "#877E73",
+          line: "rgba(27, 23, 20, 0.12)",
+          press: "rgba(27, 23, 20, 0.05)",
+          accent: "#C8553D",
+          ctaBg: "#F6EFE6",
+          ctaInk: "#1B1714",
+          scheme: "light",
+          extra: {
+            block: "#C8553D",
+            blockInk: "#F6EFE6"
+          }
+        },
+      },
+      {
+        key: "cobalt",
+        name: "Cobalt",
+        mood: "Bleu cobalt sur nuit",
+        tokens: {
+          bg: "#0F1115",
+          surface: "#181B21",
+          ink: "#F1F1F1",
+          ink2: "#A4A7AD",
+          ink3: "#6D7178",
+          line: "rgba(241, 241, 241, 0.12)",
+          press: "rgba(241, 241, 241, 0.05)",
+          accent: "#2F4BFF",
+          ctaBg: "#FFFFFF",
+          ctaInk: "#0F1115",
+          scheme: "dark",
+          extra: {
+            block: "#2F4BFF",
+            blockInk: "#FFFFFF"
+          }
+        },
+      },
+    ],
+  },
+  {
+    key: "terminal",
+    name: "Terminal",
+    family: "tech",
+    audience: "Développeurs, startups, data, sécurité",
+    tags: ["Tech", "Precise", "Developer"],
+    pitch:
+      "La precision d un editeur de code, sans le deguisement : une invite, une fiche en cles et valeurs, des liens lisibles comme des chemins.",
+    defaultShape: "soft",
+    palette: ["#7EE787", "#79C0FF", "#D2A8FF", "#FFA657"],
+    variants: [
+      {
+        key: "night",
+        name: "Night",
+        mood: "Nuit profonde, vert doux",
+        tokens: {
+          bg: "#0B0D10",
+          surface: "#12161B",
+          ink: "#E6EDF3",
+          ink2: "#9BA7B4",
+          ink3: "#687382",
+          line: "rgba(230, 237, 243, 0.12)",
+          press: "rgba(230, 237, 243, 0.05)",
+          accent: "#7EE787",
+          ctaBg: "#E6EDF3",
+          ctaInk: "#0B0D10",
+          scheme: "dark"
+        },
+      },
+      {
+        key: "paper",
+        name: "Paper",
+        mood: "Papier clair, encre verte",
+        tokens: {
+          bg: "#FAF9F6",
+          surface: "#F0EEE8",
+          ink: "#1F2328",
+          ink2: "#57606A",
+          ink3: "#848D97",
+          line: "rgba(31, 35, 40, 0.12)",
+          press: "rgba(31, 35, 40, 0.05)",
+          accent: "#0A7F5A",
+          ctaBg: "#1F2328",
+          ctaInk: "#FAF9F6",
+          scheme: "light"
+        },
+      },
+    ],
+  },
+  {
+    key: "table",
+    name: "Table",
+    family: "accueil",
+    audience: "Restaurants, cafés, hôtels, boutiques, salons",
+    tags: ["Hospitality", "Warm", "Inviting"],
+    pitch:
+      "Une devanture : la photo du lieu en banniere, l enseigne posee dessus, les horaires, et un geste pour venir ou reserver.",
+    defaultShape: "soft",
+    palette: ["#5B6B3A", "#D39B6A", "#8C3B2E", "#2F5D62"],
+    variants: [
+      {
+        key: "olive",
+        name: "Olive",
+        mood: "Lin chaud, vert olive",
+        tokens: {
+          bg: "#F5F1E8",
+          surface: "#EAE4D6",
+          ink: "#22261E",
+          ink2: "#5C6253",
+          ink3: "#868A7C",
+          line: "rgba(34, 38, 30, 0.12)",
+          press: "rgba(34, 38, 30, 0.05)",
+          accent: "#5B6B3A",
+          ctaBg: "#22261E",
+          ctaInk: "#F5F1E8",
+          scheme: "light"
+        },
+      },
+      {
+        key: "bordeaux",
+        name: "Bordeaux",
+        mood: "Salle du soir, cuivre",
+        tokens: {
+          bg: "#1C1414",
+          surface: "#2A1E1E",
+          ink: "#F4EAE0",
+          ink2: "#B8A79A",
+          ink3: "#806F65",
+          line: "rgba(244, 234, 224, 0.12)",
+          press: "rgba(244, 234, 224, 0.05)",
+          accent: "#D39B6A",
+          ctaBg: "#F4EAE0",
+          ctaInk: "#1C1414",
+          scheme: "dark"
+        },
+      },
+    ],
+  },
+  {
+    key: "instant",
+    name: "Instant",
+    family: "creatif",
+    audience: "Créateurs de contenu, influenceurs, artistes, étudiants",
+    tags: ["Playful", "Personal", "Warm"],
+    pitch:
+      "Un tirage instantane pose de travers, legende a la main : une presentation qui ressemble a une rencontre plutot qu a un CV.",
+    defaultShape: "soft",
+    palette: ["#E2553B", "#F2B544", "#3E7CB1", "#1E1B18"],
+    variants: [
+      {
+        key: "film",
+        name: "Film",
+        mood: "Papier creme, pellicule",
+        tokens: {
+          bg: "#EFE9DF",
+          surface: "#FFFFFF",
+          ink: "#1E1B18",
+          ink2: "#5B554E",
+          ink3: "#88817A",
+          line: "rgba(30, 27, 24, 0.12)",
+          press: "rgba(30, 27, 24, 0.05)",
+          accent: "#E2553B",
+          ctaBg: "#1E1B18",
+          ctaInk: "#EFE9DF",
+          scheme: "light"
+        },
+      },
+      {
+        key: "night",
+        name: "Night",
+        mood: "Chambre noire",
+        tokens: {
+          bg: "#141312",
+          surface: "#F7F3EC",
+          ink: "#F2EDE4",
+          ink2: "#ADA597",
+          ink3: "#766F66",
+          line: "rgba(242, 237, 228, 0.12)",
+          press: "rgba(242, 237, 228, 0.05)",
+          accent: "#F2B544",
+          ctaBg: "#F2EDE4",
+          ctaInk: "#141312",
+          scheme: "dark"
+        },
+      },
+    ],
+  },
+  {
+    key: "corporate",
+    name: "Corporate",
+    family: "professionnel",
+    audience: "Entreprises, équipes commerciales, banques, institutions",
+    tags: ["Structured", "Trustworthy", "Clear"],
+    pitch:
+      "L entreprise d abord : son bandeau, puis une fiche nette ou chaque coordonnee se lit, et un QR pour se passer le contact en face a face.",
+    defaultShape: "soft",
+    palette: ["#1F6FEB", "#0E9F6E", "#B42318", "#6D28D9"],
+    variants: [
+      {
+        key: "navy",
+        name: "Navy",
+        mood: "Bleu marine institutionnel",
+        tokens: {
+          bg: "#F4F6F9",
+          surface: "#FFFFFF",
+          ink: "#0F1B2D",
+          ink2: "#4A5568",
+          ink3: "#7A8594",
+          line: "rgba(15, 27, 45, 0.12)",
+          press: "rgba(15, 27, 45, 0.05)",
+          accent: "#1F6FEB",
+          ctaBg: "#1F6FEB",
+          ctaInk: "#FFFFFF",
+          scheme: "light",
+          extra: {
+            band: "#0F2A4A",
+            bandInk: "#FFFFFF"
+          }
+        },
+      },
+      {
+        key: "slate",
+        name: "Slate",
+        mood: "Ardoise et vert",
+        tokens: {
+          bg: "#F5F5F4",
+          surface: "#FFFFFF",
+          ink: "#1B1F24",
+          ink2: "#4B5563",
+          ink3: "#7C828B",
+          line: "rgba(27, 31, 36, 0.12)",
+          press: "rgba(27, 31, 36, 0.05)",
+          accent: "#0E9F6E",
+          ctaBg: "#1B1F24",
+          ctaInk: "#FFFFFF",
+          scheme: "light",
+          extra: {
+            band: "#1F2933",
+            bandInk: "#FFFFFF"
+          }
         },
       },
     ],

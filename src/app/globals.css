@@ -481,6 +481,17 @@ body {
   }
 }
 
+/* Curseur de Terminal : trois clignements, puis immobile. */
+@keyframes pc-caret {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
 @keyframes pc-shimmer {
   from {
     background-position: 150% 0;

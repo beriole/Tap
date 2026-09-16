@@ -257,6 +257,9 @@ export function buildCardModel(profile: PublicProfile, engine: PremiumEngine) {
     "--pc-cta-ink": accentChosen && engine !== "obsidian" ? readableTextOn(ctaBg) : variant.tokens.ctaInk,
     "--pc-radius": radius,
     "--pc-photo": PHOTO_POSITION[focus],
+    ...Object.fromEntries(
+      Object.entries(variant.tokens.extra ?? {}).map(([k, v]) => [`--pc-x-${k}`, v]),
+    ),
     colorScheme: variant.tokens.scheme,
   } as React.CSSProperties;
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useMotionTemplate, useMotionValue, useSpring } from "motion/react";
 import type { ClickAction } from "@prisma/client";
 import { Check, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -168,6 +168,7 @@ export function SaveContact({
   style,
   label = "Enregistrer le contact",
   icon,
+  trailing,
 }: {
   token: string;
   profileId: string;
@@ -177,6 +178,8 @@ export function SaveContact({
   style?: React.CSSProperties;
   label?: string;
   icon: React.ReactNode;
+  /** Element pose a l extremite droite (fleche d une composition suisse). */
+  trailing?: React.ReactNode;
 }) {
   const [saved, setSaved] = useState(false);
 
@@ -221,7 +224,7 @@ export function SaveContact({
         ) : (
           <motion.span
             key="idle"
-            className="flex items-center gap-2.5"
+            className={cn("flex items-center gap-2.5", trailing ? "w-full justify-between" : undefined)}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
@@ -229,6 +232,7 @@ export function SaveContact({
           >
             {icon}
             {label}
+            {trailing}
           </motion.span>
         )}
       </AnimatePresence>
@@ -325,5 +329,61 @@ export function ShareControl({
         )}
       </AnimatePresence>
     </motion.button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Carte inclinable
+// ---------------------------------------------------------------------------
+
+/**
+ * La carte physique reproduite en tete du design Carte.
+ *
+ * Elle s incline de quelques degres sous le doigt ou le pointeur, suit le
+ * geste, puis revient au repos d un ressort amorti. Jamais en continu : sans
+ * contact, elle ne bouge pas. Sans JavaScript, elle reste simplement posee.
+ * Six degres au plus - assez pour sentir un objet, trop peu pour un effet.
+ */
+export function TiltCard({ children, className }: { children: React.ReactNode; className?: string }) {
+  const rx = useMotionValue(0);
+  const ry = useMotionValue(0);
+  const glare = useMotionValue(50);
+  const springX = useSpring(rx, { stiffness: 220, damping: 22 });
+  const springY = useSpring(ry, { stiffness: 220, damping: 22 });
+  const background = useMotionTemplate`radial-gradient(120% 90% at ${glare}% 0%, rgba(255,255,255,0.16), transparent 55%)`;
+
+  function move(e: React.PointerEvent<HTMLDivElement>) {
+    const r = e.currentTarget.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width;
+    const py = (e.clientY - r.top) / r.height;
+    ry.set((px - 0.5) * 12);
+    rx.set((0.5 - py) * 12);
+    glare.set(px * 100);
+  }
+
+  function reset() {
+    rx.set(0);
+    ry.set(0);
+    glare.set(50);
+  }
+
+  return (
+    <div className="[perspective:1100px]">
+      <motion.div
+        onPointerMove={move}
+        onPointerLeave={reset}
+        onPointerUp={reset}
+        onPointerCancel={reset}
+        style={{ rotateX: springX, rotateY: springY, transformStyle: "preserve-3d" }}
+        className={cn("relative touch-pan-y", className)}
+      >
+        {children}
+        <motion.span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-[inherit]"
+          style={{ background }}
+        />
+      </motion.div>
+    </div>
   );
 }
