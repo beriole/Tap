@@ -33,6 +33,28 @@ type LinkSeed = {
   isVisible?: boolean;
 };
 
+/**
+ * Un seed rejoue ne doit jamais effacer une photo televersee.
+ *
+ * Les comptes de demonstration servent aussi a essayer le produit : on y
+ * envoie sa propre photo pour juger un design. Remettre l image d exemple a
+ * chaque seed detruirait ce travail sans prevenir. On ne pose donc un media
+ * d exemple que la ou il n y en a pas - ou la ou il y en avait deja un.
+ */
+function keepUploadedMedia<T extends { avatarUrl: string | null; coverUrl: string | null; logoUrl: string | null }>(
+  existing: T,
+  data: { avatarUrl: string; coverUrl: string; logoUrl: string } & Record<string, unknown>,
+) {
+  const keep = (current: string | null, fallback: string) =>
+    current && !current.startsWith("/demo/") ? current : fallback;
+  return {
+    ...data,
+    avatarUrl: keep(existing.avatarUrl, data.avatarUrl),
+    coverUrl: keep(existing.coverUrl, data.coverUrl),
+    logoUrl: keep(existing.logoUrl, data.logoUrl),
+  };
+}
+
 /** Remplace l integralite des liens d un profil - le seed fait autorite. */
 async function setLinks(profileId: string, links: LinkSeed[]) {
   await prisma.profileLink.deleteMany({ where: { profileId } });
@@ -52,8 +74,22 @@ async function setLinks(profileId: string, links: LinkSeed[]) {
 async function setTheme(
   profileId: string,
   key: string,
-  config: { accentColor: string; mode: "LIGHT" | "DARK" | "AUTO"; buttonStyle: "SOLID" | "OUTLINE" | "PILL" | "ICON_TEXT" },
+  config: {
+    accentColor: string;
+    mode: "LIGHT" | "DARK" | "AUTO";
+    buttonStyle: "SOLID" | "OUTLINE" | "PILL" | "ICON_TEXT";
+    variant?: string;
+    customConfig?: Prisma.InputJsonValue;
+  },
 ) {
+  // Un design deja choisi dans le studio n est pas ecrase : on ne pose le
+  // design de demonstration que sur un profil encore habille a l ancienne.
+  const existing = await prisma.profileTheme.findUnique({
+    where: { profileId },
+    select: { theme: { select: { key: true } } },
+  });
+  if (existing && ["signature", "obsidian", "immersive"].includes(existing.theme.key)) return;
+
   const theme = await prisma.theme.findUniqueOrThrow({ where: { key } });
   await prisma.profileTheme.upsert({
     where: { profileId },
@@ -231,7 +267,10 @@ async function main() {
 
   const existingDemoProfile = await prisma.profile.findFirst({ where: { userId: demo.id } });
   const demoProfile = existingDemoProfile
-    ? await prisma.profile.update({ where: { id: existingDemoProfile.id }, data: demoProfileData })
+    ? await prisma.profile.update({
+        where: { id: existingDemoProfile.id },
+        data: keepUploadedMedia(existingDemoProfile, demoProfileData),
+      })
     : await prisma.profile.create({ data: { userId: demo.id, ...demoProfileData } });
 
   await setLinks(demoProfile.id, [
@@ -249,10 +288,14 @@ async function main() {
     { type: "RESUME", label: "Parcours (PDF)", value: "studio-meridien.com/awa-ndiaye.pdf", isVisible: false },
   ]);
 
-  await setTheme(demoProfile.id, "executive", {
-    accentColor: "#B08D57",
-    mode: "DARK",
-    buttonStyle: "OUTLINE",
+  // Les comptes de demonstration portent les nouveaux designs : c est ce que
+  // le studio propose, c est donc ce qu ils doivent montrer.
+  await setTheme(demoProfile.id, "signature", {
+    accentColor: "#1C1B19",
+    mode: "LIGHT",
+    buttonStyle: "SOLID",
+    variant: "ivory",
+    customConfig: { shape: "soft", photo: "top" },
   });
 
   const demoCard = await prisma.nfcCard.upsert({
@@ -322,7 +365,10 @@ async function main() {
 
   const existingStaffProfile = await prisma.profile.findFirst({ where: { userId: staff.id } });
   const staffProfile = existingStaffProfile
-    ? await prisma.profile.update({ where: { id: existingStaffProfile.id }, data: staffProfileData })
+    ? await prisma.profile.update({
+        where: { id: existingStaffProfile.id },
+        data: keepUploadedMedia(existingStaffProfile, staffProfileData),
+      })
     : await prisma.profile.create({ data: { userId: staff.id, ...staffProfileData } });
 
   await setLinks(staffProfile.id, [
@@ -334,10 +380,12 @@ async function main() {
     { type: "MAPS", label: "Nos bureaux", value: "maps.google.com/?q=Bonanjo+Douala" },
   ]);
 
-  await setTheme(staffProfile.id, "signal", {
-    accentColor: "#2563EB",
-    mode: "LIGHT",
-    buttonStyle: "PILL",
+  await setTheme(staffProfile.id, "obsidian", {
+    accentColor: "#C9A96E",
+    mode: "DARK",
+    buttonStyle: "SOLID",
+    variant: "champagne",
+    customConfig: { shape: "sharp", photo: "top" },
   });
 
   const staffCard = await prisma.nfcCard.upsert({

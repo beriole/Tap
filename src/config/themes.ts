@@ -27,6 +27,49 @@ export type ThemeDefinition = {
  * independant enregistre dans components/themes/registry.ts.
  */
 export const THEMES: ThemeDefinition[] = [
+  // --- Moteurs premium ---------------------------------------------------
+  // Trois compositions distinctes, chacune declinee en quatre variantes
+  // (config/premium-themes.ts). Ce sont les seuls proposes dans le studio.
+  {
+    key: "signature",
+    code: "SIG",
+    name: "Signature",
+    direction:
+      "Papier clair, nom compose sur deux lignes, portrait a droite, filets fins et typographie comme seul ornement.",
+    target: "Consultants, avocats, cadres, professions liberales.",
+    defaultAccent: "#1C1B19",
+    defaultMode: "LIGHT",
+    variants: ["ivory", "pure", "graphite", "forest"],
+    uses: ["avatar", "logo"],
+    mvp: true,
+  },
+  {
+    key: "obsidian",
+    code: "OBS",
+    name: "Obsidian",
+    direction:
+      "Noir profond, portrait tire comme une epreuve, nom en serif editoriale, champagne reserve aux signaux.",
+    target: "Dirigeants, immobilier premium, marques de luxe.",
+    defaultAccent: "#C9A96E",
+    defaultMode: "DARK",
+    variants: ["champagne", "platinum", "burgundy", "midnight"],
+    uses: ["avatar"],
+    mvp: true,
+  },
+  {
+    key: "immersive",
+    code: "IMM",
+    name: "Immersive",
+    direction:
+      "Photo plein cadre, nom pose dessus, panneau flottant pour le contact, liens en blocs medias.",
+    target: "Photographes, createurs, artistes, restaurants, marques personnelles.",
+    defaultAccent: "#FFFFFF",
+    defaultMode: "DARK",
+    variants: ["glass", "editorial", "dark", "clean"],
+    uses: ["avatar", "cover"],
+    mvp: true,
+  },
+  // --- Collection historique ---------------------------------------------
   {
     key: "minimal",
     code: "01",

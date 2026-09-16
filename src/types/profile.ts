@@ -81,6 +81,11 @@ export type ResolvedTheme = {
 };
 
 export type ThemeKey =
+  // Moteurs premium : trois compositions reellement distinctes, declinees en variantes.
+  | "signature"
+  | "obsidian"
+  | "immersive"
+  // Collection historique, conservee pour les profils qui l utilisent deja.
   | "minimal"
   | "executive"
   | "creator"

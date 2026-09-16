@@ -29,10 +29,21 @@ export default function imageLoader({ src, width, quality }: LoaderArgs): string
     "dpr_auto",
   ].join(",");
 
-  // On remplace la transformation deja presente dans l URL enregistree plutot
-  // que d en empiler une seconde.
-  return src.replace(
-    /\/image\/upload\/(?:[^/]*\/)?v(\d+)\//,
-    `/image/upload/${transformation}/v$1/`,
-  );
+  // URL versionnee (tous les envois de clients) : on remplace la
+  // transformation deja presente plutot que d en empiler une seconde.
+  const versioned = /\/image\/upload\/(?:[^/]*\/)?v(\d+)\//;
+  if (versioned.test(src)) {
+    return src.replace(versioned, `/image/upload/${transformation}/v$1/`);
+  }
+
+  // URL sans version, avec ou sans recadrage deja ecrit dedans. L ancienne
+  // version la renvoyait telle quelle : chaque entree du srcset pointait alors
+  // vers le MEME fichier, le navigateur choisissait la variante 3840w et, pour
+  // une petite vignette, n affichait rien du tout. On chaine notre largeur
+  // APRES les transformations existantes - Cloudinary les applique dans
+  // l ordre, un recadrage g_face doit donc passer avant la reduction.
+  const match = src.match(/^(.*?\/image\/upload\/)((?:[a-z]{1,3}_[^/]*\/)*)(.*)$/);
+  if (!match) return src;
+  const [, head, existing, rest] = match;
+  return `${head}${existing}${transformation}/${rest}`;
 }

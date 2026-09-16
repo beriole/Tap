@@ -1,12 +1,24 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { ThemePicker } from "@/components/dashboard/theme-picker";
-import { PageBody, PageHeader } from "@/components/app/ui";
+import { DesignStudio } from "@/components/dashboard/design-studio";
+import { EmptyState, PageBody, PageHeader } from "@/components/app/ui";
+import {
+  PREMIUM_ENGINES,
+  isPremiumEngine,
+  resolveEngineSettings,
+  type PremiumEngine,
+} from "@/config/premium-themes";
 
-export const metadata: Metadata = { title: "Theme" };
+export const metadata: Metadata = { title: "Design" };
 
-/** §6.2 - Choix du theme et personnalisation encadree. */
+/**
+ * §6.2 - Choix du design et personnalisation encadree.
+ *
+ * Seuls les trois moteurs premium sont proposes. Un profil encore habille par
+ * un theme de l ancienne collection continue de s afficher tel quel au scan ;
+ * le studio l invite simplement a choisir l un des trois.
+ */
 export default async function ThemePage() {
   const user = await requireUser();
   const profile = await prisma.profile.findFirst({
@@ -14,23 +26,52 @@ export default async function ThemePage() {
     include: { theme: { include: { theme: true } } },
   });
 
+  if (!profile) {
+    return (
+      <>
+        <PageHeader
+          eyebrow="Espace client"
+          title="Choisissez votre design"
+          description="Créez d’abord votre profil : les aperçus s’affichent avec vos propres informations."
+        />
+        <PageBody>
+          <EmptyState
+            title="Aucun profil"
+            body="Renseignez votre nom, votre fonction et votre photo, puis revenez choisir votre design."
+            actionHref="/dashboard/profile"
+            actionLabel="Créer mon profil"
+          />
+        </PageBody>
+      </>
+    );
+  }
+
+  const key = profile.theme?.theme.key ?? "";
+  const isLegacy = !isPremiumEngine(key);
+  const engineKey: PremiumEngine = isLegacy ? PREMIUM_ENGINES[0].key : (key as PremiumEngine);
+  const settings = resolveEngineSettings(engineKey, {
+    variant: profile.theme?.variant,
+    customConfig: (profile.theme?.customConfig ?? {}) as Record<string, unknown>,
+  });
+  const config = (profile.theme?.customConfig ?? {}) as Record<string, unknown>;
+
   return (
     <>
       <PageHeader
         eyebrow="Espace client"
-        title="Theme"
-        description="Quinze directions artistiques pour le meme contenu. Changer de theme ne perd ni une information ni un lien."
+        title="Choisissez votre design"
+        description="Trois directions, montrées avec vos propres informations. Touchez un design pour le voir en plein écran, puis ajustez-le : vos contenus restent les mêmes, seule la mise en scène change."
       />
       <PageBody>
-        <ThemePicker
-          currentKey={profile?.theme?.theme.key ?? "minimal"}
-          accentColor={profile?.theme?.accentColor ?? "#111827"}
-          mode={profile?.theme?.mode ?? "LIGHT"}
-          buttonStyle={profile?.theme?.buttonStyle ?? "SOLID"}
-          media={{
-            avatar: Boolean(profile?.avatarUrl),
-            cover: Boolean(profile?.coverUrl),
-            logo: Boolean(profile?.logoUrl),
+        <DesignStudio
+          isLegacy={isLegacy}
+          hasPhoto={Boolean(profile.avatarUrl || profile.coverUrl)}
+          current={{
+            engine: engineKey,
+            variant: settings.variant.key,
+            accent: typeof config.accent === "string" ? config.accent.toUpperCase() : null,
+            shape: settings.shape,
+            photo: settings.focus,
           }}
         />
       </PageBody>

@@ -87,7 +87,7 @@ await screen(client, "/dashboard", ["Awa"]);
   }
 }
 await screen(client, "/dashboard/links", ["WhatsApp", "LinkedIn", "Reserver un echange"]);
-await screen(client, "/dashboard/theme", ["Executive"]);
+await screen(client, "/dashboard/theme", ["Choisissez votre design", "Signature", "Obsidian", "Immersive", "Personnaliser"]);
 await screen(client, "/dashboard/stats", ["Statistiques", "30 jours", "Ce que font les visiteurs", "Liens les plus utilises"]);
 await screen(client, "/dashboard/preview", ["Awa"]);
 await screen(client, "/dashboard/security", ["mot de passe"]);

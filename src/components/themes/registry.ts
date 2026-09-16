@@ -8,6 +8,9 @@ import type { ThemeKey, ThemeProps } from "@/types/profile";
  * Chargement dynamique : un profil ne telecharge que le theme qu il utilise (§13).
  */
 export const THEME_COMPONENTS: Record<ThemeKey, ComponentType<ThemeProps>> = {
+  signature: dynamic(() => import("./theme-signature").then((m) => m.ThemeSignature)),
+  obsidian: dynamic(() => import("./theme-obsidian").then((m) => m.ThemeObsidian)),
+  immersive: dynamic(() => import("./theme-immersive").then((m) => m.ThemeImmersive)),
   minimal: dynamic(() => import("./theme-minimal").then((m) => m.ThemeMinimal)),
   executive: dynamic(() => import("./theme-executive").then((m) => m.ThemeExecutive)),
   creator: dynamic(() => import("./theme-creator").then((m) => m.ThemeCreator)),

@@ -42,7 +42,7 @@ const NAVS: Record<Space, NavItem[]> = {
     { href: "/dashboard/profile", label: "Profil", icon: User },
     { href: "/dashboard/links", label: "Liens", icon: Link2 },
     { href: "/dashboard/share", label: "Partages", icon: Share2 },
-    { href: "/dashboard/theme", label: "Theme", icon: Palette },
+    { href: "/dashboard/theme", label: "Design", icon: Palette },
     { href: "/dashboard/stats", label: "Stats", icon: BarChart3 },
     { href: "/dashboard/preview", label: "Apercu", icon: Eye },
     { href: "/dashboard/security", label: "Securite", icon: Shield },
