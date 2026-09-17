@@ -1,9 +1,10 @@
 import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { InvitationSection, InvitationView } from "@/types/invitation";
+import type { InvitationSection, InvitationView, RsvpFormData } from "@/types/invitation";
 import { Envelope } from "../../envelope";
 import { RsvpDock } from "../../rsvp-dock";
+import { RsvpForm } from "../../rsvp-form";
 import { royalIvoryDisplay } from "./font";
 
 /**
@@ -77,7 +78,7 @@ function nameSize(longest: number): string {
   return "text-[clamp(28px,7.5vw,36px)]";
 }
 
-export function RoyalIvory({ view }: { view: InvitationView }) {
+export function RoyalIvory({ view, rsvpForm }: { view: InvitationView; rsvpForm?: RsvpFormData | null }) {
   const { event, venues, sections, guest, rsvp, theme, preview } = view;
   const p = palette(theme.settings.variant, theme.settings.accent);
   const longest = Math.max(...event.hostParts.map((h) => h.length));
@@ -116,6 +117,18 @@ export function RoyalIvory({ view }: { view: InvitationView }) {
   } as React.CSSProperties;
   const monogram =
     event.hostParts.length === 2 ? `${event.hostParts[0]!.charAt(0)} & ${event.hostParts[1]!.charAt(0)}` : event.hostParts[0]!.charAt(0);
+
+  // Le formulaire reprend la palette de la page.
+  const rsvpStyle = {
+    "--rsvp-bg": p.bg,
+    "--rsvp-ink": p.ink,
+    "--rsvp-ink-2": p.ink2,
+    "--rsvp-line": p.line,
+    "--rsvp-rule": p.rule,
+    "--rsvp-accent": p.accentText,
+    "--rsvp-error": theme.settings.variant === "nuit" ? "#F0A39C" : "#A8342D",
+    "--rsvp-font": "var(--ri-display)",
+  } as React.CSSProperties;
 
   const ctaLabel = rsvp.closed ? "Voir les informations" : "Répondre à l’invitation";
 
@@ -251,10 +264,25 @@ export function RoyalIvory({ view }: { view: InvitationView }) {
         <section id="rsvp" className="scroll-mt-6 pt-4 text-center">
           <Fleuron />
           <h2 className="mt-5 text-[32px] italic leading-tight [font-family:var(--ri-display)]">Votre réponse</h2>
-          {rsvp.closed ? (
+          {rsvp.closed && (!rsvpForm || rsvpForm.status === "PENDING") ? (
             <p className="mx-auto mt-5 max-w-[320px] text-[15px] leading-relaxed text-[var(--ri-ink-2)]">
               Les réponses sont closes. Pour toute question, contactez directement {event.hosts}.
             </p>
+          ) : rsvpForm ? (
+            <div className="mt-8" style={rsvpStyle}>
+              <RsvpForm
+                data={rsvpForm}
+                intro={
+                  <p className="mx-auto mb-8 max-w-[330px] text-[15.5px] leading-relaxed text-[var(--ri-ink-2)] [text-wrap:pretty]">
+                    Nous vous avons réservé{" "}
+                    <strong className="font-medium text-[var(--ri-ink)]">
+                      {rsvpForm.maxSeats} place{rsvpForm.maxSeats > 1 ? "s" : ""}
+                    </strong>
+                    {rsvp.deadline ? `. Merci de répondre avant le ${rsvp.deadline.long}.` : "."}
+                  </p>
+                }
+              />
+            </div>
           ) : (
             <>
               <p className="mx-auto mt-5 max-w-[330px] text-[15.5px] leading-relaxed text-[var(--ri-ink-2)] [text-wrap:pretty]">
@@ -276,7 +304,7 @@ export function RoyalIvory({ view }: { view: InvitationView }) {
                 </p>
               )}
               <div className="mx-auto mt-8 max-w-[320px]">
-                {/* Le formulaire de reponse arrive en phase 5 ; le bouton garde sa place. */}
+                {/* Apercu organisateur : aucun invite reel, le formulaire n est pas actif. */}
                 <span aria-disabled className={cn(button, "cursor-default")}>
                   Répondre
                 </span>

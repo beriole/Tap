@@ -34,7 +34,23 @@ Trois principes tiennent l'ensemble :
 | 2 — Espace organisateur : événement, contenu, invités | ✅ | `npm test` 31/31 · `npm run audit:invitations` 42/42, deux passages consécutifs |
 | 3 — DesignEngine + thème « Royal Ivory » | ✅ | `npm test` 40/40 · `npm run audit:invitations` 54/54, deux passages consécutifs |
 | 4 — Lien invité, enveloppe, publication | ✅ | `npm test` 44/44 · `npm run audit:invitations` 71/71, deux passages consécutifs |
-| 5 → 10 | à faire | |
+| 5 — RSVP multi-étapes | ✅ | `npm test` 59/59 · `npm run audit:invitations` 89/89, deux passages consécutifs |
+| 6 → 10 | à faire | |
+
+**Phase 5, précisions**
+
+- Règles dans une fonction pure (`src/lib/events/rsvp.ts`) : quota, date limite, modification autorisée ou non,
+  « peut-être » seulement s'il est activé, personnes limitées au groupe, menus de l'événement, allergies
+  seulement avec accord explicite, questions obligatoires (par personne si demandé), types de réponse.
+- Enregistrement en une transaction avec verrou optimiste (`version`) : deux envois simultanés → un accepté,
+  l'autre en conflit. L'historique ne recopie jamais le texte des allergies (purge J+30 possible).
+- Formulaire invité : étapes présentes seulement si utiles, présence qui avance seule, menu commun par défaut
+  (menu enfant automatique, aucun repas pour un bébé). Famille de 5 : 6 gestes.
+- Écran organisateur « Réponses » : réglages, menus et questions ; les suppressions déjà utilisées sont
+  signalées avant enregistrement.
+- Non inclus : ticket QR à la confirmation (phase 8), relances et notifications (V1).
+- Performance : LCP médian 2,29 s mesuré isolément, 2,42 s pendant l'audit — la marge sous 2,5 s est faible,
+  à surveiller à chaque ajout sur la page invité.
 
 **Phase 4, précisions**
 

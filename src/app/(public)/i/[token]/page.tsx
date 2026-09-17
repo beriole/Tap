@@ -62,7 +62,7 @@ export default async function GuestInvitationPage({ params, searchParams }: Prop
 
   return (
     <>
-      <InvitationRenderer view={invitation.view} />
+      <InvitationRenderer view={invitation.view} rsvpForm={invitation.rsvpForm} />
       <OpenBeacon token={token} />
     </>
   );

@@ -565,21 +565,32 @@ try {
   record("82. Ouverture d une invitation deja repondue : l etat ne recule pas", (await prisma.invitation.findUniqueOrThrow({ where: { id: responded.id } })).state === "RESPONDED");
 
   // Performance (§2.1, §20) : 4G lente, processeur ralenti, deuxieme visite.
+  // Mediane de trois chargements a froid : sur une machine locale qui fait
+  // tourner le serveur ET le navigateur, un chargement sur cinq sort du lot
+  // (mesure : 2176, 2264, 2292, 2312, 2756 ms). Un echantillon unique ferait
+  // echouer le test au hasard ; la mediane detecte une vraie regression.
   const { PredefinedNetworkConditions } = await import("puppeteer-core");
-  const perf = await newSession();
-  await perf.setViewport({ width: 390, height: 844 });
-  await perf.emulateNetworkConditions(PredefinedNetworkConditions["Slow 4G"]);
-  await perf.emulateCPUThrottling(4);
-  await perf.evaluateOnNewDocument(() => {
-    window.__lcp = 0;
-    window.__cls = 0;
-    new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__lcp = e.startTime; }).observe({ type: "largest-contentful-paint", buffered: true });
-    new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: "layout-shift", buffered: true });
-  });
-  await perf.goto(`${BASE}${openUrl}`, { waitUntil: "networkidle0", timeout: 120000 });
-  await new Promise((r) => setTimeout(r, 1500));
-  const vitals = await perf.evaluate(() => ({ lcp: Math.round(window.__lcp), cls: Number(window.__cls.toFixed(3)) }));
-  record("83. 4G lente : LCP < 2,5 s et CLS < 0,05", vitals.lcp < 2500 && vitals.cls < 0.05, `LCP ${vitals.lcp} ms, CLS ${vitals.cls}`);
+  const samples = [];
+  for (let run = 0; run < 3; run += 1) {
+    const perf = await newSession();
+    await perf.setViewport({ width: 390, height: 844 });
+    await perf.setExtraHTTPHeaders({ "x-forwarded-for": `192.0.2.${(Date.now() + run * 17) % 250}` });
+    await perf.emulateNetworkConditions(PredefinedNetworkConditions["Slow 4G"]);
+    await perf.emulateCPUThrottling(4);
+    await perf.evaluateOnNewDocument(() => {
+      window.__lcp = 0;
+      window.__cls = 0;
+      new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__lcp = e.startTime; }).observe({ type: "largest-contentful-paint", buffered: true });
+      new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: "layout-shift", buffered: true });
+    });
+    await perf.goto(`${BASE}${openUrl}`, { waitUntil: "networkidle0", timeout: 120000 });
+    await new Promise((r) => setTimeout(r, 1200));
+    samples.push(await perf.evaluate(() => ({ lcp: Math.round(window.__lcp), cls: Number(window.__cls.toFixed(3)) })));
+    await perf.close();
+  }
+  const lcps = samples.map((s) => s.lcp).sort((a, b) => a - b);
+  const worstCls = Math.max(...samples.map((s) => s.cls));
+  record("83. 4G lente : LCP median < 2,5 s et CLS < 0,05", lcps[1] < 2500 && worstCls < 0.05, `LCP ${lcps.join(" / ")} ms (mediane ${lcps[1]}), CLS max ${worstCls}`);
 
   // Publication.
   const coPublish = await api(co, `/api/organizer/events/${EVENT_ID}/publish`, "POST", { published: false });
@@ -603,6 +614,202 @@ try {
   }
   const blocked = await (await fetch(`${BASE}${openUrl}`, { headers: { "x-forwarded-for": limitIp } })).text();
   record("86. Au-dela de 60 jetons par minute, meme un lien valide repond neutre", lastBody.includes(UNAVAILABLE) && blocked.includes(UNAVAILABLE) && !blocked.includes("Cathedrale"));
+
+  // ================================================ PHASE 5 - RSVP --
+  let ipSeq = Date.now() % 200;
+  const nextIp = () => `198.51.${(ipSeq += 1) % 250}.${Math.floor(Math.random() * 250)}`;
+  const postRsvp = async (body) => {
+    const r = await fetch(`${BASE}/api/invitations/rsvp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-forwarded-for": nextIp() },
+      body: JSON.stringify(body),
+    });
+    return { status: r.status, body: await r.json().catch(() => null) };
+  };
+  const loadGroup = (groupId) =>
+    prisma.guestGroup.findUniqueOrThrow({
+      where: { id: groupId },
+      include: { guests: { include: { preference: true }, orderBy: { position: "asc" } }, invitation: { include: { response: { include: { history: true } } } } },
+    });
+  const pendingGroups = await prisma.guestGroup.findMany({
+    where: { eventId: EVENT_ID, invitation: { revokedAt: null, response: null } },
+    include: { guests: true, invitation: true },
+  });
+  const originalRsvpSettings = (await prisma.event.findUniqueOrThrow({ where: { id: EVENT_ID } })).rsvpSettings;
+  const mealsOfEvent = await prisma.mealOption.findMany({ where: { eventId: EVENT_ID }, orderBy: { position: "asc" } });
+  const originalQuestions = await prisma.rsvpQuestion.findMany({ where: { eventId: EVENT_ID }, orderBy: { position: "asc" } });
+
+  // Parcours reel : une famille avec au moins un enfant.
+  const family = pendingGroups.find((g) => g.guests.length >= 3 && g.guests.some((x) => x.ageCategory === "CHILD")) ?? pendingGroups.find((g) => g.guests.length >= 2);
+  const guestPage = await newSession();
+  await guestPage.setViewport({ width: 390, height: 844 });
+  await guestPage.setExtraHTTPHeaders({ "x-forwarded-for": nextIp() });
+  await guestPage.goto(`${BASE}/i/${family.invitation.token}`, { waitUntil: "networkidle0", timeout: 90000 });
+  await guestPage.evaluate(() => [...document.querySelectorAll(".env-veil button")].find((b) => b.textContent.trim() === "Passer")?.click());
+  let gestures = 0;
+  const tap = async (text) => {
+    gestures += 1;
+    const ok = await guestPage.evaluate((t) => {
+      const el = [...document.querySelectorAll("#rsvp label, #rsvp button")].find((x) => x.textContent.trim().startsWith(t));
+      el?.click();
+      return Boolean(el);
+    }, text);
+    if (!ok) throw new Error(`RSVP : « ${text} » introuvable`);
+    await new Promise((r) => setTimeout(r, 250));
+  };
+  await tap("Oui");
+  await tap("Continuer");
+  await tap(mealsOfEvent.find((m) => !m.forChildren).label);
+  await tap("Continuer");
+  await tap("Continuer");
+  await tap("Confirmer ma réponse");
+  await guestPage.waitForFunction(() => document.body.innerText.includes("Merci, votre réponse est enregistrée."), { timeout: 15000 }).catch(() => null);
+  const afterUi = await loadGroup(family.id);
+  const kids = afterUi.guests.filter((x) => x.ageCategory === "CHILD");
+  const babies = afterUi.guests.filter((x) => x.ageCategory === "BABY");
+  const childMenu = mealsOfEvent.find((m) => m.forChildren);
+  record(
+    "90. Famille : reponse complete en 6 gestes au plus, par l interface",
+    gestures <= 6 && afterUi.invitation.state === "RESPONDED" && afterUi.invitation.response?.status === "ATTENDING" && afterUi.guests.every((x) => x.attending === true),
+    `${gestures} gestes, ${afterUi.guests.length} personnes`,
+  );
+  record(
+    "91. Repas : menu commun aux adultes, menu enfant aux enfants, rien pour un bebe",
+    kids.every((k) => k.preference?.mealOptionId === childMenu.id) && babies.every((x) => !x.preference?.mealOptionId) &&
+      afterUi.guests.filter((x) => x.ageCategory === "ADULT").every((x) => x.preference?.mealOptionId === mealsOfEvent.find((m) => !m.forChildren).id),
+  );
+  record("92. Historique : une entree par reponse", afterUi.invitation.response.history.length === 1);
+
+  // Changement d avis par l interface : decline.
+  await guestPage.goto(`${BASE}/i/${family.invitation.token}`, { waitUntil: "networkidle0" });
+  const summaryShown = await guestPage.evaluate(() => document.body.innerText.includes("Vous avez déjà répondu."));
+  gestures = 0;
+  await tap("Modifier ma réponse");
+  await tap("Non, je ne pourrai pas venir");
+  await tap("Confirmer ma réponse");
+  await guestPage.waitForFunction(() => document.body.innerText.includes("Merci, votre réponse est enregistrée."), { timeout: 15000 }).catch(() => null);
+  const declined = await loadGroup(family.id);
+  record(
+    "93. Modification : decline, tout le monde absent, repas effaces, version 2",
+    summaryShown && declined.invitation.response.status === "DECLINED" && declined.guests.every((x) => x.attending === false && !x.preference) && declined.invitation.response.version === 2,
+    `version ${declined.invitation.response.version}`,
+  );
+
+  // Regles serveur, requetes ecrites a la main.
+  const couple = pendingGroups.find((g) => g.id !== family.id && g.guests.filter((x) => !x.isPlusOne).length >= 1);
+  const coupleMembers = couple.guests.filter((x) => !x.isPlusOne);
+  const base = (over = {}) => ({
+    token: couple.invitation.token,
+    version: 0,
+    status: "ATTENDING",
+    people: coupleMembers.map((m) => ({ key: m.id, firstName: m.firstName, ageCategory: m.ageCategory, attending: true })),
+    meals: {},
+    allergies: {},
+    consent: false,
+    answers: [],
+    ...over,
+  });
+  const overQuota = await postRsvp(
+    base({ people: [...base().people, ...Array.from({ length: couple.maxSeats + 1 }, (_, i) => ({ key: `new:${i}`, firstName: `Pirate${i}`, ageCategory: "ADULT", attending: true }))] }),
+  );
+  const afterQuota = await loadGroup(couple.id);
+  record("94. Quota : accompagnants ajoutes a la main au-dela des places → refuse, rien ecrit", overQuota.status === 422 && overQuota.body?.code === "QUOTA" && !afterQuota.invitation.response && afterQuota.guests.length === couple.guests.length, `HTTP ${overQuota.status}`);
+
+  const foreign = await prisma.guest.findFirstOrThrow({ where: { group: { eventId: EVENT_ID, id: { not: couple.id } } } });
+  const hijack = await postRsvp(base({ people: [{ key: foreign.id, ageCategory: "ADULT", attending: true }] }));
+  const foreignAfter = await prisma.guest.findUniqueOrThrow({ where: { id: foreign.id } });
+  record("95. Personne d un autre groupe : refusee, intacte", hijack.status === 422 && foreignAfter.attending === foreign.attending, `HTTP ${hijack.status}`);
+
+  const noConsent = await postRsvp(base({ allergies: { [coupleMembers[0].id]: "Arachides" } }));
+  record("96. Allergie sans accord explicite : refusee", noConsent.status === 422 && noConsent.body?.code === "CONSENT", `HTTP ${noConsent.status}`);
+
+  const [first, second] = await Promise.all([
+    postRsvp(base({ allergies: { [coupleMembers[0].id]: "Arachides" }, consent: true })),
+    postRsvp(base({ status: "DECLINED" })),
+  ]);
+  const raced = await loadGroup(couple.id);
+  const raceStatuses = [first.status, second.status].sort();
+  record(
+    "97. Deux envois simultanes de la meme version : un seul accepte, l autre en conflit",
+    raceStatuses[0] === 200 && raceStatuses[1] === 409 && raced.invitation.response.version === 1 && raced.invitation.response.history.length === 1,
+    `${first.status} / ${second.status}`,
+  );
+  const withAllergy = await loadGroup(couple.id);
+  if (withAllergy.invitation.response.status === "ATTENDING") {
+    record(
+      "98. Allergie avec accord : stockee, consentement date, jamais recopiee dans l historique",
+      withAllergy.guests[0].preference?.allergies === "Arachides" && Boolean(withAllergy.invitation.response.sensitiveConsentAt) &&
+        !JSON.stringify(withAllergy.invitation.response.history).includes("Arachides"),
+    );
+  } else {
+    const retry = await postRsvp(base({ version: 1, allergies: { [coupleMembers[0].id]: "Arachides" }, consent: true }));
+    const retried = await loadGroup(couple.id);
+    record(
+      "98. Allergie avec accord : stockee, consentement date, jamais recopiee dans l historique",
+      retry.status === 200 && retried.guests[0].preference?.allergies === "Arachides" && Boolean(retried.invitation.response.sensitiveConsentAt) &&
+        !JSON.stringify(retried.invitation.response.history).includes("Arachides"),
+    );
+  }
+
+  const stale = await postRsvp(base({ version: 0, status: "DECLINED" }));
+  record("99. Version perimee (autre onglet) : conflit", stale.status === 409 && stale.body?.code === "CONFLICT", `HTTP ${stale.status}`);
+
+  const currentVersion = (await loadGroup(couple.id)).invitation.response.version;
+  await prisma.event.update({ where: { id: EVENT_ID }, data: { rsvpSettings: { ...originalRsvpSettings, allowEdit: false } } });
+  const locked = await postRsvp(base({ version: currentVersion, status: "DECLINED" }));
+  await prisma.event.update({ where: { id: EVENT_ID }, data: { rsvpSettings: { ...originalRsvpSettings, deadline: "2026-01-01T00:00:00Z" } } });
+  const late = await postRsvp(base({ version: currentVersion, status: "DECLINED" }));
+  const latePage = await (await fetch(`${BASE}/i/${couple.invitation.token}`, { headers: { "x-forwarded-for": nextIp() } })).text();
+  await prisma.event.update({ where: { id: EVENT_ID }, data: { rsvpSettings: originalRsvpSettings } });
+  record("100. Modification interdite par l organisateur : refusee", locked.status === 409 && locked.body?.code === "LOCKED", `HTTP ${locked.status}`);
+  record("101. Date limite passee : refusee, la page le dit", late.status === 409 && late.body?.code === "CLOSED" && !latePage.includes("Modifier ma réponse"), `HTTP ${late.status}`);
+
+  const revokedRsvp = await postRsvp({ ...base(), token: revoked.token });
+  record("102. Lien revoque : aucune reponse possible", revokedRsvp.status === 404, `HTTP ${revokedRsvp.status}`);
+
+  // Configuration par l organisateur.
+  const configBody = {
+    settings: { allowMaybe: true, allowEdit: true, deadline: "2026-11-28T23:59" },
+    meals: mealsOfEvent.map((m) => ({ id: m.id, label: m.label, description: m.description, forChildren: m.forChildren })),
+    questions: [{ type: "SINGLE_CHOICE", label: "Taille de t-shirt ?", options: ["S", "M", "L"], required: true, perGuest: true }],
+  };
+  const coConfig = await api(co, `/api/organizer/events/${EVENT_ID}/rsvp`, "PUT", configBody);
+  record("103. Co-organisateur sans « design » : configuration refusee", coConfig.status === 404, `HTTP ${coConfig.status}`);
+  const ownerConfig = await api(owner, `/api/organizer/events/${EVENT_ID}/rsvp`, "PUT", configBody);
+  const storedConfig = await prisma.event.findUniqueOrThrow({ where: { id: EVENT_ID }, include: { questions: true } });
+  record(
+    "104. Configuration enregistree : date limite convertie depuis l heure du lieu, anciennes questions remplacees",
+    ownerConfig.status === 200 && storedConfig.rsvpSettings.deadline === "2026-11-28T22:59:00.000Z" && storedConfig.questions.length === 1 && storedConfig.questions[0].label === "Taille de t-shirt ?",
+    `${ownerConfig.status} ${storedConfig.rsvpSettings.deadline}`,
+  );
+  const third = pendingGroups.find((g) => g.id !== family.id && g.id !== couple.id);
+  const thirdMember = third.guests.find((x) => !x.isPlusOne);
+  const missingRequired = await postRsvp({
+    token: third.invitation.token, version: 0, status: "ATTENDING",
+    people: [{ key: thirdMember.id, ageCategory: thirdMember.ageCategory, attending: true }], meals: {}, allergies: {}, consent: false, answers: [],
+  });
+  record("105. Question obligatoire par personne non renseignee : refusee", missingRequired.status === 422, `HTTP ${missingRequired.status}`);
+
+  let rateStatus = 0;
+  for (let i = 0; i < 12; i += 1) rateStatus = (await postRsvp({ ...base(), token: third.invitation.token, version: 99 })).status;
+  record("106. Plus de 10 envois par minute pour un meme lien : bloque", rateStatus === 429, `HTTP ${rateStatus}`);
+
+  const rsvpScreen = await newSession();
+  await signIn(rsvpScreen, "organisateur@tap.exemple");
+  await rsvpScreen.setViewport({ width: 360, height: 800 });
+  await rsvpScreen.goto(`${BASE}/dashboard/events/${EVENT_ID}/rsvp`, { waitUntil: "networkidle0" });
+  const rsvpOverflow = await rsvpScreen.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  // Les intitules sont dans des champs : innerText ne lit pas leur valeur.
+  const rsvpText = await rsvpScreen.evaluate(() => [...document.querySelectorAll("input, textarea")].map((i) => i.value).join(" | "));
+  record("107. Ecran « Reponses » organisateur : complet, sans debordement a 360 px", rsvpOverflow <= 0 && rsvpText.includes("Taille de t-shirt ?"), `${rsvpOverflow}px`);
+
+  // Retour a la configuration du jeu de donnees : reglages ET questions, sinon
+  // le passage suivant bute sur la question obligatoire ajoutee au test 104.
+  await prisma.event.update({ where: { id: EVENT_ID }, data: { rsvpSettings: originalRsvpSettings } });
+  await prisma.rsvpQuestion.deleteMany({ where: { eventId: EVENT_ID } });
+  await prisma.rsvpQuestion.createMany({
+    data: originalQuestions.map(({ id, ...q }) => ({ ...q, options: q.options ?? [] })),
+  });
 
   // ---------------------------------------------------- NON-REGRESSION --
   for (const path of ["/dashboard", "/dashboard/stats", "/dashboard/share"]) {

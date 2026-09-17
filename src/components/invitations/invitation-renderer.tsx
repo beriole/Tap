@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 import type { InvitationThemeKey } from "@/config/invitation-themes";
-import type { InvitationView } from "@/types/invitation";
+import type { InvitationView, RsvpFormData } from "@/types/invitation";
 import { RoyalIvory } from "./themes/royal-ivory/theme";
 
 /**
@@ -17,11 +17,13 @@ import { RoyalIvory } from "./themes/royal-ivory/theme";
  * noms changent de police a l arrivee de Bodoni Moda. A traiter pour toute
  * l application, cartes NFC comprises.
  */
-const THEMES: Record<InvitationThemeKey, ComponentType<{ view: InvitationView }>> = {
+type ThemeProps = { view: InvitationView; rsvpForm?: RsvpFormData | null };
+
+const THEMES: Record<InvitationThemeKey, ComponentType<ThemeProps>> = {
   "royal-ivory": RoyalIvory,
 };
 
-export function InvitationRenderer({ view }: { view: InvitationView }) {
+export function InvitationRenderer({ view, rsvpForm }: ThemeProps) {
   const Theme = THEMES[view.theme.key] ?? THEMES["royal-ivory"];
-  return <Theme view={view} />;
+  return <Theme view={view} rsvpForm={rsvpForm} />;
 }

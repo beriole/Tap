@@ -18,6 +18,7 @@ export function EventTabs({ eventId, allowed }: { eventId: string; allowed: { co
     { href: base, label: "Vue d ensemble", show: true, exact: true },
     { href: `${base}/invites`, label: "Invites", show: allowed.guests },
     { href: `${base}/contenu`, label: "Contenu", show: allowed.content },
+    { href: `${base}/rsvp`, label: "Reponses", show: allowed.design },
     { href: `${base}/design`, label: "Design", show: allowed.design },
   ].filter((t) => t.show);
 

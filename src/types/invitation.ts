@@ -83,3 +83,42 @@ export type InvitationView = {
    */
   envelope: boolean;
 };
+
+/**
+ * Donnees du formulaire de reponse, pour le SEUL groupe du jeton.
+ *
+ * Volontairement hors d InvitationView : le theme ne recoit ni jeton ni
+ * identifiant. Seul le composant de formulaire, qui doit poster la reponse,
+ * les a entre les mains - et uniquement pour la famille qui tient le lien.
+ */
+export type RsvpFormData = {
+  token: string;
+  version: number;
+  status: "PENDING" | "ATTENDING" | "DECLINED" | "MAYBE";
+  allowMaybe: boolean;
+  allowEdit: boolean;
+  closed: boolean;
+  maxSeats: number;
+  members: {
+    key: string;
+    firstName: string | null;
+    lastName: string | null;
+    ageCategory: "ADULT" | "CHILD" | "BABY";
+    isPlusOne: boolean;
+    attending: boolean | null;
+    mealOptionId: string | null;
+    allergies: string | null;
+  }[];
+  meals: { id: string; label: string; description: string | null; forChildren: boolean }[];
+  questions: {
+    id: string;
+    type: "TEXT" | "SINGLE_CHOICE" | "MULTI_CHOICE" | "NUMBER" | "BOOLEAN";
+    label: string;
+    options: string[];
+    required: boolean;
+    perGuest: boolean;
+  }[];
+  answers: { questionId: string; key: string | null; value: unknown }[];
+  message: string | null;
+  deadlineLabel: string | null;
+};

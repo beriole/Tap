@@ -11,6 +11,8 @@ import type { DateParts, InvitationView } from "@/types/invitation";
  */
 
 export type RawInvitationEvent = {
+  /** Facultatif : un evenement CLOS ferme les reponses, quelle que soit la date limite */
+  status?: "DRAFT" | "PUBLISHED" | "CLOSED" | "ARCHIVED";
   type: InvitationView["event"]["type"];
   title: string;
   hosts: string;
@@ -135,7 +137,7 @@ export function buildInvitationView(
       : null,
     rsvp: {
       deadline: deadline ? dateParts(deadline, tz) : null,
-      closed: deadline ? deadline < now : false,
+      closed: event.status === "CLOSED" || (deadline ? deadline < now : false),
     },
     theme: {
       key: themeKey,

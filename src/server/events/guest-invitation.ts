@@ -2,8 +2,9 @@ import "server-only";
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { canReadInvitation, isInvitationToken } from "@/lib/events/invitation-access";
-import { buildInvitationView, type RawInvitationEvent } from "@/lib/events/invitation-view";
-import type { InvitationView } from "@/types/invitation";
+import { buildInvitationView, dateParts, type RawInvitationEvent } from "@/lib/events/invitation-view";
+import { parseRsvpSettings } from "@/lib/events/rsvp";
+import type { InvitationView, RsvpFormData } from "@/types/invitation";
 
 /**
  * Resolution d une invitation par son jeton (§6, §19).
@@ -20,6 +21,7 @@ export type GuestInvitation = {
   eventId: string;
   firstOpenedAt: Date | null;
   view: InvitationView;
+  rsvpForm: RsvpFormData;
 };
 
 export const resolveGuestInvitation = cache(
@@ -33,11 +35,30 @@ export const resolveGuestInvitation = cache(
         revokedAt: true,
         expiresAt: true,
         firstOpenedAt: true,
+        response: {
+          select: {
+            status: true,
+            version: true,
+            message: true,
+            answers: { select: { questionId: true, guestId: true, value: true } },
+          },
+        },
         group: {
           select: {
             name: true,
             maxSeats: true,
-            guests: { orderBy: { position: "asc" }, select: { firstName: true, isPlusOne: true } },
+            guests: {
+              orderBy: { position: "asc" },
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                ageCategory: true,
+                isPlusOne: true,
+                attending: true,
+                preference: { select: { mealOptionId: true, allergies: true } },
+              },
+            },
             event: {
               select: {
                 id: true,
@@ -62,6 +83,11 @@ export const resolveGuestInvitation = cache(
                   orderBy: { position: "asc" },
                   select: { id: true, kind: true, title: true, isVisible: true, data: true },
                 },
+                meals: { orderBy: { position: "asc" }, select: { id: true, label: true, description: true, forChildren: true } },
+                questions: {
+                  orderBy: { position: "asc" },
+                  select: { id: true, type: true, label: true, options: true, required: true, perGuest: true },
+                },
               },
             },
           },
@@ -80,6 +106,37 @@ export const resolveGuestInvitation = cache(
       { groupName: group.name, maxSeats: group.maxSeats, guests: group.guests },
       { preview: false, envelope: options.replayEnvelope || !invitation.firstOpenedAt },
     );
-    return { invitationId: invitation.id, eventId: event.id, firstOpenedAt: invitation.firstOpenedAt, view };
+
+    const settings = parseRsvpSettings(event.rsvpSettings);
+    const rsvpForm: RsvpFormData = {
+      token,
+      version: invitation.response?.version ?? 0,
+      status: invitation.response?.status ?? "PENDING",
+      allowMaybe: settings.allowMaybe,
+      allowEdit: settings.allowEdit,
+      closed: view.rsvp.closed,
+      maxSeats: group.maxSeats,
+      members: group.guests.map((g) => ({
+        key: g.id,
+        firstName: g.firstName,
+        lastName: g.lastName,
+        ageCategory: g.ageCategory,
+        isPlusOne: g.isPlusOne,
+        attending: g.attending,
+        mealOptionId: g.preference?.mealOptionId ?? null,
+        // Donnee de la famille elle-meme, rendue a qui tient son lien pour qu elle puisse la corriger.
+        allergies: g.preference?.allergies ?? null,
+      })),
+      meals: event.meals,
+      questions: event.questions.map((q) => ({
+        ...q,
+        options: Array.isArray(q.options) ? q.options.filter((o): o is string => typeof o === "string") : [],
+      })),
+      answers: invitation.response?.answers.map((a) => ({ questionId: a.questionId, key: a.guestId, value: a.value })) ?? [],
+      message: invitation.response?.message ?? null,
+      deadlineLabel: settings.deadline ? dateParts(new Date(settings.deadline), event.timezone).long : null,
+    };
+
+    return { invitationId: invitation.id, eventId: event.id, firstOpenedAt: invitation.firstOpenedAt, view, rsvpForm };
   },
 );
