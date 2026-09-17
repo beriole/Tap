@@ -33,7 +33,23 @@ Trois principes tiennent l'ensemble :
 | 1 — Schéma, permissions, jeu de données | ✅ | `npm test` 16/16 · `npm run audit:invitations` 20/20 |
 | 2 — Espace organisateur : événement, contenu, invités | ✅ | `npm test` 31/31 · `npm run audit:invitations` 42/42, deux passages consécutifs |
 | 3 — DesignEngine + thème « Royal Ivory » | ✅ | `npm test` 40/40 · `npm run audit:invitations` 54/54, deux passages consécutifs |
-| 4 → 10 | à faire | |
+| 4 — Lien invité, enveloppe, publication | ✅ | `npm test` 44/44 · `npm run audit:invitations` 71/71, deux passages consécutifs |
+| 5 → 10 | à faire | |
+
+**Phase 4, précisions**
+
+- `/i/[jeton]` : page neutre unique pour jeton inconnu, révoqué, expiré ou événement non publié ; 60 résolutions
+  par minute par adresse ; en-têtes `private, no-store`, `no-referrer`, `noindex` ; aperçu de partage avec les
+  hôtes et la date, jamais le nom de l'invité.
+- **Ouvertures comptées par le navigateur**, pas au rendu : les robots d'aperçu (WhatsApp, Facebook, Telegram)
+  téléchargent la page à chaque partage et n'exécutent pas de JavaScript. Les membres de l'événement ne sont
+  pas comptés. L'état avance (créée/partagée → ouverte) sans jamais reculer.
+- Enveloppe : ~2 s, « Passer », jouée à la première visite seulement (`?enveloppe=1` pour la rejouer),
+  fondu de 250 ms en mouvement réduit, masquée sans JavaScript.
+- Publication / dépublication depuis la vue d'ensemble (permission `design`) ; `publishedAt` conservé.
+- **Performance** (4G lente, processeur ×4) : LCP 3,8 s → 2,2–2,4 s en retirant toute animation d'entrée des
+  noms, de la date et du bouton (§12.1). Écart à corriger pour **toute l'application** : aucune police n'est
+  préchargée (`<link rel="preload">` absent, y compris pour les polices globales) ; elles partent vers 1,5 s.
 
 **Phase 3, précisions**
 

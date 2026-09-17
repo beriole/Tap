@@ -2,6 +2,7 @@ import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { InvitationSection, InvitationView } from "@/types/invitation";
+import { Envelope } from "../../envelope";
 import { RsvpDock } from "../../rsvp-dock";
 import { royalIvoryDisplay } from "./font";
 
@@ -23,11 +24,21 @@ import { royalIvoryDisplay } from "./font";
  * Premier ecran, de 360 a 430 px : destinataire, noms, date, bouton de
  * reponse. La photo, les lieux et le reste viennent apres (§12.1 hierarchie).
  *
- * Entrees en CSS uniquement (pc-*) : visibles des le premier rendu, sans
- * attendre le JavaScript ; neutralisees par prefers-reduced-motion.
+ * Mouvement : l ESSENTIEL du premier ecran - noms, date, bouton - n a aucune
+ * entree. Il est la au premier rendu, meme sur un telephone lent (§12.1 "les
+ * animations ne doivent jamais retarder l acces aux informations
+ * essentielles"). Mesure en 4G lente : les entrees retardaient l affichage
+ * des noms. Seuls les ornements (filets, esperluette, mentions secondaires)
+ * gardent une entree CSS, neutralisee par prefers-reduced-motion.
  */
 
 type Palette = { bg: string; paper: string; ink: string; ink2: string; line: string; rule: string; accentText: string };
+
+/** Papier de l enveloppe : un ton sous la page, pour que l objet se detache sans ombre lourde. */
+const ENVELOPE: Record<string, { paper: string; fold: string; flap: string; edge: string; card: string; cardInk: string }> = {
+  ivoire: { paper: "#EAE0CC", fold: "#E2D6BF", flap: "#DCCDB2", edge: "#C9B797", card: "#FBF7EF", cardInk: "#2B231F" },
+  nuit: { paper: "#2C2521", fold: "#26201C", flap: "#383029", edge: "#4A4038", card: "#F3EBDD", cardInk: "#2B231F" },
+};
 
 const VARIANTS: Record<string, Omit<Palette, "rule" | "accentText">> = {
   ivoire: { bg: "#F6F0E4", paper: "#EEE5D5", ink: "#2B231F", ink2: "#675B52", line: "#E0D3BE" },
@@ -86,6 +97,26 @@ export function RoyalIvory({ view }: { view: InvitationView }) {
     "--ri-accent": p.accentText,
   } as React.CSSProperties;
 
+  const paper = ENVELOPE[theme.settings.variant] ?? ENVELOPE.ivoire!;
+  const envelopeStyle = {
+    "--env-bg": p.bg,
+    "--env-ink": p.ink,
+    "--env-ink-2": p.ink2,
+    "--env-line": p.line,
+    "--env-paper": paper.paper,
+    "--env-fold": paper.fold,
+    "--env-flap": paper.flap,
+    "--env-edge": paper.edge,
+    "--env-card": paper.card,
+    "--env-card-ink": paper.cardInk,
+    "--env-liner": p.rule,
+    "--env-seal": p.rule,
+    "--env-seal-ink": p.bg,
+    "--env-font": "var(--ri-display)",
+  } as React.CSSProperties;
+  const monogram =
+    event.hostParts.length === 2 ? `${event.hostParts[0]!.charAt(0)} & ${event.hostParts[1]!.charAt(0)}` : event.hostParts[0]!.charAt(0);
+
   const ctaLabel = rsvp.closed ? "Voir les informations" : "Répondre à l’invitation";
 
   return (
@@ -100,6 +131,12 @@ export function RoyalIvory({ view }: { view: InvitationView }) {
       {/* break-words : tout texte saisi par l organisateur peut contenir un mot
           interminable. Il ne se coupe qu en dernier recours, sans changer la
           largeur minimale des grilles (contrairement a overflow-wrap:anywhere). */}
+      {view.envelope && (
+        <div style={envelopeStyle}>
+          <Envelope recipient={salutation} monogram={monogram} />
+        </div>
+      )}
+
       <div className="mx-auto w-full max-w-[460px] break-words px-6 pb-28 pt-[max(20px,env(safe-area-inset-top))]">
         {event.updatedNote && (
           <p className={cn(smallCaps, "pc-fade pt-1 text-center text-[10px] text-[var(--ri-accent)]")}>{event.updatedNote}</p>
@@ -120,7 +157,7 @@ export function RoyalIvory({ view }: { view: InvitationView }) {
           <h1 className="mt-7 font-normal [font-family:var(--ri-display)] [font-optical-sizing:auto]">
             {event.hostParts.length === 2 ? (
               <>
-                <span className={cn("pc-rise block leading-[0.95] tracking-[-0.015em] [overflow-wrap:anywhere]", nameSize(longest))} style={delay(160)}>
+                <span className={cn("block leading-[0.95] tracking-[-0.015em] [overflow-wrap:anywhere]", nameSize(longest))}>
                   {event.hostParts[0]}
                 </span>
                 <span className="pc-fade my-2 flex items-center justify-center gap-4" style={delay(260)}>
@@ -128,12 +165,12 @@ export function RoyalIvory({ view }: { view: InvitationView }) {
                   <span className="text-[34px] italic leading-none text-[var(--ri-accent)]">&amp;</span>
                   <span aria-hidden className="pc-draw h-px w-10 bg-[var(--ri-rule)]" style={delay(320)} />
                 </span>
-                <span className={cn("pc-rise block leading-[0.95] tracking-[-0.015em] [overflow-wrap:anywhere]", nameSize(longest))} style={delay(300)}>
+                <span className={cn("block leading-[0.95] tracking-[-0.015em] [overflow-wrap:anywhere]", nameSize(longest))}>
                   {event.hostParts[1]}
                 </span>
               </>
             ) : (
-              <span className={cn("pc-rise block leading-[1] tracking-[-0.015em] [overflow-wrap:anywhere] [text-wrap:balance]", nameSize(longest))} style={delay(160)}>
+              <span className={cn("block leading-[1] tracking-[-0.015em] [overflow-wrap:anywhere] [text-wrap:balance]", nameSize(longest))}>
                 {event.hostParts[0]}
               </span>
             )}
@@ -147,7 +184,7 @@ export function RoyalIvory({ view }: { view: InvitationView }) {
             </p>
           )}
 
-          <div id="ri-hero-cta" className="pc-rise mt-9 w-full max-w-[320px]" style={delay(620)}>
+          <div id="ri-hero-cta" className="mt-9 w-full max-w-[320px]">
             <a href="#rsvp" className={button}>
               {ctaLabel}
             </a>
@@ -294,16 +331,15 @@ function DateCartouche({ view }: { view: InvitationView }) {
         {starts.long}, {starts.time}
       </p>
       <div aria-hidden className="grid grid-cols-[1fr_auto_1fr] items-center">
-        <span className={cn(smallCaps, "pc-fade text-right text-[var(--ri-ink-2)]")} style={delay(420)}>
+        <span className={cn(smallCaps, "text-right text-[var(--ri-ink-2)]")}>
           {starts.weekday}
         </span>
         <span
-          className="pc-rise mx-5 border-x border-[var(--ri-rule)] px-5 text-[clamp(64px,19vw,88px)] leading-[0.9] tabular-nums [font-family:var(--ri-display)] [font-variant-numeric:lining-nums]"
-          style={delay(460)}
+          className="mx-5 border-x border-[var(--ri-rule)] px-5 text-[clamp(64px,19vw,88px)] leading-[0.9] tabular-nums [font-family:var(--ri-display)] [font-variant-numeric:lining-nums]"
         >
           {starts.day}
         </span>
-        <span className={cn(smallCaps, "pc-fade text-left leading-[1.9] text-[var(--ri-ink-2)]")} style={delay(420)}>
+        <span className={cn(smallCaps, "text-left leading-[1.9] text-[var(--ri-ink-2)]")}>
           {starts.month}
           <br />
           {starts.year}

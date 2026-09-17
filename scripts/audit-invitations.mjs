@@ -403,7 +403,7 @@ try {
 
   await bench.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
   await bench.goto(`${BASE}/preview/invitation/banc?case=reference`, { waitUntil: "networkidle0" });
-  const animationMs = await bench.evaluate(() => parseFloat(getComputedStyle(document.querySelector(".pc-rise")).animationDuration) * 1000);
+  const animationMs = await bench.evaluate(() => parseFloat(getComputedStyle(document.querySelector(".pc-fade")).animationDuration) * 1000);
   record("52. Animations reduites respectees", animationMs <= 0.01, `${animationMs} ms`);
   await bench.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "no-preference" }]);
 
@@ -463,6 +463,146 @@ try {
     if (over > 0) studioOverflow.push(`${width}px:+${over}`);
   }
   record("61. Studio de design sans debordement sur telephone", studioOverflow.length === 0, studioOverflow.join(" ") || "360, 390");
+
+  // ============================================ PHASE 4 - PAGE INVITE --
+  const UNAVAILABLE = "Cette invitation n’est pas disponible";
+  const openTarget = await prisma.invitation.findFirstOrThrow({
+    where: { group: { eventId: EVENT_ID }, state: { in: ["SHARED", "CREATED", "OPENED"] }, revokedAt: null },
+    include: { group: { include: { guests: true } } },
+  });
+  // Etat de depart connu : le passage precedent a pu l ouvrir.
+  await prisma.invitation.update({ where: { id: openTarget.id }, data: { state: "SHARED", firstOpenedAt: null, lastOpenedAt: null, openCount: 0 } });
+  const openUrl = `/i/${openTarget.token}`;
+  const guestFirstName = openTarget.group.guests.find((g) => g.firstName && !g.isPlusOne)?.firstName;
+
+  const revoked = await prisma.invitation.findFirstOrThrow({ where: { group: { eventId: EVENT_ID }, revokedAt: { not: null } } });
+  const draft = await prisma.invitation.findFirstOrThrow({ where: { group: { event: { status: "DRAFT" } } } });
+  const neutralTexts = [];
+  const visitor = await newSession();
+  for (const path of [`/i/${"x".repeat(43)}`, `/i/${revoked.token}`, `/i/${draft.token}`, "/i/court"]) {
+    await visitor.goto(`${BASE}${path}`, { waitUntil: "networkidle0", timeout: 90000 });
+    neutralTexts.push(await visitor.evaluate(() => document.querySelector("main")?.innerText ?? ""));
+  }
+  record(
+    "70. Jeton inconnu, revoque, brouillon, malforme : page neutre identique",
+    neutralTexts.every((t) => t === neutralTexts[0] && t.includes(UNAVAILABLE) && !t.includes("Beriole")),
+  );
+
+  // Comme un robot d apercu : sans JavaScript, avec son user-agent.
+  const bot = await fetch(`${BASE}${openUrl}`, { headers: { "User-Agent": "WhatsApp/2.23.20.0 A", "x-forwarded-for": `192.0.2.${Date.now() % 250}` } });
+  const botHtml = await bot.text();
+  // Plusieurs familles portent le meme nom dans le jeu de donnees : on exclut ce nom-la.
+  const otherGroup = await prisma.guestGroup.findFirstOrThrow({ where: { eventId: EVENT_ID, id: { not: openTarget.groupId }, name: { startsWith: "Famille", not: openTarget.group.name } } });
+  // Salutation attendue : les prenoms jusqu a deux, le nom du groupe au-dela.
+  const namedGuests = openTarget.group.guests.filter((g) => g.firstName && !g.isPlusOne);
+  const expectedSalutation = namedGuests.length > 0 && namedGuests.length <= 2 ? namedGuests[0].firstName : openTarget.group.name;
+  record(
+    "71. Page invite : contenu de l evenement et salutation, rien d autre",
+    bot.status === 200 && botHtml.includes("Beriole") && botHtml.includes(expectedSalutation) &&
+      !botHtml.includes(notedGroup.internalNote) && !botHtml.includes(somePhone.slice(4)) && !botHtml.includes(otherGroup.name),
+    `salutation « ${expectedSalutation} »`,
+  );
+  record(
+    "72. En-tetes : no-store, no-referrer, noindex",
+    /no-store/.test(bot.headers.get("cache-control") ?? "") && bot.headers.get("referrer-policy") === "no-referrer" && /noindex/.test(bot.headers.get("x-robots-tag") ?? ""),
+    `${bot.headers.get("cache-control")} | ${bot.headers.get("referrer-policy")}`,
+  );
+  const ogTitle = botHtml.match(/property="og:title" content="([^"]+)"/)?.[1] ?? "";
+  record("73. Apercu de partage : les hotes, jamais le nom de l invite", ogTitle.includes("vous invitent") && !ogTitle.includes(expectedSalutation) && (!guestFirstName || !ogTitle.includes(guestFirstName)), ogTitle);
+  const afterBot = await prisma.invitation.findUniqueOrThrow({ where: { id: openTarget.id } });
+  record("74. Robot d apercu : ouverture non comptee", afterBot.openCount === 0 && afterBot.state === "SHARED");
+
+  // Vrai navigateur, premiere visite : enveloppe, puis ouverture comptee.
+  await visitor.setViewport({ width: 390, height: 844 });
+  await visitor.goto(`${BASE}${openUrl}`, { waitUntil: "networkidle0", timeout: 90000 });
+  const veilFirst = await visitor.evaluate(() => Boolean(document.querySelector(".env-veil")));
+  await new Promise((r) => setTimeout(r, 800));
+  const opened = await prisma.invitation.findUniqueOrThrow({ where: { id: openTarget.id } });
+  record("75. Premiere visite : enveloppe, ouverture comptee une fois", veilFirst && opened.openCount === 1 && opened.state === "OPENED" && Boolean(opened.firstOpenedAt), `ouvertures ${opened.openCount}, etat ${opened.state}`);
+
+  await visitor.click('button[aria-label="Ouvrir l invitation"]');
+  const openStart = Date.now();
+  await visitor.waitForFunction(() => !document.querySelector(".env-veil"), { timeout: 5000 }).catch(() => null);
+  const openMs = Date.now() - openStart;
+  const scrollFree = await visitor.evaluate(() => document.documentElement.style.overflow !== "hidden");
+  record("76. Enveloppe ouverte en moins de 4 s, defilement rendu", openMs < 4000 && scrollFree, `${openMs} ms`);
+
+  await visitor.goto(`${BASE}${openUrl}`, { waitUntil: "networkidle0" });
+  const veilSecond = await visitor.evaluate(() => Boolean(document.querySelector(".env-veil")));
+  record("77. Deuxieme visite : pas d enveloppe", !veilSecond);
+
+  await visitor.goto(`${BASE}${openUrl}?enveloppe=1`, { waitUntil: "networkidle0" });
+  await visitor.evaluate(() => [...document.querySelectorAll(".env-veil button")].find((b) => b.textContent.trim() === "Passer").click());
+  await new Promise((r) => setTimeout(r, 150));
+  record("78. « Passer » donne l invitation immediatement", await visitor.evaluate(() => !document.querySelector(".env-veil")));
+
+  await visitor.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+  await visitor.goto(`${BASE}${openUrl}?enveloppe=1`, { waitUntil: "networkidle0" });
+  await visitor.click('button[aria-label="Ouvrir l invitation"]');
+  const reducedStart = Date.now();
+  await visitor.waitForFunction(() => !document.querySelector(".env-veil"), { timeout: 3000 }).catch(() => null);
+  record("79. Mouvement reduit : fondu court a la place de la sequence", Date.now() - reducedStart < 700, `${Date.now() - reducedStart} ms`);
+  await visitor.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "no-preference" }]);
+
+  const noJs = await newSession();
+  await noJs.setJavaScriptEnabled(false);
+  await noJs.goto(`${BASE}${openUrl}?enveloppe=1`, { waitUntil: "networkidle0" });
+  const noJsState = await noJs.evaluate(() => ({
+    veilHidden: [...document.querySelectorAll(".env-veil")].every((v) => getComputedStyle(v).display === "none"),
+    text: document.body.innerText.includes("Beriole"),
+  }));
+  record("80. Sans JavaScript : enveloppe masquee, invitation lisible", noJsState.veilHidden && noJsState.text);
+
+  const counted = await prisma.invitation.findUniqueOrThrow({ where: { id: openTarget.id } });
+  await owner.goto(`${BASE}${openUrl}`, { waitUntil: "networkidle0" });
+  await new Promise((r) => setTimeout(r, 800));
+  const afterOwner = await prisma.invitation.findUniqueOrThrow({ where: { id: openTarget.id } });
+  record("81. L organisateur qui verifie un lien n est pas compte", afterOwner.openCount === counted.openCount, `${counted.openCount} → ${afterOwner.openCount}`);
+
+  const responded = await prisma.invitation.findFirstOrThrow({ where: { group: { eventId: EVENT_ID }, state: "RESPONDED" } });
+  await visitor.goto(`${BASE}/i/${responded.token}`, { waitUntil: "networkidle0" });
+  await new Promise((r) => setTimeout(r, 800));
+  record("82. Ouverture d une invitation deja repondue : l etat ne recule pas", (await prisma.invitation.findUniqueOrThrow({ where: { id: responded.id } })).state === "RESPONDED");
+
+  // Performance (§2.1, §20) : 4G lente, processeur ralenti, deuxieme visite.
+  const { PredefinedNetworkConditions } = await import("puppeteer-core");
+  const perf = await newSession();
+  await perf.setViewport({ width: 390, height: 844 });
+  await perf.emulateNetworkConditions(PredefinedNetworkConditions["Slow 4G"]);
+  await perf.emulateCPUThrottling(4);
+  await perf.evaluateOnNewDocument(() => {
+    window.__lcp = 0;
+    window.__cls = 0;
+    new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__lcp = e.startTime; }).observe({ type: "largest-contentful-paint", buffered: true });
+    new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: "layout-shift", buffered: true });
+  });
+  await perf.goto(`${BASE}${openUrl}`, { waitUntil: "networkidle0", timeout: 120000 });
+  await new Promise((r) => setTimeout(r, 1500));
+  const vitals = await perf.evaluate(() => ({ lcp: Math.round(window.__lcp), cls: Number(window.__cls.toFixed(3)) }));
+  record("83. 4G lente : LCP < 2,5 s et CLS < 0,05", vitals.lcp < 2500 && vitals.cls < 0.05, `LCP ${vitals.lcp} ms, CLS ${vitals.cls}`);
+
+  // Publication.
+  const coPublish = await api(co, `/api/organizer/events/${EVENT_ID}/publish`, "POST", { published: false });
+  record("84. Co-organisateur sans « design » : publication refusee", coPublish.status === 404, `HTTP ${coPublish.status}`);
+  const publishedAtBefore = (await prisma.event.findUniqueOrThrow({ where: { id: EVENT_ID } })).publishedAt;
+  await api(owner, `/api/organizer/events/${EVENT_ID}/publish`, "POST", { published: false });
+  const whileDraft = await (await fetch(`${BASE}${openUrl}`, { headers: { "x-forwarded-for": `192.0.2.${(Date.now() + 7) % 250}` } })).text();
+  await api(owner, `/api/organizer/events/${EVENT_ID}/publish`, "POST", { published: true });
+  const republished = await (await fetch(`${BASE}${openUrl}`, { headers: { "x-forwarded-for": `192.0.2.${(Date.now() + 13) % 250}` } })).text();
+  const publishedAtAfter = (await prisma.event.findUniqueOrThrow({ where: { id: EVENT_ID } })).publishedAt;
+  record(
+    "85. Depublie : liens neutres ; republie : liens rendus, date de publication conservee",
+    whileDraft.includes(UNAVAILABLE) && !whileDraft.includes("Cathedrale") && republished.includes("Beriole") && publishedAtBefore?.getTime() === publishedAtAfter?.getTime(),
+  );
+
+  // Limitation sur la resolution des jetons : 60 par minute par adresse.
+  const limitIp = `198.18.${Date.now() % 250}.${(Date.now() >> 8) % 250}`;
+  let lastBody = "";
+  for (let i = 0; i < 61; i += 1) {
+    lastBody = await (await fetch(`${BASE}/i/${"y".repeat(43)}`, { headers: { "x-forwarded-for": limitIp } })).text();
+  }
+  const blocked = await (await fetch(`${BASE}${openUrl}`, { headers: { "x-forwarded-for": limitIp } })).text();
+  record("86. Au-dela de 60 jetons par minute, meme un lien valide repond neutre", lastBody.includes(UNAVAILABLE) && blocked.includes(UNAVAILABLE) && !blocked.includes("Cathedrale"));
 
   // ---------------------------------------------------- NON-REGRESSION --
   for (const path of ["/dashboard", "/dashboard/stats", "/dashboard/share"]) {

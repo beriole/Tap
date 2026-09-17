@@ -76,4 +76,10 @@ export type InvitationView = {
   };
   /** Apercu : aucun lien actif, aucun enregistrement */
   preview: boolean;
+  /**
+   * Jouer l ouverture de l enveloppe. Vrai a la premiere visite de l invite
+   * (ou sur demande) ; faux ensuite : on ne rejoue pas 3 secondes de mise en
+   * scene a quelqu un qui revient chercher l adresse.
+   */
+  envelope: boolean;
 };

@@ -19,7 +19,7 @@ export const metadata = { robots: { index: false, follow: false } };
 export default async function InvitationBenchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ case?: string; variant?: string; accent?: string; theme?: string }>;
+  searchParams: Promise<{ case?: string; variant?: string; accent?: string; theme?: string; enveloppe?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) notFound();
@@ -32,6 +32,7 @@ export default async function InvitationBenchPage({
     preview: true,
     // Date figee : le compte a rebours et la cloture ne changent pas d un jour a l autre.
     now: new Date("2026-09-17T10:00:00Z"),
+    envelope: q.enveloppe === "1",
     themeOverride: { key: q.theme, settings: { variant: q.variant, accent: q.accent } },
   });
   return <InvitationRenderer view={view} />;

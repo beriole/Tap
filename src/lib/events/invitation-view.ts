@@ -84,7 +84,7 @@ export function daysUntil(target: Date, now: Date, timeZone: string): number | n
 export function buildInvitationView(
   event: RawInvitationEvent,
   guest: RawInvitationGuest,
-  options: { preview: boolean; now?: Date; themeOverride?: { key?: string; settings?: unknown } },
+  options: { preview: boolean; now?: Date; envelope?: boolean; themeOverride?: { key?: string; settings?: unknown } },
 ): InvitationView {
   const now = options.now ?? new Date();
   const tz = event.timezone;
@@ -142,5 +142,6 @@ export function buildInvitationView(
       settings: resolveThemeSettings(themeKey, options.themeOverride?.settings ?? event.themeSettings),
     },
     preview: options.preview,
+    envelope: options.envelope ?? false,
   };
 }

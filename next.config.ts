@@ -31,6 +31,17 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        // Invitations personnelles : le jeton est dans l URL. Aucun cache
+        // partage (un proxy ne doit jamais servir l invitation d une famille
+        // a une autre), aucun referrer, aucune indexation.
+        source: "/i/:token*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+        ],
+      },
     ];
   },
 };

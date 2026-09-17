@@ -4,6 +4,7 @@ import { eventPageContext } from "@/server/events/page-context";
 import { loadEventHeadcount } from "@/server/events/headcount";
 import { PageBody, PageHeader, SectionTitle, StatTile, Surface } from "@/components/app/ui";
 import { EventTabs } from "@/components/events/event-tabs";
+import { PublishToggle } from "@/components/events/publish-toggle";
 
 export const metadata: Metadata = { title: "Vue d ensemble" };
 
@@ -18,13 +19,14 @@ export const metadata: Metadata = { title: "Vue d ensemble" };
  */
 export default async function EventOverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { tabs } = await eventPageContext(id, "view");
+  const { tabs, can } = await eventPageContext(id, "view");
 
   const [event, headcount] = await Promise.all([
     prisma.event.findUniqueOrThrow({
       where: { id },
       select: {
         title: true,
+        status: true,
         startsAt: true,
         timezone: true,
         meals: { orderBy: { position: "asc" }, select: { id: true, label: true } },
@@ -41,6 +43,7 @@ export default async function EventOverviewPage({ params }: { params: Promise<{ 
       <PageHeader
         eyebrow={event.startsAt.toLocaleDateString("fr-FR", { dateStyle: "full", timeZone: event.timezone })}
         title={event.title}
+        action={can("design") ? <PublishToggle eventId={id} published={event.status === "PUBLISHED"} /> : undefined}
         stats={[
           { label: "Attendus", value: people.expected, hint: `sur ${people.invitedSeats} places proposees` },
           { label: "Reponses", value: rate, hint: `% · ${groups.responded} groupes sur ${groups.total}`, tone: "plain" },
