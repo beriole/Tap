@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { parsePastedGuests } from "@/lib/events/paste-import";
+import { annotateEntries, parsePastedGuests } from "@/lib/events/paste-import";
 import { importCommitSchema, importPreviewSchema } from "@/lib/validations/guest";
 import { canAccessEvent } from "@/lib/events/permissions";
 import { eventRoute, parseBody } from "@/server/events/api";
@@ -9,7 +9,7 @@ import { createGroups, existingGuestsForDuplicates, GuestError } from "@/server/
 type Params = { params: Promise<{ id: string }> };
 
 /**
- * Import par copier-coller, en deux temps (§8.2) :
+ * Import par copier-coller ou fichier CSV, en deux temps (§8.2, §8.3) :
  *  - POST : analyse. Rien n est ecrit ; on renvoie des lignes annotees
  *    (numero normalise, problemes, doublons contre la base).
  *  - PUT  : enregistrement des groupes relus et corriges par l organisateur.
@@ -28,7 +28,16 @@ export async function POST(request: Request, { params }: Params) {
     prisma.event.findUniqueOrThrow({ where: { id }, select: { defaultCountry: true } }),
     existingGuestsForDuplicates(id),
   ]);
-  const rows = parsePastedGuests(body.value.text, { defaultCountry: event.defaultCountry, existing });
+  const options = { defaultCountry: event.defaultCountry, existing };
+  // Le CSV est lu et decoupe dans le navigateur ; les CONTROLES restent ici,
+  // identiques a ceux du collage (annotateEntries).
+  const rows =
+    "text" in body.value
+      ? parsePastedGuests(body.value.text, options)
+      : annotateEntries(
+          body.value.entries.map((e) => ({ ...e, source: [e.fullName, e.phone, e.group].filter(Boolean).join(" ; ") })),
+          options,
+        );
   if (rows.length > 3000) {
     return NextResponse.json({ error: "3000 lignes maximum par collage." }, { status: 422 });
   }

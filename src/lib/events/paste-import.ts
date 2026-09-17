@@ -58,54 +58,69 @@ function looksLikePhone(value: string): boolean {
   return PHONE_SHAPE.test(value) && (value.match(/\d/g)?.length ?? 0) >= 3;
 }
 
-export function parsePastedGuests(
-  text: string,
+/** Une entree deja decoupee : colonnes d un CSV, ou morceaux d une ligne collee. */
+export type GuestEntry = { line: number; source: string; fullName: string; phone: string | null; group: string | null };
+
+/**
+ * Annotation commune au copier-coller et au CSV : memes controles de nom, de
+ * numero et de doublons, quelle que soit la provenance. Deux chemins qui
+ * verifieraient chacun a leur facon finiraient par diverger.
+ */
+export function annotateEntries(
+  entries: GuestEntry[],
   options: { defaultCountry?: string; existing?: ExistingGuest[] } = {},
 ): ImportRow[] {
   const { defaultCountry = "CM", existing = [] } = options;
-  const rows: ImportRow[] = [];
-
-  text.split(/\r?\n/).forEach((rawLine, index) => {
-    const source = rawLine.trim();
-    if (!source) return;
-    if (rows.length === 0 && HEADER.test(source)) return;
-
-    const parts = splitLine(source);
-    const phonePart = parts.find(looksLikePhone) ?? null;
-    const texts = parts.filter((p) => p !== phonePart);
-    const fullName = texts[0] ?? "";
+  const rows = entries.map((entry): ImportRow => {
+    const fullName = entry.fullName.trim();
     const split = splitName(fullName);
-
     const issues: ImportIssue[] = [];
     let phoneE164: string | null = null;
     if (!fullName) issues.push("missing_name");
     else if (!split.separable) issues.push("name_not_separable");
 
-    if (phonePart) {
-      const phone = normalizePhone(phonePart, defaultCountry);
+    if (entry.phone) {
+      const phone = normalizePhone(entry.phone, defaultCountry);
       phoneE164 = phone.e164;
       if (phone.issue) issues.push(phone.issue);
     } else {
       issues.push("no_phone");
     }
 
-    rows.push({
-      line: index + 1,
-      source,
+    return {
+      line: entry.line,
+      source: entry.source,
       fullName,
       firstName: split.firstName,
       lastName: split.lastName,
-      phoneRaw: phonePart,
+      phoneRaw: entry.phone,
       phoneE164,
       // Sans groupe, la personne forme son propre groupe.
-      groupName: texts[1] ?? fullName,
+      groupName: entry.group?.trim() || fullName,
       issues,
       duplicateOf: null,
-    });
+    };
   });
-
   markDuplicates(rows, existing);
   return rows;
+}
+
+export function parsePastedGuests(
+  text: string,
+  options: { defaultCountry?: string; existing?: ExistingGuest[] } = {},
+): ImportRow[] {
+  const entries: GuestEntry[] = [];
+  text.split(/\r?\n/).forEach((rawLine, index) => {
+    const source = rawLine.trim();
+    if (!source) return;
+    if (entries.length === 0 && HEADER.test(source)) return;
+
+    const parts = splitLine(source);
+    const phonePart = parts.find(looksLikePhone) ?? null;
+    const texts = parts.filter((p) => p !== phonePart);
+    entries.push({ line: index + 1, source, fullName: texts[0] ?? "", phone: phonePart, group: texts[1] ?? null });
+  });
+  return annotateEntries(entries, options);
 }
 
 /**

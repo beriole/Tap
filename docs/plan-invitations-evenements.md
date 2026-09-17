@@ -35,7 +35,24 @@ Trois principes tiennent l'ensemble :
 | 3 — DesignEngine + thème « Royal Ivory » | ✅ | `npm test` 40/40 · `npm run audit:invitations` 54/54, deux passages consécutifs |
 | 4 — Lien invité, enveloppe, publication | ✅ | `npm test` 44/44 · `npm run audit:invitations` 71/71, deux passages consécutifs |
 | 5 — RSVP multi-étapes | ✅ | `npm test` 59/59 · `npm run audit:invitations` 89/89, deux passages consécutifs |
-| 6 → 10 | à faire | |
+| 6 — Distribution + import CSV | ✅ | `npm test` 72/72 · `npm run audit:invitations` 103/103, deux passages consécutifs |
+| 7 → 10 | à faire | |
+
+**Phase 6, précisions**
+
+- Écran « Partage » (permission `messages`) : le **seul** écran organisateur qui reçoit les jetons. États
+  à envoyer / envoyée / ouverte / répondue / révoquée, filtres, recherche.
+- WhatsApp assisté : `wa.me/<numéro>?text=…` avec le message et le lien ; l'organisateur confirme
+  « Envoyé ? Oui ». Mode « Envoyer à la suite » pour enchaîner sans quitter l'écran. Modèle de message
+  personnalisable (`{prenom}`, `{hotes}`, `{titre}`, `{date}`, `{lien}`) ; le lien est ajouté s'il est oublié.
+- Lien : marquer envoyé ne fait jamais reculer l'état ; révocation → page neutre immédiate ; régénération →
+  nouveau jeton, ancien mort, réponse conservée, compteurs d'ouverture remis à zéro ; journalisé.
+- Import CSV lu dans le navigateur (UTF-8 ou Windows-1252, séparateur détecté, guillemets RFC 4180, rôles de
+  colonnes devinés et modifiables), puis **mêmes contrôles** que le copier-coller (`annotateEntries`).
+  Un fichier `.xlsx` est refusé avec la marche à suivre ; le XLSX natif reste en phase 9.
+- Audit : après l'ouverture d'un onglet WhatsApp, l'onglet de la console passe en arrière-plan et Chrome y
+  suspend l'affichage des rendus diffusés ; l'audit le ramène au premier plan (`bringToFront`) comme le ferait
+  un utilisateur. Ce n'est pas un défaut de l'application. Mesure de performance : médiane de cinq chargements.
 
 **Phase 5, précisions**
 

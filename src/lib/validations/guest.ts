@@ -54,8 +54,22 @@ export const groupUpdateSchema = groupCreateSchema;
 
 export type GroupInput = z.infer<typeof groupCreateSchema>;
 
-/** Collage texte a analyser (ecran de validation). */
-export const importPreviewSchema = z.object({ text: z.string().max(200_000, "Collage trop long.") });
+/** A analyser : un collage texte, OU des lignes deja decoupees (fichier CSV lu dans le navigateur). */
+export const importPreviewSchema = z.union([
+  z.object({ text: z.string().max(200_000, "Collage trop long.") }),
+  z.object({
+    entries: z
+      .array(
+        z.object({
+          line: z.number().int().min(1),
+          fullName: z.string().max(200),
+          phone: z.string().max(60).nullable(),
+          group: z.string().max(200).nullable(),
+        }),
+      )
+      .max(3000, "3000 lignes maximum par fichier."),
+  }),
+]);
 
 /** Groupes valides par l organisateur apres relecture. */
 export const importCommitSchema = z.object({

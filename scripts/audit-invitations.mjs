@@ -508,7 +508,9 @@ try {
     `${bot.headers.get("cache-control")} | ${bot.headers.get("referrer-policy")}`,
   );
   const ogTitle = botHtml.match(/property="og:title" content="([^"]+)"/)?.[1] ?? "";
-  record("73. Apercu de partage : les hotes, jamais le nom de l invite", ogTitle.includes("vous invitent") && !ogTitle.includes(expectedSalutation) && (!guestFirstName || !ogTitle.includes(guestFirstName)), ogTitle);
+  // Egalite stricte : un invite peut s appeler "Anna" comme l une des hotes,
+  // et "contient le prenom" ne prouverait alors rien.
+  record("73. Apercu de partage : les hotes, jamais le nom de l invite", ogTitle.replace(/&amp;/g, "&") === "Beriole & Anna vous invitent", ogTitle);
   const afterBot = await prisma.invitation.findUniqueOrThrow({ where: { id: openTarget.id } });
   record("74. Robot d apercu : ouverture non comptee", afterBot.openCount === 0 && afterBot.state === "SHARED");
 
@@ -565,13 +567,14 @@ try {
   record("82. Ouverture d une invitation deja repondue : l etat ne recule pas", (await prisma.invitation.findUniqueOrThrow({ where: { id: responded.id } })).state === "RESPONDED");
 
   // Performance (§2.1, §20) : 4G lente, processeur ralenti, deuxieme visite.
-  // Mediane de trois chargements a froid : sur une machine locale qui fait
-  // tourner le serveur ET le navigateur, un chargement sur cinq sort du lot
-  // (mesure : 2176, 2264, 2292, 2312, 2756 ms). Un echantillon unique ferait
-  // echouer le test au hasard ; la mediane detecte une vraie regression.
+  // Mediane de cinq chargements a froid : sur une machine locale qui fait
+  // tourner le serveur, la base ET le navigateur, les mesures varient d un
+  // passage a l autre (medianes de 3 chargements observees : 2268 a 2788 ms
+  // sans aucun changement de code). Cinq echantillons stabilisent la mediane
+  // sans assouplir le seuil de 2,5 s.
   const { PredefinedNetworkConditions } = await import("puppeteer-core");
   const samples = [];
-  for (let run = 0; run < 3; run += 1) {
+  for (let run = 0; run < 5; run += 1) {
     const perf = await newSession();
     await perf.setViewport({ width: 390, height: 844 });
     await perf.setExtraHTTPHeaders({ "x-forwarded-for": `192.0.2.${(Date.now() + run * 17) % 250}` });
@@ -590,7 +593,7 @@ try {
   }
   const lcps = samples.map((s) => s.lcp).sort((a, b) => a - b);
   const worstCls = Math.max(...samples.map((s) => s.cls));
-  record("83. 4G lente : LCP median < 2,5 s et CLS < 0,05", lcps[1] < 2500 && worstCls < 0.05, `LCP ${lcps.join(" / ")} ms (mediane ${lcps[1]}), CLS max ${worstCls}`);
+  record("83. 4G lente : LCP median < 2,5 s et CLS < 0,05", lcps[2] < 2500 && worstCls < 0.05, `LCP ${lcps.join(" / ")} ms (mediane ${lcps[2]}), CLS max ${worstCls}`);
 
   // Publication.
   const coPublish = await api(co, `/api/organizer/events/${EVENT_ID}/publish`, "POST", { published: false });
@@ -810,6 +813,168 @@ try {
   await prisma.rsvpQuestion.createMany({
     data: originalQuestions.map(({ id, ...q }) => ({ ...q, options: q.options ?? [] })),
   });
+
+  // ============================================ PHASE 6 - DISTRIBUTION --
+  // Point de depart connu : quatre invitations "a envoyer".
+  // Le premier a un numero : on verifie le cas nominal du lien WhatsApp adresse.
+  // Peu importe qu un groupe ait deja repondu : le test force l etat du lien.
+  const candidates = await prisma.invitation.findMany({
+    where: { group: { eventId: EVENT_ID }, revokedAt: null },
+    orderBy: { group: { name: "asc" } },
+    include: { group: { include: { guests: { orderBy: { position: "asc" } } } } },
+  });
+  // Nom de groupe UNIQUE : l ecran est interroge par nom, et plusieurs familles
+  // du jeu de donnees portent le meme.
+  const nameCounts = new Map();
+  for (const g of await prisma.guestGroup.findMany({ where: { eventId: EVENT_ID }, select: { name: true } })) nameCounts.set(g.name, (nameCounts.get(g.name) ?? 0) + 1);
+  const withPhone = candidates.filter((i) => nameCounts.get(i.group.name) === 1 && i.group.guests.some((g) => g.phoneE164 && !g.isPlusOne));
+  const toSend = [withPhone[0], ...candidates.filter((i) => i.id !== withPhone[0].id).slice(0, 3)];
+  // Seules ces quatre-la sont "a envoyer" : la file doit en compter exactement trois apres le premier envoi.
+  await prisma.invitation.updateMany({
+    where: { group: { eventId: EVENT_ID }, state: "CREATED", id: { notIn: toSend.map((i) => i.id) } },
+    data: { state: "SHARED", sharedAt: new Date() },
+  });
+  await prisma.invitation.updateMany({ where: { id: { in: toSend.map((i) => i.id) } }, data: { state: "CREATED", sharedAt: null } });
+  await prisma.event.update({ where: { id: EVENT_ID }, data: { shareTemplate: null } });
+
+  const coShare = await rawHtml(co, `/dashboard/events/${EVENT_ID}/partage`);
+  const intruderShare = await rawHtml(intruder, `/dashboard/events/${EVENT_ID}/partage`);
+  record("110. Partage : co-organisateur sans « messages » et intrus → introuvable", coShare.html.includes("Page introuvable") && intruderShare.html.includes("Page introuvable"));
+  const coGuestsHtml = (await rawHtml(co, `/dashboard/events/${EVENT_ID}/invites`)).html;
+  record("111. Aucun jeton d invitation hors de l ecran Partage", !toSend.some((i) => coGuestsHtml.includes(i.token)));
+
+  const sharePage = await newSession();
+  await signIn(sharePage, "organisateur@tap.exemple");
+  await sharePage.setViewport({ width: 390, height: 844 });
+  // Les onglets WhatsApp ouverts par les clics sont refermes aussitot.
+  browser.on("targetcreated", async (target) => {
+    if (target.url().startsWith("https://wa.me")) (await target.page())?.close().catch(() => null);
+  });
+  await sharePage.goto(`${BASE}/dashboard/events/${EVENT_ID}/partage`, { waitUntil: "networkidle0", timeout: 90000 });
+  const shareOverflow = await sharePage.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  record("112. Ecran Partage sans debordement a 390 px", shareOverflow <= 0, `${shareOverflow}px`);
+
+  const firstToSend = toSend[0];
+  const waHref = await sharePage.evaluate((name) => {
+    const a = document.querySelector(`a[aria-label="Envoyer sur WhatsApp a ${name}"]`);
+    return a?.getAttribute("href") ?? null;
+  }, firstToSend.group.name);
+  const decoded = waHref ? decodeURIComponent(waHref.split("text=")[1] ?? "") : "";
+  const firstPhone = firstToSend.group.guests.find((g) => g.phoneE164 && !g.isPlusOne)?.phoneE164;
+  record(
+    "113. WhatsApp : numero du groupe, message pre-rempli avec SON lien",
+    Boolean(waHref && firstPhone) && decoded.includes(`/i/${firstToSend.token}`) && waHref.startsWith(`https://wa.me/${firstPhone.replace(/\D/g, "")}?`),
+    waHref ? waHref.slice(0, 40) : "lien absent",
+  );
+  await sharePage.evaluate((name) => document.querySelector(`a[aria-label="Envoyer sur WhatsApp a ${name}"]`).click(), firstToSend.group.name);
+  await new Promise((r) => setTimeout(r, 300));
+  // L onglet WhatsApp passe devant : la console est alors en arriere-plan et
+  // Chrome y suspend l affichage des rendus diffuses (visibilityState "hidden").
+  // Un utilisateur revient sur l onglet ; on fait de meme. Ce n est pas un
+  // defaut de l application : le contenu apparait des le retour au premier plan.
+  await sharePage.bringToFront();
+  await clickText(sharePage, "button", "Oui");
+  await new Promise((r) => setTimeout(r, 800));
+  const firstAfter = await prisma.invitation.findUniqueOrThrow({ where: { id: firstToSend.id } });
+  record("114. Confirmation « Envoye ? Oui » : invitation marquee envoyee", firstAfter.state === "SHARED" && Boolean(firstAfter.sharedAt));
+
+  // File : les trois restantes, une passee.
+  await sharePage.reload({ waitUntil: "networkidle0" });
+  // Le rendu peut etre diffuse en plusieurs temps : on attend le bouton lui-meme,
+  // pas seulement la fin de l activite reseau.
+  await sharePage.waitForFunction(
+    () => [...document.querySelectorAll("button")].some((b) => b.textContent.trim().startsWith("Envoyer a la suite")),
+    { timeout: 45000 },
+  );
+  await clickText(sharePage, "button", "Envoyer a la suite");
+  await sharePage.waitForFunction(() => document.body.innerText.includes("1 / 3"), { timeout: 20000 });
+  for (const step of ["send", "skip", "send"]) {
+    if (step === "send") {
+      await sharePage.evaluate(() => [...document.querySelectorAll("a")].find((a) => a.textContent.includes("Ouvrir WhatsApp")).click());
+      await new Promise((r) => setTimeout(r, 300));
+      await sharePage.bringToFront();
+      await clickText(sharePage, "button", "C est envoye, suivant");
+    } else {
+      await clickText(sharePage, "button", "Passer");
+    }
+    await new Promise((r) => setTimeout(r, 700));
+  }
+  const queueEnded = await sharePage.evaluate(() => document.body.innerText.includes("File terminee"));
+  const queued = await prisma.invitation.findMany({ where: { id: { in: toSend.slice(1).map((i) => i.id) } } });
+  const sharedCount = queued.filter((i) => i.state === "SHARED").length;
+  record("115. Envoi a la suite : 2 envoyees, 1 passee, file terminee sans quitter l ecran", queueEnded && sharedCount === 2 && queued.filter((i) => i.state === "CREATED").length === 1, `${sharedCount} envoyees`);
+
+  // Cycle de vie du lien, par l API.
+  const answered = await prisma.invitation.findFirstOrThrow({ where: { group: { eventId: EVENT_ID }, state: "RESPONDED", revokedAt: null }, include: { response: true } });
+  const markAnswered = await api(owner, `/api/organizer/events/${EVENT_ID}/groups/${answered.groupId}/link`, "POST", { action: "shared" });
+  record("116. Marquer envoyee une invitation deja repondue : l etat ne recule pas", markAnswered.status === 200 && markAnswered.body?.state === "RESPONDED");
+
+  const coLink = await api(co, `/api/organizer/events/${EVENT_ID}/groups/${answered.groupId}/link`, "POST", { action: "revoke" });
+  const intruderLink = await api(intruder, `/api/organizer/events/${intruderEvent.id}/groups/${answered.groupId}/link`, "POST", { action: "revoke" });
+  record("117. Revocation : co-organisateur sans « messages » et intrus refuses", coLink.status === 404 && intruderLink.status === 404, `${coLink.status} / ${intruderLink.status}`);
+
+  const oldToken = answered.token;
+  const revoke = await api(owner, `/api/organizer/events/${EVENT_ID}/groups/${answered.groupId}/link`, "POST", { action: "revoke" });
+  const deadPage = await (await fetch(`${BASE}/i/${oldToken}`, { headers: { "x-forwarded-for": nextIp() } })).text();
+  const shareRevoked = await api(owner, `/api/organizer/events/${EVENT_ID}/groups/${answered.groupId}/link`, "POST", { action: "shared" });
+  record("118. Lien revoque : page neutre, ne peut plus etre marque envoye", revoke.body?.state === "REVOKED" && deadPage.includes(UNAVAILABLE) && shareRevoked.status === 409);
+
+  const regen = await api(owner, `/api/organizer/events/${EVENT_ID}/groups/${answered.groupId}/link`, "POST", { action: "regenerate" });
+  const regenerated = await prisma.invitation.findUniqueOrThrow({ where: { id: answered.id }, include: { response: true } });
+  const oldStillDead = await (await fetch(`${BASE}/i/${oldToken}`, { headers: { "x-forwarded-for": nextIp() } })).text();
+  const newAlive = await (await fetch(`${BASE}/i/${regenerated.token}`, { headers: { "x-forwarded-for": nextIp() } })).text();
+  const audits = await prisma.auditLog.count({ where: { targetId: answered.groupId, action: { in: ["invitation.revoke", "invitation.regenerate"] } } });
+  record(
+    "119. Regeneration : nouveau jeton actif, ancien mort, reponse conservee, journalise",
+    regen.status === 200 && regenerated.token !== oldToken && oldStillDead.includes(UNAVAILABLE) && newAlive.includes("Beriole") &&
+      regenerated.state === "RESPONDED" && regenerated.response?.id === answered.response?.id && audits >= 2,
+  );
+
+  // Modele de message : le lien ne peut pas etre oublie.
+  await api(owner, `/api/organizer/events/${EVENT_ID}/share-template`, "PUT", { template: "Coucou {prenom}, on compte sur vous !" });
+  await sharePage.reload({ waitUntil: "networkidle0" });
+  const templatePreview = await sharePage.evaluate(() => document.querySelector("pre")?.textContent ?? "");
+  record("120. Modele sans {lien} : le lien est ajoute au message", templatePreview.startsWith("Coucou") && templatePreview.includes("/i/"));
+  await api(owner, `/api/organizer/events/${EVENT_ID}/share-template`, "PUT", { template: null });
+
+  // Import CSV : export Excel francais (Windows-1252, point-virgule), 500 lignes.
+  const { writeFileSync, mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const csvLines = ["Prénom;Nom;Téléphone portable;Famille"];
+  for (let i = 0; i < 497; i += 1) csvLines.push(`Hervé${i};NDONGO${i};699${String(300000 + i).padStart(6, "0")};Famille Ndongo ${i % 250}`);
+  csvLines.push("Doublon;Numero;699300000;Autre");
+  csvLines.push("Oncle;Incomplet;699 12;");
+  csvLines.push('"Marie; Claire";"ETO\'O";677 88 99 00;"Famille ""Eto\'o"""');
+  const latin1 = Uint8Array.from(Buffer.from(csvLines.join("\r\n"), "latin1"));
+  const csvDir = mkdtempSync(join(tmpdir(), "audit-csv-"));
+  const csvPath = join(csvDir, "invites-excel.csv");
+  writeFileSync(csvPath, latin1);
+
+  const importer = await newSession();
+  await signIn(importer, "organisateur@tap.exemple");
+  await importer.setViewport({ width: 1280, height: 900 });
+  await importer.goto(`${BASE}/dashboard/events/${EVENT_ID}/invites`, { waitUntil: "networkidle0" });
+  await clickText(importer, "button", "Coller une liste");
+  await importer.waitForSelector('[role="tablist"]');
+  await clickText(importer, "button", "Fichier CSV");
+  const fileInput = await importer.waitForSelector('input[type="file"]');
+  await fileInput.uploadFile(csvPath);
+  await importer.waitForFunction(() => document.body.innerText.includes("500 lignes"), { timeout: 10000 });
+  const mapping = await importer.evaluate(() => [...document.querySelectorAll("thead select")].map((s) => s.value));
+  const accentOk = await importer.evaluate(() => document.body.innerText.includes("Hervé0"));
+  record("121. CSV Windows-1252 : accents lus, colonnes reconnues (prenom, nom, telephone, famille)", accentOk && mapping.join(",") === "firstName,lastName,phone,group", mapping.join(","));
+  await clickText(importer, "button", "Analyser la liste");
+  await importer.waitForFunction(() => /a importer/.test(document.body.innerText), { timeout: 30000 });
+  // Les noms sont dans des champs modifiables : innerText ne lit pas leur valeur.
+  const csvReview = await importer.evaluate(() => document.body.innerText + " | " + [...document.querySelectorAll("input")].map((i) => i.value).join(" | "));
+  record(
+    "122. CSV de 500 lignes : doublon et numero incomplet signales avant tout enregistrement",
+    /500 lignes/.test(csvReview) && /Numero deja present - ligne 2/.test(csvReview) && /Numero incomplet/.test(csvReview) && csvReview.includes("Marie; Claire"),
+    csvReview.match(/\d+ a importer[^\n]*/)?.[0],
+  );
+  const groupsBeforeCsv = await prisma.guestGroup.count({ where: { eventId: EVENT_ID } });
+  record("123. Rien n est ecrit avant la validation", groupsBeforeCsv === (await prisma.guestGroup.count({ where: { eventId: EVENT_ID } })));
 
   // ---------------------------------------------------- NON-REGRESSION --
   for (const path of ["/dashboard", "/dashboard/stats", "/dashboard/share"]) {

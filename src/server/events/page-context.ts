@@ -12,6 +12,6 @@ export async function eventPageContext(eventId: string, need: EventAccessNeed) {
   return {
     access,
     can,
-    tabs: { content: can("design"), guests: can("guests"), design: can("design") },
+    tabs: { content: can("design"), guests: can("guests"), design: can("design"), share: can("messages") },
   };
 }

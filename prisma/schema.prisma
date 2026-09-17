@@ -557,6 +557,9 @@ model Event {
   rsvpSettings  Json   @default("{}")
   /// Offre de l evenement (src/config/event-plans.ts)
   plan          String @default("free")
+  /// Modele du message de partage ({prenom}, {hotes}, {titre}, {date}, {lien}) ;
+  /// null = modele par defaut (src/lib/events/share.ts)
+  shareTemplate String?
 
   heroImageUrl     String?
   publishedAt      DateTime?
