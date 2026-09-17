@@ -1,6 +1,9 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { generateSecureToken } from "@/lib/tokens";
+import { siteConfig } from "@/config/site";
+import { ticketUrl } from "@/lib/events/checkin";
 import { canReadInvitation } from "@/lib/events/invitation-access";
 import { checkRsvp, parseRsvpSettings, type RsvpErrorCode } from "@/lib/events/rsvp";
 import type { RsvpSubmission } from "@/lib/validations/rsvp";
@@ -18,7 +21,7 @@ import type { RsvpSubmission } from "@/lib/validations/rsvp";
  */
 
 export type RsvpResult =
-  | { ok: true; version: number; status: "ATTENDING" | "DECLINED" | "MAYBE" }
+  | { ok: true; version: number; status: "ATTENDING" | "DECLINED" | "MAYBE"; ticketUrl: string | null }
   | { ok: false; code: RsvpErrorCode | "NOT_FOUND"; message: string };
 
 class ConflictError extends Error {}
@@ -74,6 +77,7 @@ export async function submitRsvp(input: RsvpSubmission, now = new Date()): Promi
   const { plan } = check;
 
   try {
+    let ticketCode: string | null = null;
     const version = await prisma.$transaction(async (tx) => {
       // --- Personnes ------------------------------------------------------
       const idByKey = new Map<string, string>();
@@ -165,10 +169,33 @@ export async function submitRsvp(input: RsvpSubmission, now = new Date()): Promi
         },
       });
 
+      // --- Ticket d acces (D2, §10) --------------------------------------
+      // Emis a la confirmation, avec autant de places que de presents ; mis a
+      // jour si la reponse change ; annule (jamais supprime : l historique des
+      // entrees reste) si la famille decline. Le code du QR est distinct du
+      // jeton d invitation et ne change pas d une modification a l autre :
+      // un QR deja enregistre dans la galerie du telephone reste valable.
+      if (plan.status === "ATTENDING") {
+        // Une famille qui reduit ses presents APRES une entree deja enregistree
+        // ne peut pas passer sous les places consommees : le ticket resterait
+        // incoherent. On garde le maximum, et le poste voit "deja entres".
+        const existing = await tx.ticket.findUnique({ where: { invitationId: invitation.id }, select: { seatsUsed: true } });
+        const seats = Math.max(present.length, existing?.seatsUsed ?? 0);
+        const ticket = await tx.ticket.upsert({
+          where: { invitationId: invitation.id },
+          create: { invitationId: invitation.id, code: generateSecureToken(32), seats },
+          update: { seats, cancelledAt: null },
+          select: { code: true },
+        });
+        ticketCode = ticket.code;
+      } else {
+        await tx.ticket.updateMany({ where: { invitationId: invitation.id, cancelledAt: null }, data: { cancelledAt: now } });
+      }
+
       await tx.invitation.update({ where: { id: invitation.id }, data: { state: "RESPONDED" } });
       return nextVersion;
     });
-    return { ok: true, version, status: plan.status };
+    return { ok: true, version, status: plan.status, ticketUrl: ticketCode ? ticketUrl(siteConfig.url, ticketCode) : null };
   } catch (error) {
     const duplicate = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
     if (error instanceof ConflictError || duplicate) {

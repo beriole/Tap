@@ -87,6 +87,8 @@ export function RsvpForm({ data, intro }: { data: RsvpFormData; intro?: React.Re
   const [message, setMessage] = useState(data.message ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Adresse du QR : connue au chargement, ou renvoyee par le serveur a la confirmation.
+  const [ticketHref, setTicketHref] = useState(data.ticketUrl);
 
   const present = people.filter((p) => p.attending);
   const freeSeats = data.maxSeats - present.length;
@@ -196,6 +198,7 @@ export function RsvpForm({ data, intro }: { data: RsvpFormData; intro?: React.Re
       } else {
         setVersion(body.version);
         setSavedStatus(body.status);
+        setTicketHref(body.ticketUrl ?? null);
         setMode("done");
       }
     } catch {
@@ -225,6 +228,17 @@ export function RsvpForm({ data, intro }: { data: RsvpFormData; intro?: React.Re
               ? "Vous ne pourrez pas être présents."
               : "Vous n’êtes pas encore sûrs de venir."}
         </p>
+        {shownStatus === "ATTENDING" && ticketHref && (
+          <a
+            href={ticketHref}
+            className="mt-7 flex min-h-[52px] w-full items-center justify-center rounded-[2px] bg-[var(--rsvp-ink)] px-6 text-[13px] font-medium uppercase tracking-[0.2em] text-[var(--rsvp-bg)]"
+          >
+            Voir mon accès (QR)
+          </a>
+        )}
+        {shownStatus === "ATTENDING" && ticketHref && (
+          <p className="mt-2 text-[12.5px] text-[var(--rsvp-ink-2)]">À présenter à l’entrée, une fois pour toute la famille.</p>
+        )}
         {data.allowEdit && !data.closed && (
           <button
             type="button"

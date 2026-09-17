@@ -1118,6 +1118,180 @@ try {
     `${expectedBefore} → ${expectedAfter} en ${Math.round((Date.now() - refreshStart) / 1000)} s | POST ${fresh.status} | SQL ${sqlAfterFresh}`,
   );
 
+  // ================================================ PHASE 8 - ACCUEIL --
+  const checkinCall = async (action, body) => {
+    const r = await fetch(`${BASE}/api/checkin?action=${action}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-forwarded-for": nextIp() },
+      body: JSON.stringify(body),
+    });
+    return { status: r.status, body: await r.json().catch(() => null) };
+  };
+
+  // Un groupe qui vient de confirmer par le formulaire (test 90) a son ticket.
+  const familyNow = await loadGroup(family.id);
+  const familyTicket = await prisma.ticket.findUnique({ where: { invitationId: familyNow.invitation.id } });
+  // Le test 93 a fait decliner la famille : le ticket doit etre annule, pas supprime.
+  record("150. Ticket emis a la confirmation, annule (pas supprime) au declin", Boolean(familyTicket) && Boolean(familyTicket.cancelledAt) && familyTicket.code.length >= 40);
+
+  // Un groupe present pour les tests d entree : le couple (test 97/98), 1 a 2 presents.
+  const coupleNow = await loadGroup(couple.id);
+  const coupleTicket = await prisma.ticket.findUniqueOrThrow({ where: { invitationId: coupleNow.invitation.id } });
+  const presentNow = coupleNow.guests.filter((g) => g.attending).length;
+  record("151. Ticket : places = personnes confirmees, code distinct du jeton d invitation", coupleTicket.seats === presentNow && !coupleTicket.cancelledAt && coupleTicket.code !== coupleNow.invitation.token, `${coupleTicket.seats} place(s)`);
+
+  const ticketPage = await (await fetch(`${BASE}/t/${coupleTicket.code}`, { headers: { "x-forwarded-for": nextIp() } })).text();
+  const couplePhone = coupleNow.guests.find((g) => g.phoneE164)?.phoneE164;
+  record(
+    "152. Page QR : groupe et prenoms, jamais numero ni jeton ; QR present",
+    // Le QR encode l URL en modules, pas en texte : on ne la cherche pas dans le HTML.
+    ticketPage.includes(coupleNow.name) && ticketPage.includes("<svg") && !ticketPage.includes(coupleNow.invitation.token) && (!couplePhone || !ticketPage.includes(couplePhone.slice(4))),
+  );
+  const qrPage = await newSession();
+  await qrPage.setViewport({ width: 360, height: 780 });
+  await qrPage.goto(`${BASE}/t/${coupleTicket.code}`, { waitUntil: "networkidle0", timeout: 90000 });
+  const qrFit = await qrPage.evaluate(() => {
+    const svg = document.querySelector("svg");
+    const r = svg?.getBoundingClientRect();
+    return { overflow: document.documentElement.scrollWidth - window.innerWidth, svgRight: r ? Math.round(r.right) : -1, inner: window.innerWidth };
+  });
+  record("152b. Page QR a 360 px : le QR tient dans l ecran, sans debordement", qrFit.overflow <= 0 && qrFit.svgRight > 0 && qrFit.svgRight <= qrFit.inner, `svg jusqu a ${qrFit.svgRight}px sur ${qrFit.inner}`);
+  const badTicketPage = await (await fetch(`${BASE}/t/${"z".repeat(43)}`, { headers: { "x-forwarded-for": nextIp() } })).text();
+  record("153. Code de ticket inconnu : page introuvable", badTicketPage.includes("Page introuvable"));
+
+  // Le lien "Voir mon acces" apparait sur l invitation du couple.
+  const coupleInvitePage = await (await fetch(`${BASE}/i/${coupleNow.invitation.token}`, { headers: { "x-forwarded-for": nextIp() } })).text();
+  record("154. Invitation confirmee : lien vers le QR d acces", coupleInvitePage.includes(`/t/${coupleTicket.code}`) && coupleInvitePage.includes("Voir mon accès"));
+
+  // Postes d accueil.
+  const coStation = await api(co, `/api/organizer/events/${EVENT_ID}/stations`, "POST", { label: "Pirate" });
+  const guestsOnlyCo = coStation.status;
+  const stationA = await api(owner, `/api/organizer/events/${EVENT_ID}/stations`, "POST", { label: "Entree principale" });
+  const stationB = await api(owner, `/api/organizer/events/${EVENT_ID}/stations`, "POST", { label: "Entree jardin" });
+  record(
+    "155. Postes crees par l organisateur (PIN a 4 chiffres, une seule fois) ; le co-organisateur avec « checkin » y a droit",
+    stationA.status === 201 && /^\d{4}$/.test(stationA.body?.pin ?? "") && stationB.status === 201 && guestsOnlyCo === 201,
+    `co ${guestsOnlyCo}, A ${stationA.status}, B ${stationB.status}`,
+  );
+  if (coStation.body?.token) {
+    await prisma.checkInStation.updateMany({ where: { token: coStation.body.token }, data: { revokedAt: new Date() } });
+  }
+  const storedStation = await prisma.checkInStation.findUniqueOrThrow({ where: { token: stationA.body.token } });
+  record("156. Le PIN n est stocke que hache", !storedStation.pinHash.includes(stationA.body.pin) && storedStation.pinHash.startsWith("$2"));
+  const intruderStation = await api(intruder, `/api/organizer/events/${EVENT_ID}/stations`, "POST", { label: "Pirate" });
+  record("157. Intrus : creation de poste refusee", intruderStation.status === 404, `HTTP ${intruderStation.status}`);
+
+  const A = { token: stationA.body.token, pin: stationA.body.pin, operatorName: "Carine" };
+  const B = { token: stationB.body.token, pin: stationB.body.pin, operatorName: "Joel" };
+  const wrongPin = await checkinCall("open", { ...A, pin: A.pin === "1111" ? "2222" : "1111" });
+  const goodPin = await checkinCall("open", A);
+  record("158. Ouverture du poste : PIN faux refuse, PIN juste accepte", wrongPin.status === 401 && goodPin.status === 200 && goodPin.body?.event?.title === EVENT_TITLE);
+
+  const scanUrl = await checkinCall("lookup", { ...A, scanned: `${BASE}/t/${coupleTicket.code}` });
+  const scanCode = await checkinCall("lookup", { ...A, scanned: coupleTicket.code });
+  record(
+    "159. Scan : URL du QR ou code seul → groupe, personnes presentes, places",
+    scanUrl.body?.ticket?.groupName === coupleNow.name && scanUrl.body.ticket.seats === coupleTicket.seats && scanUrl.body.ticket.verdict.kind === "valid" && scanCode.body?.ticket?.ticketId === scanUrl.body.ticket.ticketId,
+  );
+  const scanInvite = await checkinCall("lookup", { ...A, scanned: `${BASE}/i/${coupleNow.invitation.token}` });
+  record("160. Scan d un lien d invitation (pas un ticket) : inconnu", scanInvite.body?.unknown === true);
+
+  const otherEventTicket = await prisma.ticket.findFirst({ where: { invitation: { group: { eventId: { not: EVENT_ID } } } } });
+  if (otherEventTicket) {
+    const cross = await checkinCall("lookup", { ...A, scanned: otherEventTicket.code });
+    record("161. Ticket d un autre evenement : inconnu sur ce poste", cross.body?.unknown === true);
+  } else {
+    record("161. Ticket d un autre evenement : inconnu sur ce poste", true, "aucun autre ticket en base, cas non testable");
+  }
+
+  // Ce qu un accueillant tape vraiment : le nom, pas six lettres d un prefixe partage par cinquante familles.
+  const searchRes = await checkinCall("lookup", { ...A, query: coupleNow.name });
+  record("162. Recherche manuelle par nom : le groupe attendu ressort", Array.isArray(searchRes.body?.results) && searchRes.body.results.some((r) => r.ticketId === coupleTicket.id), `« ${coupleNow.name.slice(0, 6)} » → ${searchRes.status} ${JSON.stringify(searchRes.body).slice(0, 160)}`);
+
+  // Un groupe a plusieurs places pour l entree partielle et la course entre postes.
+  const bigGroup = await prisma.guestGroup.findFirstOrThrow({
+    where: { eventId: EVENT_ID, invitation: { ticket: { seats: { gte: 3 }, cancelledAt: null, seatsUsed: 0 } } },
+    include: { invitation: { include: { ticket: true } } },
+  });
+  const bigTicket = bigGroup.invitation.ticket;
+  const partialAdmit = await checkinCall("admit", { ...A, ticketId: bigTicket.id, quantity: 1, method: "QR" });
+  record("163. Entree partielle : 1 sur N, verdict « partiel » avec le restant", partialAdmit.status === 200 && partialAdmit.body?.ok && partialAdmit.body.lookup.seatsUsed === 1 && partialAdmit.body.lookup.verdict.kind === "partial" && partialAdmit.body.lookup.verdict.remaining === bigTicket.seats - 1, `${partialAdmit.status} ${JSON.stringify(partialAdmit.body).slice(0, 160)}`);
+
+  // Deux postes qui font entrer "le reste" en meme temps.
+  const rest = bigTicket.seats - 1;
+  const [raceA, raceB] = await Promise.all([
+    checkinCall("admit", { ...A, ticketId: bigTicket.id, quantity: rest, method: "QR" }),
+    checkinCall("admit", { ...B, ticketId: bigTicket.id, quantity: rest, method: "QR" }),
+  ]);
+  const racedTicket = await prisma.ticket.findUniqueOrThrow({ where: { id: bigTicket.id }, include: { checkIns: true } });
+  const raceOk = [raceA, raceB].filter((r) => r.body?.ok).length;
+  record(
+    "164. Deux postes, meme QR, meme seconde : une seule entree, l autre en conflit ; jamais plus de places que prevu",
+    raceOk === 1 && racedTicket.seatsUsed === bigTicket.seats && racedTicket.checkIns.length === 2 && [raceA, raceB].some((r) => r.body?.reason === "conflict"),
+    `${raceA.status}/${raceB.status}, ${racedTicket.seatsUsed}/${racedTicket.seats}`,
+  );
+
+  const againAdmit = await checkinCall("admit", { ...A, ticketId: bigTicket.id, quantity: 1, method: "QR" });
+  record("165. QR deja consomme : refuse, verdict « deja entres »", againAdmit.status === 409 && againAdmit.body?.reason === "nothing_to_admit" && againAdmit.body.lookup.verdict.kind === "used");
+
+  const forcedAdmit = await checkinCall("admit", { ...A, ticketId: bigTicket.id, quantity: 1, method: "MANUAL", override: true });
+  const forcedAudit = await prisma.auditLog.count({ where: { action: "checkin.override", targetId: bigTicket.id } });
+  record("166. Entree forcee : acceptee, marquee, journalisee", forcedAdmit.status === 200 && forcedAdmit.body?.forced === true && forcedAudit === 1 && (await prisma.checkIn.count({ where: { ticketId: bigTicket.id, override: true } })) === 1);
+
+  const undoAdmit = await checkinCall("admit", { ...A, ticketId: bigTicket.id, quantity: 1, method: "MANUAL", undo: true });
+  const afterUndo = await prisma.ticket.findUniqueOrThrow({ where: { id: bigTicket.id }, include: { checkIns: true } });
+  record("167. Annuler la derniere entree : places rendues, entree effacee, journalise", undoAdmit.body?.ok === true && afterUndo.seatsUsed === bigTicket.seats && afterUndo.checkIns.length === 2 && (await prisma.auditLog.count({ where: { action: "checkin.undo", targetId: bigTicket.id } })) === 1);
+
+  // Le ticket annule ne fait entrer personne.
+  const cancelledAdmit = await checkinCall("admit", { ...A, ticketId: familyTicket.id, quantity: 1, method: "QR" });
+  record("168. Ticket annule (famille qui a decline) : refuse", cancelledAdmit.status === 409 && cancelledAdmit.body?.lookup?.verdict?.kind === "cancelled");
+
+  // Le dashboard et l accueil comptent les entrees.
+  const hcNow = (await api(owner, `/api/organizer/events/${EVENT_ID}/headcount`)).body;
+  const sqlEntered = (await prisma.ticket.aggregate({ where: { invitation: { group: { eventId: EVENT_ID } } }, _sum: { seatsUsed: true } }))._sum.seatsUsed ?? 0;
+  const coAccueil = await rawHtml(co, `/dashboard/events/${EVENT_ID}/accueil`);
+  const intruderAccueil = await rawHtml(intruder, `/dashboard/events/${EVENT_ID}/accueil`);
+  record("169. Entrees comptees dans les totaux = somme SQL ; ecran Accueil : co-organisateur « checkin » oui, intrus non", (hcNow?.people?.checkedIn ?? -1) === sqlEntered && coAccueil.html.includes("Dernieres entrees") && intruderAccueil.html.includes("Page introuvable"), `${hcNow?.people?.checkedIn} / SQL ${sqlEntered}`);
+
+  // Revocation d un poste.
+  const revokeB = await owner.evaluate(async (id, sid) => (await fetch(`/api/organizer/events/${id}/stations?station=${sid}`, { method: "DELETE" })).status, EVENT_ID, stationB.body.id);
+  const bAfter = await checkinCall("open", B);
+  const bPage = await (await fetch(`${BASE}/accueil/${B.token}`, { headers: { "x-forwarded-for": nextIp() } })).text();
+  record("170. Poste revoque : ouverture refusee, page introuvable", revokeB === 204 && bAfter.status === 401 && bPage.includes("Page introuvable"));
+
+  // Force brute sur le PIN : bloque apres 8 essais.
+  // Poste dedie : la protection bloque aussi le JETON vise pendant 15 minutes,
+  // et le poste A doit rester utilisable pour le test d ecran qui suit.
+  const stationC = await api(owner, `/api/organizer/events/${EVENT_ID}/stations`, "POST", { label: "Cible force brute" });
+  const bruteToken = stationC.body.token;
+  let bruteStatus = 0;
+  for (let i = 0; i < 10; i += 1) {
+    const r = await fetch(`${BASE}/api/checkin?action=open`, { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": "198.18.250.1" }, body: JSON.stringify({ token: bruteToken, pin: String(9000 + i), operatorName: "Pirate" }) });
+    bruteStatus = r.status;
+  }
+  record("171. PIN : bloque apres 8 tentatives par adresse", bruteStatus === 429, `HTTP ${bruteStatus}`);
+  await prisma.checkInStation.updateMany({ where: { token: bruteToken }, data: { revokedAt: new Date() } });
+
+  // Ecran du poste sur telephone : PIN, puis poste ouvert avec recherche.
+  const stationPage = await newSession();
+  await stationPage.setViewport({ width: 390, height: 844 });
+  // Onglet ouvert apres des dizaines d autres : Chrome suspend les rendus d un
+  // onglet en arriere-plan (meme constat qu en phase 6). On le met devant,
+  // comme l accueillant qui regarde son telephone.
+  await stationPage.bringToFront();
+  await stationPage.goto(`${BASE}/accueil/${A.token}`, { waitUntil: "networkidle0", timeout: 90000 });
+  await stationPage.type('input[placeholder="Carine"]', "Carine");
+  await stationPage.type('input[placeholder="••••"]', A.pin);
+  await clickText(stationPage, "button", "Ouvrir");
+  await stationPage.bringToFront();
+  await stationPage.waitForFunction(() => document.body.innerText.includes("Entree principale"), { timeout: 15000 });
+  await stationPage.type('input[placeholder="Nom ou numéro"]', coupleNow.name);
+  await stationPage.keyboard.press("Enter");
+  await stationPage.bringToFront();
+  await stationPage.waitForFunction((n) => document.body.innerText.includes(n), { timeout: 15000 }, coupleNow.name);
+  const stationOverflow = await stationPage.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  record("172. Poste d accueil sur telephone : PIN, recherche, resultat, sans debordement", stationOverflow <= 0, `${stationOverflow}px`);
+
   // ---------------------------------------------------- NON-REGRESSION --
   for (const path of ["/dashboard", "/dashboard/stats", "/dashboard/share"]) {
     const res = await rawHtml(owner, path);

@@ -121,4 +121,6 @@ export type RsvpFormData = {
   answers: { questionId: string; key: string | null; value: unknown }[];
   message: string | null;
   deadlineLabel: string | null;
+  /** Lien de la page QR d acces, une fois la presence confirmee ; null sinon */
+  ticketUrl: string | null;
 };

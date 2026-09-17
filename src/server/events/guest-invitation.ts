@@ -5,6 +5,8 @@ import { canReadInvitation, isInvitationToken } from "@/lib/events/invitation-ac
 import { buildInvitationView, dateParts, type RawInvitationEvent } from "@/lib/events/invitation-view";
 import { parseRsvpSettings } from "@/lib/events/rsvp";
 import type { InvitationView, RsvpFormData } from "@/types/invitation";
+import { siteConfig } from "@/config/site";
+import { ticketUrl } from "@/lib/events/checkin";
 
 /**
  * Resolution d une invitation par son jeton (§6, §19).
@@ -43,6 +45,7 @@ export const resolveGuestInvitation = cache(
             answers: { select: { questionId: true, guestId: true, value: true } },
           },
         },
+        ticket: { select: { code: true, cancelledAt: true } },
         group: {
           select: {
             name: true,
@@ -135,6 +138,10 @@ export const resolveGuestInvitation = cache(
       answers: invitation.response?.answers.map((a) => ({ questionId: a.questionId, key: a.guestId, value: a.value })) ?? [],
       message: invitation.response?.message ?? null,
       deadlineLabel: settings.deadline ? dateParts(new Date(settings.deadline), event.timezone).long : null,
+      ticketUrl:
+        invitation.ticket && !invitation.ticket.cancelledAt && invitation.response?.status === "ATTENDING"
+          ? ticketUrl(siteConfig.url, invitation.ticket.code)
+          : null,
     };
 
     return { invitationId: invitation.id, eventId: event.id, firstOpenedAt: invitation.firstOpenedAt, view, rsvpForm };

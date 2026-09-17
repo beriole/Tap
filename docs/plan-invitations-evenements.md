@@ -37,7 +37,33 @@ Trois principes tiennent l'ensemble :
 | 5 — RSVP multi-étapes | ✅ | `npm test` 59/59 · `npm run audit:invitations` 89/89, deux passages consécutifs |
 | 6 — Distribution + import CSV | ✅ | `npm test` 72/72 · `npm run audit:invitations` 103/103, deux passages consécutifs |
 | 7 — Dashboard + exports | ✅ | `npm test` 79/79 · `npm run audit:invitations` 113/113, deux passages consécutifs |
-| 8 → 10 | à faire | |
+| 8 — QR, accueil, audit | ✅ | `npm test` 84/84 · `npm run audit:invitations` 137/137 (fonctionnel) |
+| 9 → 10 | à faire | |
+
+> **Fin du MVP-a** : la boucle créer → inviter → répondre → piloter → accueillir est complète et testée
+> en local. Test grandeur nature recommandé avant la phase 9.
+
+**Phase 8, précisions**
+
+- Ticket émis dans la transaction du RSVP : places = présents, mis à jour si la réponse change, annulé
+  (jamais supprimé) au déclin. Le code du QR est distinct du jeton d'invitation et stable d'une
+  modification à l'autre. Si une famille réduit ses présents après une entrée déjà enregistrée, les
+  places ne descendent pas sous les entrées consommées.
+- `/t/[code]` : QR en grand (URL de la page, aucune donnée personnelle), groupe et prénoms, état.
+  Lien « Voir mon accès » sur l'invitation après confirmation.
+- Postes d'accueil (`/accueil/[jeton]`, D6) : PIN à 4 chiffres (ni répétition ni suite), stocké haché,
+  montré une seule fois ; opérateur nommé et journalisé ; révocation immédiate ; 8 essais de PIN par
+  quart d'heure par adresse et par jeton.
+- Poste : scan caméra via `BarcodeDetector` (natif Android/Chrome, iOS 17+), repli saisie/recherche ;
+  verdict en grand (vert / orange / rouge) ; entrée totale ou partielle en un geste ; entrée forcée
+  signalée et journalisée ; annulation de la dernière entrée.
+- **Check-in atomique** : `UPDATE … WHERE seatsUsed + n <= seats` — vérifié par l'audit avec deux
+  postes qui font entrer le même groupe en parallèle : une seule entrée, l'autre en conflit.
+- Onglet « Accueil » (permission `checkin`) : entrés / restants / groupes entrés / forcées, dernières
+  entrées, capacité, gestion des postes.
+- Performance : la mesure LCP (médiane de 5 chargements, seuil 2,5 s) oscille entre 2,22 s et 2,59 s
+  d'un passage à l'autre **sans changement de code**, selon la charge de la machine qui héberge serveur,
+  base et navigateur. Le seuil n'a pas été assoupli ; la piste sérieuse reste le préchargement des polices.
 
 **Phase 7, précisions**
 
