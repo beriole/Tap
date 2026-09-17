@@ -16,6 +16,7 @@ import {
   Shield,
   User,
   Users,
+  CalendarHeart,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { LogoMark } from "@/components/brand/logo";
@@ -44,6 +45,7 @@ const NAVS: Record<Space, NavItem[]> = {
     { href: "/dashboard/share", label: "Partages", icon: Share2 },
     { href: "/dashboard/theme", label: "Design", icon: Palette },
     { href: "/dashboard/stats", label: "Stats", icon: BarChart3 },
+    { href: "/dashboard/events", label: "Evenements", icon: CalendarHeart },
     { href: "/dashboard/preview", label: "Apercu", icon: Eye },
     { href: "/dashboard/security", label: "Securite", icon: Shield },
   ],

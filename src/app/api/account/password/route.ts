@@ -27,7 +27,7 @@ export async function PUT(request: Request) {
   const user = await requireUser().catch(() => null);
   if (!user) return NextResponse.json({ error: "Non authentifie" }, { status: 401 });
 
-  const limit = rateLimit(`password:${clientIp(request.headers)}`, 5, 15 * 60_000);
+  const limit = await rateLimit(`password:${clientIp(request.headers)}`, 5, 15 * 60_000);
   if (!limit.allowed) {
     return NextResponse.json({ error: "Trop de tentatives. Reessayez plus tard." }, { status: 429 });
   }

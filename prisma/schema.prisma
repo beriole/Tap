@@ -121,12 +121,13 @@ model User {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  profiles     Profile[]
-  accounts     Account[]
-  sessions     Session[]
-  tokens       VerificationToken[]
-  subscription Subscription?
-  auditLogs    AuditLog[]          @relation("AuditActor")
+  profiles         Profile[]
+  accounts         Account[]
+  sessions         Session[]
+  tokens           VerificationToken[]
+  subscription     Subscription?
+  auditLogs        AuditLog[]          @relation("AuditActor")
+  eventMemberships EventMember[]
 
   @@index([role, status])
 }
@@ -231,7 +232,7 @@ model Profile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   links      ProfileLink[]
   theme      ProfileTheme?
   cards      NfcCard[]
@@ -243,23 +244,23 @@ model Profile {
 
 /// §5.3 - Liens dynamiques : type, titre, valeur, icone, position, visibilite, style
 model ProfileLink {
-  id        String   @id @default(cuid())
-  profileId String
-  type      LinkType
-  label     String
+  id          String       @id @default(cuid())
+  profileId   String
+  type        LinkType
+  label       String
   /// Sous-titre affiche sous le libelle par les themes en pilules
   /// ("Ecrivez-moi", "Send me an intro!"). Facultatif : a defaut, le theme
   /// retombe sur le sous-titre standard du type de lien.
   description String?
   /// URL HTTPS validee, ou valeur brute pour tel:/mailto:/wa.me (§11)
-  value     String
-  icon      String?
-  color     String?
-  style     ButtonStyle?
-  position  Int      @default(0)
-  isVisible Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  value       String
+  icon        String?
+  color       String?
+  style       ButtonStyle?
+  position    Int          @default(0)
+  isVisible   Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   profile Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
   clicks  ClickEvent[]
@@ -337,10 +338,10 @@ model Theme {
 /// Les donnees ne sont jamais dupliquees : le lien ne stocke qu un masque.
 /// Corriger son numero de telephone le corrige partout, du meme geste.
 model ShareLink {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   profileId String
   /// Jeton public en minuscules, distinct des jetons de carte (§tokens.ts)
-  slug      String @unique
+  slug      String  @unique
   /// Nom donne par le client : "Ceremonie", "Salon de Douala"
   label     String
   /// Memo prive, jamais expose au visiteur
@@ -377,17 +378,17 @@ model ShareLink {
 }
 
 model ProfileTheme {
-  id          String      @id @default(cuid())
-  profileId   String      @unique
-  themeId     String
-  accentColor String      @default("#2563EB")
-  mode        ThemeMode   @default(LIGHT)
-  variant     String?
-  fontPair    String?
-  buttonStyle ButtonStyle @default(SOLID)
+  id           String      @id @default(cuid())
+  profileId    String      @unique
+  themeId      String
+  accentColor  String      @default("#2563EB")
+  mode         ThemeMode   @default(LIGHT)
+  variant      String?
+  fontPair     String?
+  buttonStyle  ButtonStyle @default(SOLID)
   /// Options specifiques au theme, validees contre Theme.configSchema
-  customConfig Json       @default("{}")
-  updatedAt    DateTime   @updatedAt
+  customConfig Json        @default("{}")
+  updatedAt    DateTime    @updatedAt
 
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   theme   Theme   @relation(fields: [themeId], references: [id])
@@ -469,4 +470,389 @@ model AppSetting {
   key       String   @id
   value     Json
   updatedAt DateTime @updatedAt
+}
+
+// ===========================================================================
+// INVITATIONS & EVENEMENTS
+// Cahier des charges Invitations & Evenements (sept. 2026) - decisions D1 a
+// D12 dans docs/plan-invitations-evenements.md.
+// ===========================================================================
+
+enum EventType {
+  WEDDING
+  BIRTHDAY
+  CORPORATE
+  MEMORIAL
+  OTHER
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+/// Role PAR EVENEMENT (D5). L enum global Role ne bouge pas : un meme compte
+/// organise un mariage et co-organise celui d un ami.
+enum EventMemberRole {
+  OWNER
+  COORGANIZER
+}
+
+enum GuestAgeCategory {
+  ADULT
+  CHILD
+  BABY
+}
+
+enum InvitationState {
+  CREATED
+  SHARED
+  OPENED
+  RESPONDED
+  REVOKED
+}
+
+enum RsvpStatus {
+  PENDING
+  ATTENDING
+  DECLINED
+  MAYBE
+}
+
+enum RsvpQuestionType {
+  TEXT
+  SINGLE_CHOICE
+  MULTI_CHOICE
+  NUMBER
+  BOOLEAN
+}
+
+enum CheckInMethod {
+  QR
+  MANUAL
+}
+
+model Event {
+  id             String      @id @default(cuid())
+  type           EventType
+  status         EventStatus @default(DRAFT)
+  /// "Mariage de Beriole & Anna"
+  title          String
+  /// "Beriole & Anna" - ce que l enveloppe et le hero affichent
+  hosts          String
+  startsAt       DateTime
+  endsAt         DateTime?
+  timezone       String      @default("Africa/Douala")
+  capacity       Int?
+  /// Pays par defaut pour normaliser les numeros sans indicatif (D8)
+  defaultCountry String      @default("CM")
+
+  /// Moteur visuel : cle du registre des themes d invitation
+  themeKey      String @default("royal-ivory")
+  /// Variante et reglages autorises - valides par le schema du theme
+  themeSettings Json   @default("{}")
+  /// Regles RSVP : peut-etre autorise, date limite, modification (rsvp.service)
+  rsvpSettings  Json   @default("{}")
+  /// Offre de l evenement (src/config/event-plans.ts)
+  plan          String @default("free")
+
+  heroImageUrl     String?
+  publishedAt      DateTime?
+  /// Derniere modification visible par les invites (bandeau "mis a jour", D7)
+  contentUpdatedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  members   EventMember[]
+  venues    Venue[]
+  sections  EventSection[]
+  groups    GuestGroup[]
+  questions RsvpQuestion[]
+  meals     MealOption[]
+  stations  CheckInStation[]
+
+  @@index([status, startsAt])
+}
+
+model EventMember {
+  id          String          @id @default(cuid())
+  eventId     String
+  userId      String
+  role        EventMemberRole
+  /// COORGANIZER seulement : "guests", "messages", "checkin", "design",
+  /// "sensitive", "exports". OWNER a tout, par construction.
+  permissions String[]        @default([])
+  createdAt   DateTime        @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+
+model Venue {
+  id       String    @id @default(cuid())
+  eventId  String
+  /// "Ceremonie", "Reception"
+  label    String
+  name     String
+  address  String
+  /// Repere textuel, souvent plus utile qu une adresse (§6.3)
+  landmark String?
+  lat      Float?
+  lng      Float?
+  startsAt DateTime?
+  position Int       @default(0)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, position])
+}
+
+model EventSection {
+  id        String  @id @default(cuid())
+  eventId   String
+  /// program | dresscode | menu | faq | gallery | custom
+  kind      String
+  title     String?
+  /// Forme propre a chaque kind, validee par zod
+  data      Json    @default("{}")
+  position  Int     @default(0)
+  isVisible Boolean @default(true)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, position])
+}
+
+/// Unite d invitation (D1) : une famille, un couple ou une personne seule.
+model GuestGroup {
+  id           String   @id @default(cuid())
+  eventId      String
+  /// "Famille Ngono"
+  name         String
+  /// Quota : nombre maximal de personnes presentes pour ce groupe
+  maxSeats     Int      @default(1)
+  category     String?
+  language     String   @default("fr")
+  /// Jamais expose a l invite
+  internalNote String?
+  tags         String[] @default([])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  event      Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  guests     Guest[]
+  invitation Invitation?
+
+  @@index([eventId])
+}
+
+/// Une personne. Les totaux (adultes, enfants, repas) se calculent TOUJOURS a
+/// partir de ces lignes (src/server/events/headcount.ts) : aucun compteur
+/// separe ne peut diverger de la liste des noms.
+model Guest {
+  id          String           @id @default(cuid())
+  groupId     String
+  /// Nullable : un accompagnant peut etre annonce sans nom
+  firstName   String?
+  lastName    String?
+  /// Numero normalise E.164 ; null si le numero d origine est incertain
+  phoneE164   String?
+  /// Saisie d origine, conservee pour correction
+  phoneRaw    String?
+  email       String?
+  ageCategory GuestAgeCategory @default(ADULT)
+  /// Contact principal du groupe (destinataire du lien)
+  isPrimary   Boolean          @default(false)
+  /// Ajoute par l invite lors du RSVP, dans la limite du quota
+  isPlusOne   Boolean          @default(false)
+  /// null = sans reponse ; ne compte que si le RSVP du groupe est ATTENDING
+  attending   Boolean?
+  position    Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  group      GuestGroup       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  preference GuestPreference?
+  answers    RsvpAnswer[]
+
+  @@index([groupId])
+  @@index([phoneE164])
+}
+
+/// Repas et donnees sensibles, separes de Guest pour pouvoir restreindre et
+/// purger les allergies sans toucher a la liste d invites (D12).
+model GuestPreference {
+  guestId      String   @id
+  mealOptionId String?
+  /// Donnee de sante : permission "sensitive", purge J+30
+  allergies    String?
+  updatedAt    DateTime @updatedAt
+
+  guest Guest       @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  meal  MealOption? @relation(fields: [mealOptionId], references: [id], onDelete: SetNull)
+}
+
+model Invitation {
+  id            String          @id @default(cuid())
+  groupId       String          @unique
+  /// Jeton opaque de 32 octets (base64url). Stocke en clair, contrairement a
+  /// l UID des puces : l organisateur doit pouvoir recopier le lien a tout
+  /// moment pour le partage WhatsApp assiste. Revocation = `revokedAt` puis
+  /// regeneration.
+  token         String          @unique
+  state         InvitationState @default(CREATED)
+  sharedAt      DateTime?
+  firstOpenedAt DateTime?
+  lastOpenedAt  DateTime?
+  openCount     Int             @default(0)
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  group    GuestGroup    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  response RsvpResponse?
+  ticket   Ticket?
+
+  @@index([state])
+}
+
+model RsvpResponse {
+  id                 String     @id @default(cuid())
+  invitationId       String     @unique
+  status             RsvpStatus @default(PENDING)
+  /// Mot libre laisse aux hotes
+  message            String?
+  /// Consentement explicite au traitement des allergies (D12)
+  sensitiveConsentAt DateTime?
+  respondedAt        DateTime?
+  /// Verrou optimiste : deux onglets ne s ecrasent pas en silence
+  version            Int        @default(1)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  invitation Invitation    @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  answers    RsvpAnswer[]
+  history    RsvpHistory[]
+
+  @@index([status])
+}
+
+model RsvpQuestion {
+  id        String           @id @default(cuid())
+  eventId   String
+  type      RsvpQuestionType
+  label     String
+  /// Choix proposes pour SINGLE_CHOICE / MULTI_CHOICE
+  options   Json             @default("[]")
+  required  Boolean          @default(false)
+  /// Posee pour chaque personne presente plutot qu une fois par groupe
+  perGuest  Boolean          @default(false)
+  sensitive Boolean          @default(false)
+  position  Int              @default(0)
+
+  event   Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  answers RsvpAnswer[]
+
+  @@index([eventId, position])
+}
+
+model RsvpAnswer {
+  id         String  @id @default(cuid())
+  responseId String
+  questionId String
+  /// Renseigne pour les questions perGuest
+  guestId    String?
+  value      Json
+
+  response RsvpResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question RsvpQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  guest    Guest?       @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@index([responseId])
+  @@index([questionId])
+}
+
+/// Photographie de la reponse a chaque modification (§8.1 "historique")
+model RsvpHistory {
+  id         String   @id @default(cuid())
+  responseId String
+  snapshot   Json
+  createdAt  DateTime @default(now())
+
+  response RsvpResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  @@index([responseId, createdAt])
+}
+
+model MealOption {
+  id          String  @id @default(cuid())
+  eventId     String
+  label       String
+  description String?
+  forChildren Boolean @default(false)
+  position    Int     @default(0)
+
+  event       Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  preferences GuestPreference[]
+
+  @@index([eventId, position])
+}
+
+/// Droit d acces du groupe (D2) : un QR, N places.
+model Ticket {
+  id           String    @id @default(cuid())
+  invitationId String    @unique
+  /// Contenu du QR : opaque et distinct du jeton d invitation. Une capture du
+  /// QR ne donne pas acces au RSVP, et le QR ne porte aucune donnee personnelle.
+  code         String    @unique
+  seats        Int
+  seatsUsed    Int       @default(0)
+  cancelledAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  checkIns   CheckIn[]
+}
+
+/// Poste d accueil sans compte (D6) : un lien + un PIN, revocable.
+model CheckInStation {
+  id        String    @id @default(cuid())
+  eventId   String
+  /// "Entree principale"
+  label     String
+  token     String    @unique
+  pinHash   String
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  checkIns CheckIn[]
+
+  @@index([eventId])
+}
+
+model CheckIn {
+  id           String        @id @default(cuid())
+  ticketId     String
+  stationId    String?
+  /// Nom saisi a l ouverture du poste, ou nom du compte organisateur
+  operatorName String
+  quantity     Int
+  method       CheckInMethod
+  /// Entree forcee au-dela des places : toujours doublee d un AuditLog
+  override     Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+
+  ticket  Ticket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  station CheckInStation? @relation(fields: [stationId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@index([stationId, createdAt])
 }

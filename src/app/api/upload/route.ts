@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   const user = await requireUser().catch(() => null);
   if (!user) return NextResponse.json({ error: "Non authentifie" }, { status: 401 });
 
-  const limit = rateLimit(`upload:${clientIp(request.headers)}`, 20, 60_000);
+  const limit = await rateLimit(`upload:${clientIp(request.headers)}`, 20, 60_000);
   if (!limit.allowed) return NextResponse.json({ error: "Trop de requetes" }, { status: 429 });
 
   const form = await request.formData();

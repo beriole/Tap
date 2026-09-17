@@ -15,7 +15,7 @@ const schema = z.object({
  * prefetch) et doivent signaler l ouverture reelle.
  */
 export async function POST(request: Request) {
-  const limit = rateLimit(`scan:${clientIp(request.headers)}`, 30, 60_000);
+  const limit = await rateLimit(`scan:${clientIp(request.headers)}`, 30, 60_000);
   if (!limit.allowed) return new NextResponse(null, { status: 429 });
 
   const parsed = schema.safeParse(await request.json().catch(() => null));

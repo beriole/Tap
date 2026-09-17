@@ -13,7 +13,7 @@ const schema = z.object({
 
 /** §15 - collecte minimale : ni IP, ni identifiant de visiteur n est stocke. */
 export async function POST(request: Request) {
-  const limit = rateLimit(`click:${clientIp(request.headers)}`, 60, 60_000);
+  const limit = await rateLimit(`click:${clientIp(request.headers)}`, 60, 60_000);
   if (!limit.allowed) return new NextResponse(null, { status: 429 });
 
   const parsed = schema.safeParse(await request.json().catch(() => null));

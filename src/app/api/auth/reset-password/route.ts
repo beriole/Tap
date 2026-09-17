@@ -18,7 +18,7 @@ import { writeAudit } from "@/server/audit";
  */
 
 export async function POST(request: Request) {
-  const limit = rateLimit(`forgot:${clientIp(request.headers)}`, 5, 15 * 60_000);
+  const limit = await rateLimit(`forgot:${clientIp(request.headers)}`, 5, 15 * 60_000);
   if (!limit.allowed) return NextResponse.json({ error: "Trop de demandes." }, { status: 429 });
 
   const parsed = forgotPasswordSchema.safeParse(await request.json().catch(() => null));
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const limit = rateLimit(`reset:${clientIp(request.headers)}`, 10, 15 * 60_000);
+  const limit = await rateLimit(`reset:${clientIp(request.headers)}`, 10, 15 * 60_000);
   if (!limit.allowed) return NextResponse.json({ error: "Trop de tentatives." }, { status: 429 });
 
   const parsed = resetPasswordSchema.safeParse(await request.json().catch(() => null));
