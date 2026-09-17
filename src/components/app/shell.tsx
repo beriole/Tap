@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -9,6 +10,7 @@ import {
   LayoutDashboard,
   Link2,
   LogOut,
+  MoreHorizontal,
   Palette,
   Settings,
   Share2,
@@ -23,7 +25,8 @@ import { LogoMark } from "@/components/brand/logo";
 import { cn, initials } from "@/lib/utils";
 import { logout } from "@/app/(auth)/actions";
 
-type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean };
+/** `thumb` : onglet de la barre du bas sur mobile ; les autres passent dans "Plus". */
+type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean; thumb?: boolean };
 
 export type Space = "client" | "admin";
 
@@ -39,21 +42,21 @@ export type Space = "client" | "admin";
  */
 const NAVS: Record<Space, NavItem[]> = {
   client: [
-    { href: "/dashboard", label: "Accueil", icon: LayoutDashboard, exact: true },
-    { href: "/dashboard/profile", label: "Profil", icon: User },
-    { href: "/dashboard/links", label: "Liens", icon: Link2 },
+    { href: "/dashboard", label: "Accueil", icon: LayoutDashboard, exact: true, thumb: true },
+    { href: "/dashboard/profile", label: "Profil", icon: User, thumb: true },
+    { href: "/dashboard/links", label: "Liens", icon: Link2, thumb: true },
     { href: "/dashboard/share", label: "Partages", icon: Share2 },
     { href: "/dashboard/theme", label: "Design", icon: Palette },
     { href: "/dashboard/stats", label: "Stats", icon: BarChart3 },
-    { href: "/dashboard/events", label: "Evenements", icon: CalendarHeart },
+    { href: "/dashboard/events", label: "Evenements", icon: CalendarHeart, thumb: true },
     { href: "/dashboard/preview", label: "Apercu", icon: Eye },
     { href: "/dashboard/security", label: "Securite", icon: Shield },
   ],
   admin: [
-    { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-    { href: "/admin/cards", label: "Cartes", icon: CreditCard },
-    { href: "/admin/clients", label: "Clients", icon: Users },
-    { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+    { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true, thumb: true },
+    { href: "/admin/cards", label: "Cartes", icon: CreditCard, thumb: true },
+    { href: "/admin/clients", label: "Clients", icon: Users, thumb: true },
+    { href: "/admin/analytics", label: "Analytics", icon: BarChart3, thumb: true },
     { href: "/admin/themes", label: "Themes", icon: Palette },
     { href: "/admin/settings", label: "Parametres", icon: Settings },
   ],
@@ -96,6 +99,19 @@ export function AppShell({
   const pathname = usePathname();
   const isActive = (item: NavItem) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
+
+  // Barre du bas : quatre onglets + "Plus". Avant, les entrees au-dela de la
+  // cinquieme etaient tout simplement inaccessibles au pouce.
+  const thumbs = nav.filter((item) => item.thumb).slice(0, 4);
+  const overflow = nav.filter((item) => !thumbs.includes(item));
+  const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => setMoreOpen(false), [pathname]);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMoreOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [moreOpen]);
 
   /**
    * Passerelle entre les deux espaces.
@@ -248,7 +264,7 @@ export function AppShell({
       {/* Onglets - petits ecrans. Cinq maximum : au-dela, la cible devient
           trop etroite pour un pouce. */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-[var(--console-hairline)] bg-[var(--console-card)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
-        {nav.slice(0, 5).map((item) => (
+        {thumbs.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -274,7 +290,63 @@ export function AppShell({
             {item.label}
           </Link>
         ))}
+        {overflow.length > 0 && (
+          <button
+            type="button"
+            aria-expanded={moreOpen}
+            aria-controls="nav-more"
+            onClick={() => setMoreOpen((open) => !open)}
+            className={cn(
+              "relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[0.62rem] transition-colors",
+              moreOpen || overflow.some(isActive) ? "text-[var(--brand-copper-deep)]" : "text-[var(--muted)]",
+            )}
+          >
+            <span
+              aria-hidden
+              className={cn(
+                "absolute top-0 h-[2px] rounded-b-full bg-[var(--brand-copper)] transition-all duration-300",
+                overflow.some(isActive) ? "w-8 opacity-100" : "w-0 opacity-0",
+              )}
+            />
+            <MoreHorizontal className="size-[1.15rem]" aria-hidden />
+            Plus
+          </button>
+        )}
       </nav>
+
+      {moreOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="Fermer le menu"
+            onClick={() => setMoreOpen(false)}
+            className="fixed inset-0 z-20 bg-[rgb(11_14_20/0.35)] lg:hidden"
+          />
+          <div
+            id="nav-more"
+            className="fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 rounded-2xl border border-[var(--console-hairline)] bg-[var(--console-card)] p-2 shadow-[0_18px_40px_-18px_rgb(19_16_12/0.45)] lg:hidden"
+          >
+            <ul className="grid grid-cols-2 gap-1">
+              {overflow.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    aria-current={isActive(item) ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl px-3 py-3 text-[0.88rem]",
+                      isActive(item) ? "bg-[var(--console-paper)] font-medium text-[var(--brand-copper-deep)]" : "hover:bg-[var(--console-paper)]",
+                    )}
+                  >
+                    <item.icon className="size-[1.05rem] shrink-0" aria-hidden />
+                    <span className="flex-1">{item.label}</span>
+                    <LinkSpinner />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
     </div>
   );
 }

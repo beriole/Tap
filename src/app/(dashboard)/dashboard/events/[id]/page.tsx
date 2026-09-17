@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
-import { requireEventAccess } from "@/server/events/access-control";
+import { eventPageContext } from "@/server/events/page-context";
 import { loadEventHeadcount } from "@/server/events/headcount";
 import { PageBody, PageHeader, SectionTitle, StatTile, Surface } from "@/components/app/ui";
+import { EventTabs } from "@/components/events/event-tabs";
 
 export const metadata: Metadata = { title: "Vue d ensemble" };
 
@@ -17,7 +18,7 @@ export const metadata: Metadata = { title: "Vue d ensemble" };
  */
 export default async function EventOverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireEventAccess(id, "view");
+  const { tabs } = await eventPageContext(id, "view");
 
   const [event, headcount] = await Promise.all([
     prisma.event.findUniqueOrThrow({
@@ -46,7 +47,9 @@ export default async function EventOverviewPage({ params }: { params: Promise<{ 
           { label: "Sans reponse", value: people.noResponse, hint: `${groups.pending} groupes`, tone: "plain" },
           { label: "Absents", value: people.declined, tone: "plain" },
         ]}
-      />
+      >
+        <EventTabs eventId={id} allowed={tabs} />
+      </PageHeader>
 
       <PageBody className="space-y-6">
         {capacity.limit !== null && (

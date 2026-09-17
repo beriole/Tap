@@ -31,7 +31,18 @@ Trois principes tiennent l'ensemble :
 |---|---|---|
 | 0 — Fondations | ✅ sauf Sentry (reporté en phase 10) | build de production OK, audit 16 (limitation de débit) |
 | 1 — Schéma, permissions, jeu de données | ✅ | `npm test` 16/16 · `npm run audit:invitations` 20/20 |
-| 2 → 10 | à faire | |
+| 2 — Espace organisateur : événement, contenu, invités | ✅ | `npm test` 31/31 · `npm run audit:invitations` 42/42, deux passages consécutifs |
+| 3 → 10 | à faire | |
+
+**Phase 2, précisions**
+
+- Routes API sous `/api/organizer/events/*` : `/api/events/*` est déjà pris par les statistiques de scan et de clic.
+- L'invitation (et son jeton) est créée avec le groupe, dès l'ajout manuel ou l'import.
+- Permissions : Contenu = `design`, Invités = `guests`, notes internes = `sensitive`. Un co-organisateur sans
+  `sensitive` qui modifie un groupe ne peut pas effacer la note qu'il ne voit pas.
+- Import CSV/XLSX : non inclus (phases 6 et 9). Le copier-coller accepte déjà un collage depuis Excel (tabulations).
+- Photo de l'événement et galerie : reportées à la phase 3 (design), avec le téléversement.
+- Navigation mobile : 4 onglets + « Plus » ; Stats, Aperçu et Sécurité redeviennent accessibles au pouce.
 
 **Écarts assumés par rapport au brouillon ci-dessous**
 
@@ -42,8 +53,7 @@ Trois principes tiennent l'ensemble :
   hash, l'organisateur ne pourrait plus recopier un lien pour le partage WhatsApp assisté. 32 octets
   aléatoires + révocation. Seul le PIN du poste d'accueil est haché.
 - **`GuestPreference`** (nom du cahier §8.1) remplace `GuestMeal`.
-- **Navigation mobile** : « Événements » n'apparaît que dans la colonne ordinateur, la barre du bas
-  étant limitée à 5 onglets. À revoir en phase 2.
+- ~~**Navigation mobile**~~ : corrigé en phase 2 (menu « Plus »).
 
 **Tester en local**
 

@@ -54,12 +54,22 @@ export default async function EventsPage() {
         eyebrow="Invitations"
         title="Evenements"
         description="Vos invitations, les reponses de vos invites et l accueil le jour J."
+        action={
+          <Link
+            href="/dashboard/events/new"
+            className="tap-target inline-flex items-center rounded-xl bg-[var(--brand-copper)] px-5 text-[0.87rem] font-semibold text-[#231206] transition-transform hover:-translate-y-0.5"
+          >
+            Nouvel evenement
+          </Link>
+        }
       />
       <PageBody>
         {memberships.length === 0 ? (
           <EmptyState
             title="Aucun evenement"
-            body="La creation d un evenement arrive a la prochaine etape. Les evenements partages avec vous apparaitront aussi ici."
+            body="Creez votre premier evenement : trois questions, puis vos invites. Les evenements partages avec vous apparaitront aussi ici."
+            actionHref="/dashboard/events/new"
+            actionLabel="Creer un evenement"
           />
         ) : (
           <ul className="space-y-3">
