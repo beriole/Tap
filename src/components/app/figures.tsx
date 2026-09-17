@@ -39,11 +39,14 @@ export function CountUp({
   value,
   className,
   duration = 900,
+  figure,
 }: {
   value: number;
   className?: string;
   /** Duree en millisecondes. */
   duration?: number;
+  /** Cle data-figure : un script peut poser la valeur a jour sans re-rendu React. */
+  figure?: string;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const reduced = usePrefersReducedMotion();
@@ -71,7 +74,7 @@ export function CountUp({
 
   // Valeur finale rendue cote serveur : elle reste juste si le JS ne part pas.
   return (
-    <span ref={ref} className={cn("tabular-nums", className)}>
+    <span ref={ref} data-figure={figure} className={cn("tabular-nums", className)}>
       {value}
     </span>
   );

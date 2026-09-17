@@ -620,7 +620,12 @@ try {
 
   // ================================================ PHASE 5 - RSVP --
   let ipSeq = Date.now() % 200;
-  const nextIp = () => `198.51.${(ipSeq += 1) % 250}.${Math.floor(Math.random() * 250)}`;
+  // Deux adresses identiques dans la meme minute cumuleraient leurs envois et
+  // declencheraient la limitation (20/min) : le compteur ne se repete jamais.
+  const nextIp = () => {
+    ipSeq += 1;
+    return `198.51.${Math.floor(ipSeq / 250) % 250}.${ipSeq % 250}`;
+  };
   const postRsvp = async (body) => {
     const r = await fetch(`${BASE}/api/invitations/rsvp`, {
       method: "POST",
@@ -975,6 +980,143 @@ try {
   );
   const groupsBeforeCsv = await prisma.guestGroup.count({ where: { eventId: EVENT_ID } });
   record("123. Rien n est ecrit avant la validation", groupsBeforeCsv === (await prisma.guestGroup.count({ where: { eventId: EVENT_ID } })));
+
+  // ================================================ PHASE 7 - DASHBOARD --
+  const dash = await newSession();
+  await signIn(dash, "organisateur@tap.exemple");
+  await dash.setViewport({ width: 390, height: 844 });
+  await dash.goto(`${BASE}/dashboard/events/${EVENT_ID}`, { waitUntil: "networkidle0", timeout: 90000 });
+  await new Promise((r) => setTimeout(r, 2500));
+  const dashOverflow = await dash.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  const aboveFold = await dash.evaluate(() => {
+    const label = [...document.querySelectorAll("dt")].find((d) => d.textContent.trim() === "A relancer");
+    return label ? label.getBoundingClientRect().bottom <= window.innerHeight : false;
+  });
+  record("130. Dashboard a 390 px : chiffres cles visibles sans defiler, sans debordement", dashOverflow <= 0 && aboveFold, `${dashOverflow}px`);
+
+  const sqlNow = await sqlTotals();
+  const shownNow = await figureAfter(dash, "Attendus");
+  record("131. Attendus du dashboard = recalcul SQL (apres les reponses de l audit)", shownNow === sqlNow.expected, `page ${shownNow} / SQL ${sqlNow.expected}`);
+
+  const csvOf = async (page, kind) =>
+    page.evaluate(
+      async (k, id) => {
+        const res = await fetch(`/api/organizer/events/${id}/export?kind=${k}`);
+        // Octets bruts : text() retire le BOM au decodage, et c est lui qu on veut voir.
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        const hasBom = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
+        return { status: res.status, type: res.headers.get("content-type"), disposition: res.headers.get("content-disposition"), hasBom, text: new TextDecoder().decode(bytes) };
+      },
+      kind,
+      EVENT_ID,
+    );
+  // Decoupe sur les point-virgules hors guillemets. Les exports n emettent pas
+  // de retour a la ligne dans une cellule.
+  const parseCsvRows = (text) =>
+    text
+      .split("\r\n")
+      .filter(Boolean)
+      .map((line) => {
+        const cells = [];
+        let cur = "";
+        let quoted = false;
+        for (let i = 0; i < line.length; i += 1) {
+          const ch = line[i];
+          if (quoted && ch === '"' && line[i + 1] === '"') {
+            cur += '"';
+            i += 1;
+          } else if (ch === '"') quoted = !quoted;
+          else if (ch === ";" && !quoted) {
+            cells.push(cur);
+            cur = "";
+          } else cur += ch;
+        }
+        cells.push(cur);
+        return cells;
+      });
+
+  const guestsCsv = await csvOf(owner, "guests");
+  const catererCsv = await csvOf(owner, "caterer");
+  const checkinCsv = await csvOf(owner, "checkin");
+  const guestsRows = parseCsvRows(guestsCsv.text);
+  const catererRows = parseCsvRows(catererCsv.text);
+  const checkinRows = parseCsvRows(checkinCsv.text);
+  const sumGuests = guestsRows.slice(1).reduce((n, r) => n + Number(r[5]), 0);
+  const sumCheckin = checkinRows.slice(1).reduce((n, r) => n + Number(r[2]), 0);
+  record(
+    "132. Les trois exports = attendus du dashboard = recalcul SQL",
+    guestsCsv.status === 200 && sumGuests === sqlNow.expected && catererRows.length - 1 === sqlNow.expected && sumCheckin === sqlNow.expected,
+    `invites ${sumGuests}, traiteur ${catererRows.length - 1}, accueil ${sumCheckin}, SQL ${sqlNow.expected}`,
+  );
+  record(
+    "133. CSV pour Excel : BOM UTF-8, point-virgule, telechargement nomme",
+    guestsCsv.hasBom && guestsRows[0].length === 7 && /text\/csv/.test(guestsCsv.type) && /attachment; filename=".*-invites\.csv"/.test(guestsCsv.disposition),
+    guestsCsv.disposition,
+  );
+
+  const allergyGuest = await prisma.guest.findFirstOrThrow({
+    where: { attending: true, preference: { allergies: { not: null } }, group: { eventId: EVENT_ID, invitation: { response: { status: "ATTENDING" } } } },
+    include: { preference: true },
+  });
+  record("134. Traiteur (proprietaire) : le texte des allergies est present", catererCsv.text.includes(allergyGuest.preference.allergies));
+
+  // Le co-organisateur recoit "exports" sans "sensitive" le temps du test.
+  const coUser = await prisma.user.findUniqueOrThrow({ where: { email: "coorganisateur@tap.exemple" } });
+  const coMember = await prisma.eventMember.findUniqueOrThrow({ where: { eventId_userId: { eventId: EVENT_ID, userId: coUser.id } } });
+  const coBefore = await csvOf(co, "caterer");
+  await prisma.eventMember.update({ where: { id: coMember.id }, data: { permissions: [...coMember.permissions, "exports"] } });
+  const coCaterer = await csvOf(co, "caterer");
+  await prisma.eventMember.update({ where: { id: coMember.id }, data: { permissions: coMember.permissions } });
+  record(
+    "135. Sans « exports » : refuse ; avec « exports » sans « sensitive » : traiteur sans le texte des allergies",
+    coBefore.status === 404 && coCaterer.status === 200 && !coCaterer.text.includes(allergyGuest.preference.allergies) && parseCsvRows(coCaterer.text).length === catererRows.length,
+    `${coBefore.status} / ${coCaterer.status}`,
+  );
+
+  const intruderExport = await intruder.evaluate(async (id) => (await fetch(`/api/organizer/events/${id}/export?kind=guests`)).status, EVENT_ID);
+  const badKind = await owner.evaluate(async (id) => (await fetch(`/api/organizer/events/${id}/export?kind=secret`)).status, EVENT_ID);
+  record("136. Intrus refuse ; export inconnu refuse", intruderExport === 404 && badKind === 400, `${intruderExport} / ${badKind}`);
+
+  const exportAudits = await prisma.auditLog.count({ where: { action: "event.export", targetId: EVENT_ID } });
+  record("137. Chaque export est journalise", exportAudits >= 4, `${exportAudits} entrees`);
+
+  // Un nom d invite qui est une formule ne doit pas s executer dans Excel.
+  const formulaGroup = await prisma.guestGroup.create({
+    data: { eventId: EVENT_ID, name: '=HYPERLINK("http://x")', maxSeats: 1, guests: { create: { firstName: "=1+1", position: 0 } }, invitation: { create: { token: "f".repeat(43) } } },
+  });
+  const formulaCsv = await csvOf(owner, "guests");
+  await prisma.guestGroup.delete({ where: { id: formulaGroup.id } });
+  record("138. Formule dans un nom : neutralisee dans le CSV", formulaCsv.text.includes("'=HYPERLINK") && formulaCsv.text.includes("'=1+1") && !/\n=HYPERLINK/.test(formulaCsv.text));
+
+  // Rafraichissement : une reponse arrivee pendant que l ecran est ouvert apparait sans rechargement.
+  // L onglet est passe en arriere-plan pendant les tests precedents, et le
+  // rafraichissement ne tourne que pour un onglet visible : on le ramene devant.
+  await dash.bringToFront();
+  await new Promise((r) => setTimeout(r, 600));
+  const expectedBefore = await figureAfter(dash, "Attendus");
+  // Pas le groupe du test 106 : son lien a atteint sa limite de 10 envois par minute.
+  const freshGroup = await prisma.guestGroup.findFirstOrThrow({
+    where: { eventId: EVENT_ID, id: { notIn: [third.id, couple.id, family.id] }, invitation: { revokedAt: null, response: null }, guests: { some: { isPlusOne: false } } },
+    include: { guests: true, invitation: true },
+  });
+  const freshMember = freshGroup.guests.find((g) => !g.isPlusOne);
+  const fresh = await postRsvp({ token: freshGroup.invitation.token, version: 0, status: "ATTENDING", people: [{ key: freshMember.id, ageCategory: freshMember.ageCategory, attending: true }], meals: {}, allergies: {}, consent: false, answers: [] });
+  // On lit la valeur passee a CountUp (sa prop React), pas le texte anime :
+  // pendant l animation, le texte remonte de 0 vers la nouvelle valeur.
+  const readExpectedProp = () => dash.evaluate(() => Number(document.querySelector('[data-figure="expected"]')?.textContent ?? NaN));
+  const refreshStart = Date.now();
+  let expectedAfter = await readExpectedProp();
+  // Un cycle de 10 s, plus une marge : 25 s couvrent deux cycles.
+  while (expectedAfter !== expectedBefore + 1 && Date.now() - refreshStart < 25000) {
+    await new Promise((r) => setTimeout(r, 1000));
+    expectedAfter = await readExpectedProp();
+  }
+  const sqlAfterFresh = (await sqlTotals()).expected;
+  record(
+    "139. Rafraichissement automatique : une nouvelle reponse apparait sans recharger",
+    fresh.status === 200 && expectedAfter === expectedBefore + 1,
+    `${expectedBefore} → ${expectedAfter} en ${Math.round((Date.now() - refreshStart) / 1000)} s | POST ${fresh.status} | SQL ${sqlAfterFresh}`,
+  );
 
   // ---------------------------------------------------- NON-REGRESSION --
   for (const path of ["/dashboard", "/dashboard/stats", "/dashboard/share"]) {

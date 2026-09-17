@@ -36,7 +36,23 @@ Trois principes tiennent l'ensemble :
 | 4 — Lien invité, enveloppe, publication | ✅ | `npm test` 44/44 · `npm run audit:invitations` 71/71, deux passages consécutifs |
 | 5 — RSVP multi-étapes | ✅ | `npm test` 59/59 · `npm run audit:invitations` 89/89, deux passages consécutifs |
 | 6 — Distribution + import CSV | ✅ | `npm test` 72/72 · `npm run audit:invitations` 103/103, deux passages consécutifs |
-| 7 → 10 | à faire | |
+| 7 — Dashboard + exports | ✅ | `npm test` 79/79 · `npm run audit:invitations` 113/113, deux passages consécutifs |
+| 8 → 10 | à faire | |
+
+**Phase 7, précisions**
+
+- Bande de titre visible sans défiler à 390 px : attendus, taux de réponse, à relancer, absents, entrées.
+  Bloc « À relancer » (pas encore envoyées / sans réponse après envoi) qui mène à l'écran Partage.
+- Exports CSV (permission `exports`, journalisés) : tous les invités, traiteur, liste d'accueil. Dérivés des
+  **mêmes** groupes que `computeHeadcount` ; la route refuse d'envoyer un fichier dont les totaux ne
+  colleraient pas au dashboard. Point-virgule + BOM UTF-8 pour Excel français ; formules neutralisées
+  (`=`, `+`, `-`, `@` en tête de cellule). Le texte des allergies n'apparaît qu'avec `sensitive`.
+- Rafraîchissement toutes les 10 s, onglet visible seulement : les chiffres clés sont relus en JSON
+  (`/headcount`) et posés dans le DOM (`data-figure`), puis `router.refresh()` pour le reste.
+  **Constat** : `router.refresh()` seul ne remplaçait pas l'arbre dans certains cas (le flux RSC arrivait
+  avec la bonne valeur, l'écran gardait l'ancienne), d'où la lecture JSON directe. Le segment
+  `/dashboard/events/[id]` est aussi déclaré `force-dynamic`.
+- Liste filtrable (présents, sans réponse, absents, peut-être, allergies, avec un mot), recherche par nom.
 
 **Phase 6, précisions**
 

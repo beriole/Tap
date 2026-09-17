@@ -38,6 +38,8 @@ export type BandStat = {
   /** Courbe tracee derriere le chiffre : la tendance, sans second bloc. */
   trend?: number[];
   tone?: "copper" | "plain";
+  /** Cle de mise a jour en direct (data-figure), pour le rafraichissement du tableau de bord */
+  figure?: string;
 };
 
 export function PageHeader({
@@ -139,7 +141,7 @@ export function PageHeader({
                         : "text-[var(--brand-copper)]",
                     )}
                   >
-                    <CountUp value={s.value} />
+                    <CountUp value={s.value} figure={s.figure} />
                   </dd>
                   {/* Une courbe occupe deja le bas de la case : y superposer une
                       legende rendait les deux illisibles. */}
