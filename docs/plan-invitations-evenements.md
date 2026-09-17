@@ -32,7 +32,23 @@ Trois principes tiennent l'ensemble :
 | 0 — Fondations | ✅ sauf Sentry (reporté en phase 10) | build de production OK, audit 16 (limitation de débit) |
 | 1 — Schéma, permissions, jeu de données | ✅ | `npm test` 16/16 · `npm run audit:invitations` 20/20 |
 | 2 — Espace organisateur : événement, contenu, invités | ✅ | `npm test` 31/31 · `npm run audit:invitations` 42/42, deux passages consécutifs |
-| 3 → 10 | à faire | |
+| 3 — DesignEngine + thème « Royal Ivory » | ✅ | `npm test` 40/40 · `npm run audit:invitations` 54/54, deux passages consécutifs |
+| 4 → 10 | à faire | |
+
+**Phase 3, précisions**
+
+- Contrat unique `InvitationView` (`src/types/invitation.ts`), construit par une fonction pure
+  (`src/lib/events/invitation-view.ts`) : dates déjà formatées dans le fuseau du lieu, sections masquées ou
+  invalides écartées, aucune note, aucun numéro, aucun jeton.
+- Royal Ivory : Bodoni Moda (axe de taille optique) + Geist déjà chargé ; variantes Ivoire / Nuit ; accents
+  champagne, rose poudré, sauge (contraste du texte d'accent ≥ 4,5:1) ; compte à rebours optionnel.
+  Signature : le cartouche de date.
+- Studio `/dashboard/events/[id]/design` : aperçu réel en iframe (`/preview/invitation/[id]`), 360 / 390 / 430 px,
+  réglages essayés sans être enregistrés, photo principale.
+- Banc d'essai versionné `/preview/invitation/banc` (cas référence, tout est long, minimal, réponses closes),
+  contrairement à `/qa-designs` qui reste local.
+- Textes visibles par l'invité correctement accentués ; la console garde sa convention sans accents.
+- Le bouton « Répondre » de la section réponse est inactif : le formulaire arrive en phase 5.
 
 **Phase 2, précisions**
 

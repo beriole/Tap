@@ -11,13 +11,14 @@ import { cn } from "@/lib/utils";
  * l accueil n a pas a voir une porte "Contenu" qui lui repondrait 404.
  * (Le serveur refuse de toute facon - ceci n est que de la politesse.)
  */
-export function EventTabs({ eventId, allowed }: { eventId: string; allowed: { content: boolean; guests: boolean } }) {
+export function EventTabs({ eventId, allowed }: { eventId: string; allowed: { content: boolean; guests: boolean; design: boolean } }) {
   const pathname = usePathname();
   const base = `/dashboard/events/${eventId}`;
   const tabs = [
     { href: base, label: "Vue d ensemble", show: true, exact: true },
     { href: `${base}/invites`, label: "Invites", show: allowed.guests },
     { href: `${base}/contenu`, label: "Contenu", show: allowed.content },
+    { href: `${base}/design`, label: "Design", show: allowed.design },
   ].filter((t) => t.show);
 
   return (

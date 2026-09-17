@@ -373,6 +373,97 @@ try {
   const anonCreate = await api(anon, "/api/organizer/events", "POST", {});
   record("41. Anonyme : creation refusee", anonCreate.status === 401, `HTTP ${anonCreate.status}`);
 
+  // ================================================ PHASE 3 - DESIGN --
+  // Banc d essai : 4 cas x 2 variantes x 5 largeurs du cahier (§12.1).
+  const bench = await newSession();
+  await signIn(bench, "organisateur@tap.exemple");
+  const overflows = [];
+  for (const benchCase of ["reference", "long", "minimal", "clos"]) {
+    for (const variant of ["ivoire", "nuit"]) {
+      for (const width of [360, 375, 390, 393, 430]) {
+        await bench.setViewport({ width, height: 800 });
+        await bench.goto(`${BASE}/preview/invitation/banc?case=${benchCase}&variant=${variant}`, { waitUntil: "networkidle0", timeout: 90000 });
+        const over = await bench.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        if (over > 0) overflows.push(`${benchCase}/${variant}/${width}px:+${over}`);
+      }
+    }
+  }
+  record("50. Banc : aucun debordement (4 cas, 2 variantes, 5 largeurs)", overflows.length === 0, overflows.join(" ") || "40 rendus");
+
+  // Premier ecran (§12.1 hierarchie) : noms, date et bouton visibles sans defiler.
+  const firstScreen = [];
+  for (const [width, height] of [[360, 740], [390, 844], [430, 932]]) {
+    await bench.setViewport({ width, height });
+    await bench.goto(`${BASE}/preview/invitation/banc?case=reference`, { waitUntil: "networkidle0" });
+    await new Promise((r) => setTimeout(r, 900));
+    const bottom = await bench.evaluate(() => document.getElementById("ri-hero-cta").getBoundingClientRect().bottom);
+    if (bottom > height) firstScreen.push(`${width}x${height}: bouton a ${Math.round(bottom)}px`);
+  }
+  record("51. Premier ecran : noms, date et bouton de reponse sans defiler", firstScreen.length === 0, firstScreen.join(" ") || "360, 390, 430");
+
+  await bench.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+  await bench.goto(`${BASE}/preview/invitation/banc?case=reference`, { waitUntil: "networkidle0" });
+  const animationMs = await bench.evaluate(() => parseFloat(getComputedStyle(document.querySelector(".pc-rise")).animationDuration) * 1000);
+  record("52. Animations reduites respectees", animationMs <= 0.01, `${animationMs} ms`);
+  await bench.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "no-preference" }]);
+
+  const benchHtml = (await rawHtml(bench, `/preview/invitation/banc?case=reference`)).html;
+  record("53. Sans JavaScript : le bouton de reponse est dans le HTML serveur", benchHtml.includes('href="#rsvp"') && benchHtml.includes("Répondre à l’invitation"));
+
+  // Changer de theme ne modifie aucune donnee metier (§22).
+  const snapshot = async () => {
+    const e = await prisma.event.findUniqueOrThrow({
+      where: { id: EVENT_ID },
+      include: { venues: true, sections: true, meals: true, groups: { include: { guests: true, invitation: { include: { response: true, ticket: true } } } } },
+    });
+    const { themeSettings, themeKey, updatedAt, ...business } = e;
+    return JSON.stringify(business, (k, v) => (k === "updatedAt" ? undefined : v));
+  };
+  const before = await snapshot();
+  const design = await api(owner, `/api/organizer/events/${EVENT_ID}/design`, "PUT", {
+    themeKey: "royal-ivory",
+    settings: { variant: "nuit", accent: "<script>alert(1)</script>", countdown: false },
+  });
+  const after = await snapshot();
+  const stored = await prisma.event.findUniqueOrThrow({ where: { id: EVENT_ID }, select: { themeSettings: true } });
+  record("54. Changement de design : aucune donnee metier modifiee", design.status === 200 && before === after, `HTTP ${design.status}`);
+  record(
+    "55. Reglage trafique remplace par la valeur du theme",
+    // Champ par champ : PostgreSQL (jsonb) ne conserve pas l ordre des cles.
+    stored.themeSettings.variant === "nuit" && stored.themeSettings.accent === "champagne" && stored.themeSettings.countdown === false,
+    JSON.stringify(stored.themeSettings),
+  );
+  await api(owner, `/api/organizer/events/${EVENT_ID}/design`, "PUT", { themeKey: "royal-ivory", settings: {} });
+
+  // Apercu : cloisonne, et rien de ce que l invite ne doit pas voir.
+  const preview = await rawHtml(owner, `/preview/invitation/${EVENT_ID}?variant=nuit`);
+  const somePhone = (await prisma.guest.findFirstOrThrow({ where: { group: { eventId: EVENT_ID }, phoneE164: { not: null } } })).phoneE164;
+  record("56. Apercu organisateur rendu avec les vraies donnees", preview.html.includes("Cathedrale Notre-Dame des Victoires") && preview.html.includes("Beriole"));
+  record(
+    "57. Apercu : ni note interne, ni numero, ni jeton dans le HTML",
+    !preview.html.includes(notedGroup.internalNote) && !preview.html.includes(somePhone.slice(4)) && !/"token"/.test(preview.html),
+  );
+  const intruderPreview = await rawHtml(intruder, `/preview/invitation/${EVENT_ID}`);
+  record("58. Intrus : apercu introuvable", intruderPreview.html.includes("Page introuvable") && !intruderPreview.html.includes("Cathedrale"));
+  const coDesign = await api(co, `/api/organizer/events/${EVENT_ID}/design`, "PUT", { themeKey: "royal-ivory", settings: {} });
+  record("59. Co-organisateur sans « design » : design refuse", coDesign.status === 404, `HTTP ${coDesign.status}`);
+  const intruderHero = await intruder.evaluate(async (id) => {
+    const body = new FormData();
+    body.append("file", new File([new Uint8Array([0xff, 0xd8, 0xff])], "x.jpg", { type: "image/jpeg" }));
+    return (await fetch(`/api/organizer/events/${id}/hero`, { method: "POST", body })).status;
+  }, EVENT_ID);
+  record("60. Intrus : envoi de photo refuse", intruderHero === 404, `HTTP ${intruderHero}`);
+
+  const studioOverflow = [];
+  for (const width of [360, 390]) {
+    await bench.setViewport({ width, height: 844 });
+    await bench.goto(`${BASE}/dashboard/events/${EVENT_ID}/design`, { waitUntil: "networkidle0", timeout: 90000 });
+    await new Promise((r) => setTimeout(r, 1200));
+    const over = await bench.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    if (over > 0) studioOverflow.push(`${width}px:+${over}`);
+  }
+  record("61. Studio de design sans debordement sur telephone", studioOverflow.length === 0, studioOverflow.join(" ") || "360, 390");
+
   // ---------------------------------------------------- NON-REGRESSION --
   for (const path of ["/dashboard", "/dashboard/stats", "/dashboard/share"]) {
     const res = await rawHtml(owner, path);
