@@ -6,8 +6,12 @@ import { useRouter } from "next/navigation";
 import { Check, ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { SectionTitle, Surface } from "@/components/app/ui";
 import {
+  COLLECTION_LABELS,
+  collectionFor,
   getInvitationTheme,
   INVITATION_THEMES,
+  themesOf,
+  type InvitationCollection,
   type InvitationThemeKey,
   type InvitationThemeSettings,
 } from "@/config/invitation-themes";
@@ -33,8 +37,10 @@ export function DesignStudio({
   settings: savedSettings,
   heroImageUrl: savedHero,
   allowedThemes,
+  eventType,
 }: {
   eventId: string;
+  eventType: string;
   themeKey: InvitationThemeKey;
   settings: InvitationThemeSettings;
   heroImageUrl: string | null;
@@ -47,9 +53,13 @@ export function DesignStudio({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "error" | "success"; text: string } | null>(null);
   const theme = getInvitationTheme(themeKey);
+  // La collection de l evenement d abord ; les autres restent accessibles (un
+  // anniversaire chic peut prendre Elegant, un gala d entreprise Midnight Gold).
+  const own = collectionFor(eventType);
+  const collections = [own, ...(Object.keys(COLLECTION_LABELS) as InvitationCollection[]).filter((c) => c !== own)];
 
   const dirty = themeKey !== savedKey || JSON.stringify(settings) !== JSON.stringify(savedSettings);
-  const previewSrc = `/preview/invitation/${eventId}?variant=${settings.variant}&accent=${settings.accent}&countdown=${settings.countdown ? 1 : 0}`;
+  const previewSrc = `/preview/invitation/${eventId}?theme=${themeKey}&variant=${settings.variant}&accent=${settings.accent}&countdown=${settings.countdown ? 1 : 0}`;
 
   async function save() {
     setBusy(true);
@@ -73,51 +83,48 @@ export function DesignStudio({
           <SectionTitle hint={`${Object.keys(INVITATION_THEMES).length} disponibles`}>
             Theme
           </SectionTitle>
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {Object.values(INVITATION_THEMES).map((t) => {
-              const locked = allowedThemes !== "all" && !allowedThemes.includes(t.key);
-              return (
-                <li key={t.key}>
-                  <button
-                    type="button"
-                    disabled={locked}
-                    aria-pressed={themeKey === t.key}
-                    onClick={() => {
-                      setThemeKey(t.key);
-                      setSettings(t.defaults);
-                    }}
-                    className={cn(
-                      "w-full rounded-2xl border p-4 text-left transition-colors disabled:opacity-50",
-                      themeKey === t.key
-                        ? "border-[var(--brand-ink)] bg-[var(--console-paper)]"
-                        : "border-[var(--console-hairline)] hover:bg-[var(--console-paper)]",
-                    )}
-                  >
-                    <span className="flex items-center gap-2">
-                      {t.variants.slice(0, 2).map((v) => (
-                        <span
-                          key={v.key}
-                          className="size-5 rounded-full ring-1 ring-black/10"
-                          style={{ background: v.swatch }}
-                        />
-                      ))}
-                      <span className="font-[family-name:var(--font-display)] text-[1.02rem] font-semibold">
-                        {t.name}
-                      </span>
-                    </span>
-                    <span className="mt-1.5 block text-[0.8rem] leading-snug text-[var(--muted)]">
-                      {t.direction}
-                    </span>
-                    {locked && (
-                      <span className="mt-2 block text-[0.74rem] text-[var(--state-warn)]">
-                        Offre Premium
-                      </span>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          {collections.map((collection) => (
+            <div key={collection} className="mb-6 last:mb-0">
+              <p className="mb-3 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                {COLLECTION_LABELS[collection]}
+                {collection === own && <span className="ml-2 font-normal normal-case tracking-normal">· pour votre evenement</span>}
+              </p>
+              <ul className="grid gap-3 sm:grid-cols-2">
+                {themesOf(collection).map((t) => {
+                  const locked = allowedThemes !== "all" && !allowedThemes.includes(t.key);
+                  return (
+                    <li key={t.key}>
+                      <button
+                        type="button"
+                        disabled={locked}
+                        aria-pressed={themeKey === t.key}
+                        onClick={() => {
+                          setThemeKey(t.key);
+                          setSettings(t.defaults);
+                        }}
+                        className={cn(
+                          "w-full rounded-2xl border p-4 text-left transition-colors disabled:opacity-50",
+                          themeKey === t.key
+                            ? "border-[var(--brand-ink)] bg-[var(--console-paper)]"
+                            : "border-[var(--console-hairline)] hover:bg-[var(--console-paper)]",
+                        )}
+                      >
+                        <span className="flex items-center gap-2">
+                          {t.variants.slice(0, 2).map((v) => (
+                            <span key={v.key} className="size-5 rounded-full ring-1 ring-black/10" style={{ background: v.swatch }} />
+                          ))}
+                          <span className="size-5 rounded-full ring-1 ring-black/10" style={{ background: t.accents[0]!.swatch }} />
+                          <span className="font-[family-name:var(--font-display)] text-[1.02rem] font-semibold">{t.name}</span>
+                        </span>
+                        <span className="mt-1.5 block text-[0.8rem] leading-snug text-[var(--muted)]">{t.direction}</span>
+                        {locked && <span className="mt-2 block text-[0.74rem] text-[var(--state-warn)]">Offre Premium</span>}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </Surface>
 
         <Surface>

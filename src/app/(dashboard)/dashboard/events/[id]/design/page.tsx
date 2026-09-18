@@ -15,7 +15,7 @@ export default async function EventDesignPage({ params }: { params: Promise<{ id
   const { tabs } = await eventPageContext(id, "design");
   const event = await prisma.event.findUniqueOrThrow({
     where: { id },
-    select: { title: true, plan: true, themeKey: true, themeSettings: true, heroImageUrl: true },
+    select: { title: true, type: true, plan: true, themeKey: true, themeSettings: true, heroImageUrl: true },
   });
   const theme = getInvitationTheme(event.themeKey);
 
@@ -27,6 +27,7 @@ export default async function EventDesignPage({ params }: { params: Promise<{ id
       <PageBody>
         <DesignStudio
           eventId={id}
+          eventType={event.type}
           themeKey={theme.key}
           settings={resolveThemeSettings(theme.key, event.themeSettings)}
           heroImageUrl={event.heroImageUrl}

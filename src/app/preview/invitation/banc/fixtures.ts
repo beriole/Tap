@@ -72,6 +72,65 @@ export const BENCH_CASES: Record<string, { label: string; event: RawInvitationEv
     event: { ...reference, type: "BIRTHDAY", title: "Anniversaire de Maeva", hosts: "Maeva", heroImageUrl: null, rsvpSettings: {}, venues: [], sections: [] },
     guest: null,
   },
+  // Une reference par collection : les themes Anniversaire, Corporate et
+  // Memorial sont juges sur leurs propres donnees (titre, hote unique, sections).
+  anniversaire: {
+    label: "Anniversaire",
+    event: {
+      ...reference,
+      type: "BIRTHDAY",
+      title: "Les 30 ans de Maeva",
+      hosts: "Maeva",
+      startsAt: new Date("2026-11-07T19:00:00Z"),
+      rsvpSettings: { deadline: "2026-10-30T22:59:00Z" },
+      venues: [{ label: "Soirée", name: "Rooftop du Djeuga Palace", address: "Rue Joseph Essono Balla, Yaoundé", landmark: "Accès par le parking arrière", lat: null, lng: null, startsAt: new Date("2026-11-07T19:00:00Z") }],
+      sections: [
+        { id: "p", kind: "program", title: "Au programme", isVisible: true, data: { items: [{ time: "20:00", label: "Cocktail et DJ" }, { time: "21:30", label: "Gâteau" }, { time: "22:00", label: "Piste de danse" }] } },
+        { id: "d", kind: "dresscode", title: "Dress code", isVisible: true, data: { text: "Tenue de soirée, touche de doré bienvenue.", palette: ["#111111", "#D4B067"] } },
+        { id: "f", kind: "faq", title: "Questions", isVisible: true, data: { items: [{ q: "Peut-on offrir un cadeau ?", a: "Votre présence suffit. Sinon, une cagnotte sera sur place." }] } },
+      ],
+    },
+    guest: { groupName: "Karim & Linda", maxSeats: 2, guests: [{ firstName: "Karim", isPlusOne: false }, { firstName: "Linda", isPlusOne: false }] },
+  },
+  entreprise: {
+    label: "Corporate",
+    event: {
+      ...reference,
+      type: "CORPORATE",
+      title: "Lancement de la carte Tap 2 — soirée partenaires",
+      hosts: "Tap Cameroun",
+      startsAt: new Date("2026-10-15T17:30:00Z"),
+      endsAt: new Date("2026-10-15T21:00:00Z"),
+      rsvpSettings: { deadline: "2026-10-08T22:59:00Z" },
+      venues: [{ label: "Accueil", name: "Hôtel La Falaise — Salle Wouri", address: "Rue de la Motte Piquet, Douala", landmark: "Badge à retirer à l’accueil", lat: null, lng: null, startsAt: new Date("2026-10-15T17:30:00Z") }],
+      sections: [
+        { id: "p", kind: "program", title: "Agenda", isVisible: true, data: { items: [{ time: "18:30", label: "Accueil et enregistrement" }, { time: "19:00", label: "Keynote — la carte Tap 2" }, { time: "19:45", label: "Démonstrations et rencontres partenaires" }, { time: "21:00", label: "Cocktail dînatoire" }] } },
+        { id: "c", kind: "custom", title: "Intervenants", isVisible: true, data: { text: "Beriole Mbandjo, fondateur\nAnna Ngono, direction produit\nUn invité surprise du secteur bancaire" } },
+        { id: "f", kind: "faq", title: "Informations pratiques", isVisible: true, data: { items: [{ q: "Faut-il imprimer l’invitation ?", a: "Non : votre QR d’accès sera sur votre téléphone après confirmation." }, { q: "Parking ?", a: "Parking de l’hôtel, offert sur présentation de l’invitation." }] } },
+      ],
+    },
+    guest: { groupName: "Société Ekang Conseil", maxSeats: 2, guests: [{ firstName: "Odile", isPlusOne: false }] },
+  },
+  hommage: {
+    label: "Memorial",
+    event: {
+      ...reference,
+      type: "MEMORIAL",
+      title: "Hommage à Marie Ngo Bell",
+      hosts: "Marie Ngo Bell",
+      startsAt: new Date("2026-10-24T09:00:00Z"),
+      rsvpSettings: {},
+      venues: [
+        { label: "Levée du corps", name: "Hôpital Général de Douala", address: "Boulevard de la République, Douala", landmark: null, lat: null, lng: null, startsAt: new Date("2026-10-24T07:00:00Z") },
+        { label: "Messe", name: "Cathédrale Saints-Pierre-et-Paul de Bonadibong", address: "Bonanjo, Douala", landmark: null, lat: null, lng: null, startsAt: new Date("2026-10-24T09:00:00Z") },
+      ],
+      sections: [
+        { id: "c", kind: "custom", title: null, isVisible: true, data: { text: "La famille Ngo Bell vous remercie de votre présence et de vos prières. Ni fleurs ni couronnes : un don à l’orphelinat de Bonabéri sera possible sur place." } },
+        { id: "p", kind: "program", title: "Déroulement", isVisible: true, data: { items: [{ time: "07:00", label: "Levée du corps" }, { time: "09:00", label: "Messe de requiem" }, { time: "11:00", label: "Inhumation au cimetière de Bonamouti" }, { time: "13:00", label: "Repas familial" }] } },
+      ],
+    },
+    guest: { groupName: "Famille Ekwalla", maxSeats: 3, guests: [{ firstName: "Pierre", isPlusOne: false }, { firstName: "Solange", isPlusOne: false }] },
+  },
   clos: {
     label: "Réponses closes",
     event: { ...reference, rsvpSettings: { deadline: "2026-01-01T00:00:00Z" } },

@@ -22,7 +22,7 @@ export default async function InvitationPreviewPage({
   searchParams,
 }: {
   params: Promise<{ eventId: string }>;
-  searchParams: Promise<{ variant?: string; accent?: string; countdown?: string }>;
+  searchParams: Promise<{ theme?: string; variant?: string; accent?: string; countdown?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) notFound();
@@ -39,9 +39,12 @@ export default async function InvitationPreviewPage({
   );
 
   const saved = await loadPreviewInvitation(eventId);
-  const view = Object.keys(tried).length
-    ? await loadPreviewInvitation(eventId, { settings: { ...saved.theme.settings, ...tried } })
-    : saved;
+  // Un theme essaye mais pas enregistre : on le rend avec ses propres reglages.
+  const themeTried = q.theme && q.theme !== saved.theme.key ? q.theme : undefined;
+  const view =
+    themeTried || Object.keys(tried).length
+      ? await loadPreviewInvitation(eventId, { key: themeTried, settings: { ...(themeTried ? {} : saved.theme.settings), ...tried } })
+      : saved;
 
   return <InvitationRenderer view={view} />;
 }

@@ -1,6 +1,8 @@
 import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { InvitationSection, InvitationVenue, InvitationView, RsvpFormData } from "@/types/invitation";
+import { Envelope } from "./envelope";
+import { RsvpDock } from "./rsvp-dock";
 import { RsvpForm } from "./rsvp-form";
 
 /**
@@ -201,3 +203,146 @@ export function salutation(view: InvitationView): string | null {
 export function countdownText(days: number): string {
   return days === 0 ? "C’est aujourd’hui" : days === 1 ? "C’est demain" : `Dans ${days} jours`;
 }
+
+// ---------------------------------------------------------------------------
+// Ossature commune (phase 11 : 20 themes). Un theme fournit sa palette, son
+// premier ecran, son habillage de section et son pied ; l ossature place
+// l enveloppe, la photo, les lieux, les sections, la reponse et le bouton
+// colle en bas - dans cet ordre, pour tous les themes (§12.1 hierarchie).
+// ---------------------------------------------------------------------------
+
+export type ThemeShellProps = {
+  view: InvitationView;
+  rsvpForm?: RsvpFormData | null;
+  /** Classes next/font (variables) et classes de fond/texte du <main> */
+  mainClassName: string;
+  /** Variables CSS du theme (--xx-*) */
+  vars: Record<string, string>;
+  dark?: boolean;
+  /** Variables --env-* de l enveloppe */
+  envelope: Record<string, string>;
+  /** Variables --rsvp-* du formulaire */
+  rsvp: Record<string, string>;
+  styles: SectionStyles;
+  button: string;
+  /** Identifiant du bloc bouton du premier ecran (RsvpDock) */
+  heroCtaId: string;
+  /** Premier ecran complet, bouton compris */
+  hero: React.ReactNode;
+  /** Photo, si le theme ne la met pas deja dans le premier ecran */
+  photo?: React.ReactNode;
+  /** Habillage d une section (lieux compris) */
+  section: (props: { key: string; index: number; title: string | null; children: React.ReactNode }) => React.ReactNode;
+  rsvpTitle: React.ReactNode;
+  rsvpAlign?: "center" | "left";
+  rsvpWrapperClassName?: string;
+  footer: React.ReactNode;
+  /** Avant / apres le conteneur central (bandes, fonds) */
+  before?: React.ReactNode;
+  after?: React.ReactNode;
+  containerClassName?: string;
+  dockClassName: string;
+  /** Libelle du bouton colle en bas (par defaut « Répondre à l’invitation ») */
+  dockLabel?: string;
+  sectionAlign?: "center" | "left";
+  /** Libelle du bloc lieux */
+  venuesTitle?: (count: number) => string;
+};
+
+export function ThemeShell(p: ThemeShellProps) {
+  const { view, rsvpForm } = p;
+  const { event, venues, sections, rsvp } = view;
+  const dear = salutation(view);
+  const align = p.sectionAlign ?? "center";
+  const blocks: { key: string; title: string | null; body: React.ReactNode }[] = [];
+  if (venues.length > 0) {
+    const title = p.venuesTitle ? p.venuesTitle(venues.length) : venues.length > 1 ? "Les lieux" : "Le lieu";
+    blocks.push({ key: "venues", title, body: <VenueList venues={venues} styles={p.styles} preview={view.preview} align={align} /> });
+  }
+  for (const s of sections) blocks.push({ key: s.id, title: s.title, body: <SectionBody section={s} styles={p.styles} align={align} /> });
+
+  return (
+    <main style={p.vars as React.CSSProperties} className={cn("relative min-h-dvh overflow-x-clip font-[family-name:var(--app-font-sans)] antialiased", p.dark ? "[color-scheme:dark]" : "[color-scheme:light]", p.mainClassName)}>
+      {view.envelope && (
+        <div style={p.envelope as React.CSSProperties}>
+          <Envelope recipient={dear} monogram={monogram(view)} />
+        </div>
+      )}
+      {p.before}
+      <div className={cn("mx-auto w-full max-w-[460px] break-words px-5 pb-28", p.containerClassName)}>
+        {p.hero}
+        {event.heroImageUrl && p.photo}
+        {blocks.map((b, i) => p.section({ key: b.key, index: i, title: b.title, children: b.body }))}
+        <div className={p.rsvpWrapperClassName}>
+          <RsvpBlock view={view} rsvpForm={rsvpForm} rsvpStyle={p.rsvp as React.CSSProperties} styles={p.styles} button={p.button} title={p.rsvpTitle} align={p.rsvpAlign} />
+        </div>
+        {p.footer}
+      </div>
+      {p.after}
+      {!rsvp.closed && <RsvpDock heroId={p.heroCtaId} targetId="rsvp" label={p.dockLabel ?? "Répondre à l’invitation"} className={p.dockClassName} buttonClassName={cn(p.button, "mx-auto max-w-[412px]")} />}
+    </main>
+  );
+}
+
+/** Bouton du premier ecran + rappel de la date limite, identiques d un theme a l autre. */
+export function HeroCta({ view, id, button, className, noteClassName, label }: { view: InvitationView; id: string; button: string; className?: string; noteClassName: string; label?: string }) {
+  const { rsvp } = view;
+  return (
+    <div id={id} data-hero-cta className={cn("w-full", className)}>
+      <a href="#rsvp" className={button}>
+        {rsvp.closed ? "Voir les informations" : (label ?? ctaLabel(view))}
+      </a>
+      {rsvp.deadline && !rsvp.closed && (
+        <p className={cn("mt-3 text-[12.5px]", noteClassName)}>
+          Réponse souhaitée avant le {rsvp.deadline.day} {rsvp.deadline.month}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Taille des noms selon leur longueur, sur une echelle donnee (px min, vw, px max) x4 paliers. */
+export function nameSizeClass(longest: number, scale: [string, string, string, string]): string {
+  if (longest <= 8) return scale[0];
+  if (longest <= 12) return scale[1];
+  if (longest <= 18) return scale[2];
+  return scale[3];
+}
+
+/** Noms sur deux lignes avec un separateur, ou un seul nom. */
+export function HostNames({ view, sizeClass, lineClassName, separator }: { view: InvitationView; sizeClass: string; lineClassName?: string; separator: React.ReactNode }) {
+  const parts = view.event.hostParts;
+  if (parts.length === 2) {
+    return (
+      <>
+        <span className={cn("block [overflow-wrap:anywhere]", sizeClass, lineClassName)}>{parts[0]}</span>
+        {separator}
+        <span className={cn("block [overflow-wrap:anywhere]", sizeClass, lineClassName)}>{parts[1]}</span>
+      </>
+    );
+  }
+  return <span className={cn("block [overflow-wrap:anywhere] [text-wrap:balance]", sizeClass, lineClassName)}>{parts[0]}</span>;
+}
+
+/** Echelle de noms par defaut : tient a 360 px jusqu a 18 lettres sur une ligne. */
+export const NAME_SCALE: [string, string, string, string] = [
+  "text-[clamp(50px,15vw,66px)]",
+  "text-[clamp(40px,12vw,54px)]",
+  "text-[clamp(32px,9.5vw,42px)]",
+  "text-[clamp(27px,7.5vw,34px)]",
+];
+
+export const delay = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
+
+export function longestHost(view: InvitationView): number {
+  return Math.max(...view.event.hostParts.map((h) => h.length));
+}
+
+/** Phrase d accroche selon le type d evenement, quand le theme n en impose pas une. */
+export const EYEBROW_BY_TYPE: Record<InvitationView["event"]["type"], string> = {
+  WEDDING: "Nous nous marions",
+  BIRTHDAY: "Vous êtes invité",
+  CORPORATE: "Invitation",
+  MEMORIAL: "En mémoire de",
+  OTHER: "Invitation",
+};

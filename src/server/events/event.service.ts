@@ -1,6 +1,7 @@
 import "server-only";
 import type { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { defaultThemeFor } from "@/config/invitation-themes";
 import { wallTimeToUtc } from "@/lib/events/time";
 import type { eventCreateSchema, eventUpdateSchema, SectionInput, venueSchema } from "@/lib/validations/event";
 import { writeAudit } from "@/server/audit";
@@ -39,6 +40,7 @@ export async function createEvent(userId: string, input: z.infer<typeof eventCre
       startsAt: wallTimeToUtc(input.startsAt, input.timezone),
       endsAt: input.endsAt ? wallTimeToUtc(input.endsAt, input.timezone) : null,
       capacity: input.capacity ?? null,
+      themeKey: defaultThemeFor(input.type),
       members: { create: { userId, role: "OWNER" } },
       venues: { create: input.venues.map((v, i) => venueData(v, i, input.timezone)) },
     },

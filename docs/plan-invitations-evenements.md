@@ -40,9 +40,50 @@ Trois principes tiennent l'ensemble :
 | 8 — QR, accueil, audit | ✅ | `npm test` 84/84 · `npm run audit:invitations` 137/137 (fonctionnel) |
 | 9 — MVP-b : thèmes, XLSX/PDF, équipe, vitrine | ✅ (Pearl, Romantic, Modern Glass reportés) | `npm test` 84/84 · `npm run audit:invitations` 148/149, trois passages : seul le LCP (voir ci-dessous) |
 | 10 — Qualité et lancement | ✅ en local (reste : vérifications sur Vercel, voir ci-dessous) | `npm test` 93/93 · `npm run audit:invitations` 156/156 · `npm run db:backup:verify` |
+| 11 — Catalogue complet des thèmes (§13) | ✅ | `npm test` 93/93 · `npm run audit:invitations` (banc : 19 thèmes × variantes × 4 cas) |
 
 > **Fin du MVP-a** : la boucle créer → inviter → répondre → piloter → accueillir est complète et testée
 > en local. Test grandeur nature recommandé avant la phase 9.
+
+**Phase 11, précisions — les 20 thèmes du §13**
+
+Le catalogue du cahier est complet : **20 thèmes**, quatre collections.
+
+| Collection | Thèmes |
+|---|---|
+| Mariage (8) | Royal Ivory, Midnight Gold, Botanical, Editorial, Pearl, African Luxury, Romantic, Modern Glass |
+| Anniversaire (5) | Party, Kids, Elegant, Neon, Minimal |
+| Corporate (4) | Executive, Conference, Gala, Launch |
+| Memorial (3) | Serenity, Classic, Light |
+
+- **Ossature partagée** `ThemeShell` (`components/invitations/shared.tsx`) : elle place l'enveloppe, le
+  premier écran, la photo, les lieux, les sections, la réponse et le bouton collé — dans cet ordre,
+  pour tous les thèmes. Un thème ne fournit que sa palette, son premier écran, l'habillage d'une
+  section et son pied. C'est ce qui rend 20 thèmes tenables : une correction de comportement se fait
+  à un seul endroit.
+- **Ce qui reste propre à chaque thème** (la signature, jamais une recoloration) : la perle de lumière
+  de Pearl, la branche fleurie et le mot calligraphié de Romantic, le panneau de verre sur la photo
+  plein écran de Modern Glass, les confettis figés et le badge de travers de Party, les ballons SVG de
+  Kids, le jour en chiffre de 120 px d'Elegant, le halo limité aux noms et à l'heure de Neon, la photo
+  carrée de Minimal, la barre de marque et le tableau de repères d'Executive, la bande de trois
+  repères de Conference, le **billet à encoches et talon détachable** de Gala, le « J-28 » de Launch,
+  le portrait en médaillon de Serenity, le liseré de page de Classic, la photo fondue dans le blanc de
+  Light. Aucune image décorative : tout est CSS ou SVG en ligne.
+- **Polices** : sept familles partagées (`components/invitations/themes/fonts.ts`), deux au plus par
+  thème, corps toujours en Geist. `next/font` exige des options littérales — pas de spread, pas de
+  variable partagée (erreur de compilation « Unexpected spread », corrigée).
+- **Collections et valeurs par défaut** : un événement créé prend le thème de base de sa collection
+  (`defaultThemeFor`) ; le studio groupe les thèmes par collection avec celle de l'événement en
+  premier, sans interdire les autres. L'aperçu du studio rend maintenant le thème **essayé** et pas
+  seulement ses réglages.
+- **Ton des collections** : Memorial n'a ni compte à rebours ni enveloppe animée, et son bouton dit
+  « Confirmer ma présence ». Les phrases d'accroche suivent le type d'événement, thème par thème.
+- **Offre Essentiel** : un thème par collection (`royal-ivory`, `minimal`, `executive`, `serenity`) ;
+  les 16 autres sont Premium, vérifié côté serveur.
+- **Banc d'essai** : chaque thème passe le cas de référence de sa collection aux 5 largeurs du cahier,
+  plus « tout est long », « minimal » et « réponses closes ». Nouvelles fixtures : `anniversaire`,
+  `entreprise`, `hommage`.
+- Vitrine : la section « Invitations » de la page d'accueil liste les quatre collections.
 
 **Phase 10, précisions**
 
@@ -687,6 +728,14 @@ un QR décodé ne contient aucun nom ni numéro.
 
 **Fait** (voir « Phase 9, précisions ») ; Pearl, Romantic et Modern Glass restent à dessiner.
 
+### Phase 11 — Catalogue complet des thèmes · 3–4 j
+
+- Les 20 thèmes du §13, quatre collections, chacun avec sa composition.
+- Ossature partagée pour que le comportement reste à un seul endroit.
+- Banc d'essai et contrôle d'accessibilité étendus à tout le catalogue.
+
+**Fait** (voir « Phase 11, précisions »).
+
 ### Phase 10 — Qualité et lancement · 3–4 j
 
 - Lighthouse sur les 5 thèmes, accessibilité (focus, contraste, textes alternatifs).
@@ -733,7 +782,8 @@ un QR décodé ne contient aucun nom ni numéro.
 | Exports = totaux du dashboard | 7 | audit 132, 186 ; route refuse un export dont les totaux divergent |
 | Données de santé purgées | 10 | audit 193 (allergies effacées à J+30) |
 | Sauvegarde restaurable | 10 | `npm run db:backup:verify` |
-| Accessibilité AA | 10 | audit 196–198 (axe-core) |
+| Accessibilité AA | 10, 11 | audit 196–198 (axe-core, les 20 thèmes clair et sombre) |
+| Catalogue de thèmes du §13 | 11 | audit 180–181, 191 ; 20 thèmes, 4 collections |
 
 ---
 

@@ -5,7 +5,7 @@ import { LogoMark, Wordmark } from "@/components/brand/logo";
 import { CardObject, PhoneFrame, RippleArcs } from "@/components/marketing/phone";
 import { ThemeRenderer } from "@/components/themes/theme-renderer";
 import { demoProfile } from "@/config/demo-profile";
-import { INVITATION_THEMES } from "@/config/invitation-themes";
+import { COLLECTION_LABELS, themesOf, type InvitationCollection } from "@/config/invitation-themes";
 import { THEMES } from "@/config/themes";
 import { siteConfig } from "@/config/site";
 
@@ -272,7 +272,7 @@ export default function HomePage() {
         <div className="app-shell">
           <p className="eyebrow text-white/35">La bibliotheque</p>
           <h2 className="mt-4 max-w-xl font-[family-name:var(--font-grotesk)] text-[2rem] font-bold leading-[1.05] tracking-[-0.03em]">
-            Quinze directions artistiques. Un seul contenu.
+            {THEMES.length} directions artistiques. Un seul contenu.
           </h2>
           <p className="mt-4 max-w-lg text-[0.95rem] leading-relaxed text-white/45">
             Changer de theme ne perd ni une information ni un lien. Le client choisit, la structure
@@ -332,8 +332,8 @@ export default function HomePage() {
             Le faire-part devient un lien. La liste des invites, un tableau de bord.
           </h2>
           <p className="mt-4 max-w-lg text-[0.95rem] leading-relaxed text-[var(--brand-ink)]/60">
-            Mariages, anniversaires, receptions : une invitation par famille, une reponse en trois etapes,
-            un accueil par QR le jour J. Meme plateforme, meme compte.
+            Mariages, anniversaires, receptions, hommages : une invitation par famille, une reponse en
+            trois etapes, un accueil par QR le jour J. Meme plateforme, meme compte.
           </p>
 
           <ol className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -348,17 +348,29 @@ export default function HomePage() {
             ))}
           </ol>
 
-          {/* Chaque theme est une composition : on montre ses deux premieres variantes, pas un texte. */}
-          <ul className="mt-10 flex flex-wrap gap-3">
-            {Object.values(INVITATION_THEMES).map((theme) => (
-              <li key={theme.key} className="flex items-center gap-3 rounded-full border border-[var(--console-hairline)] bg-[var(--console-card)] py-2 pl-2.5 pr-4">
-                <span className="flex -space-x-1.5">
-                  {theme.variants.slice(0, 2).map((v) => (
-                    <span key={v.key} className="size-5 rounded-full ring-2 ring-[var(--console-card)]" style={{ background: v.swatch }} />
+          {/* Une ligne par collection : vingt pastilles d affilee ne se lisent plus. */}
+          <ul className="mt-10 space-y-4">
+            {(Object.keys(COLLECTION_LABELS) as InvitationCollection[]).map((collection) => (
+              <li key={collection}>
+                <p className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--brand-ink)]/45">
+                  {COLLECTION_LABELS[collection]}
+                </p>
+                <ul className="mt-2 flex flex-wrap gap-2">
+                  {themesOf(collection).map((theme) => (
+                    <li
+                      key={theme.key}
+                      className="flex items-center gap-2 rounded-full border border-[var(--console-hairline)] bg-[var(--console-card)] py-1.5 pl-2 pr-3.5"
+                    >
+                      <span className="flex -space-x-1">
+                        {theme.variants.slice(0, 2).map((v) => (
+                          <span key={v.key} className="size-4 rounded-full ring-2 ring-[var(--console-card)]" style={{ background: v.swatch }} />
+                        ))}
+                        <span className="size-4 rounded-full ring-2 ring-[var(--console-card)]" style={{ background: theme.accents[0]!.swatch }} />
+                      </span>
+                      <span className="text-[0.82rem] font-medium">{theme.name}</span>
+                    </li>
                   ))}
-                  <span className="size-5 rounded-full ring-2 ring-[var(--console-card)]" style={{ background: theme.accents[0]!.swatch }} />
-                </span>
-                <span className="text-[0.85rem] font-medium">{theme.name}</span>
+                </ul>
               </li>
             ))}
           </ul>

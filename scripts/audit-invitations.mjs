@@ -1298,19 +1298,35 @@ try {
   // ============================================== PHASE 9 - MVP-B --
   // Quatre themes de plus : chacun est une composition, verifiee comme Royal
   // Ivory sur le banc (aucun debordement, premier ecran complet).
+  // Chaque theme est juge sur le cas de reference de SA collection, plus le
+  // cas « tout est long » (noms interminables) pour tous.
   const themesInfo = [
-    { key: "midnight-gold", variants: ["minuit", "encre", "emeraude"], accents: ["or", "cuivre", "argent"] },
-    { key: "botanical", variants: ["creme", "mousse"], accents: ["olive", "terracotta", "lavande"] },
-    { key: "editorial", variants: ["blanc", "noir"], accents: ["rouge", "cobalt", "citron"] },
-    { key: "african-luxury", variants: ["terre", "ebene"], accents: ["ocre", "indigo", "cuivre"] },
+    { key: "midnight-gold", c: "reference", variants: ["minuit", "encre", "emeraude"] },
+    { key: "botanical", c: "reference", variants: ["creme", "mousse"] },
+    { key: "editorial", c: "reference", variants: ["blanc", "noir"] },
+    { key: "pearl", c: "reference", variants: ["perle", "brume"] },
+    { key: "african-luxury", c: "reference", variants: ["terre", "ebene"] },
+    { key: "romantic", c: "reference", variants: ["poudre", "bordeaux"] },
+    { key: "modern-glass", c: "reference", variants: ["clair", "sombre"] },
+    { key: "party", c: "anniversaire", variants: ["blanc", "nuit"] },
+    { key: "kids", c: "anniversaire", variants: ["ciel", "creme"] },
+    { key: "elegant", c: "anniversaire", variants: ["lin", "anthracite"] },
+    { key: "neon", c: "anniversaire", variants: ["noir", "marine"] },
+    { key: "minimal", c: "anniversaire", variants: ["blanc", "noir"] },
+    { key: "executive", c: "entreprise", variants: ["blanc", "graphite"] },
+    { key: "conference", c: "entreprise", variants: ["clair", "sombre"] },
+    { key: "gala", c: "entreprise", variants: ["noir", "prune"] },
+    { key: "launch", c: "entreprise", variants: ["blanc", "noir"] },
+    { key: "serenity", c: "hommage", variants: ["aube", "crepuscule"] },
+    { key: "classic", c: "hommage", variants: ["ivoire", "gris"] },
+    { key: "light", c: "hommage", variants: ["blanc", "nuage"] },
   ];
   const themeOverflows = [];
   let themeRenders = 0;
   for (const t of themesInfo) {
     for (const variant of t.variants) {
-      for (const benchCase of ["reference", "long", "minimal", "clos"]) {
-        // Le cas de reference aux 5 largeurs du cahier ; les cas limites aux deux extremes.
-        for (const width of benchCase === "reference" ? [360, 375, 390, 393, 430] : [360, 430]) {
+      for (const [benchCase, widths] of [[t.c, [360, 375, 390, 393, 430]], ["long", [360, 430]], ["minimal", [360]], ["clos", [430]]]) {
+        for (const width of widths) {
           await bench.setViewport({ width, height: 800 });
           await bench.goto(`${BASE}/preview/invitation/banc?case=${benchCase}&theme=${t.key}&variant=${variant}`, { waitUntil: "networkidle0", timeout: 90000 });
           themeRenders += 1;
@@ -1320,19 +1336,19 @@ try {
       }
     }
   }
-  record("180. Quatre nouveaux themes : aucun debordement sur le banc", themeOverflows.length === 0, themeOverflows.join(" ") || `${themeRenders} rendus`);
+  record("180. Dix-neuf themes de plus : aucun debordement sur le banc", themeOverflows.length === 0, themeOverflows.join(" ") || `${themeRenders} rendus`);
 
   const themeFirstScreen = [];
   for (const t of themesInfo) {
     for (const [width, height] of [[360, 740], [390, 844]]) {
       await bench.setViewport({ width, height });
-      await bench.goto(`${BASE}/preview/invitation/banc?case=reference&theme=${t.key}`, { waitUntil: "networkidle0" });
+      await bench.goto(`${BASE}/preview/invitation/banc?case=${t.c}&theme=${t.key}`, { waitUntil: "networkidle0" });
       await new Promise((r) => setTimeout(r, 900));
       const bottom = await bench.evaluate(() => document.querySelector("[data-hero-cta]")?.getBoundingClientRect().bottom ?? Infinity);
       if (bottom > height) themeFirstScreen.push(`${t.key} ${width}x${height}: bouton a ${Math.round(bottom)}px`);
     }
   }
-  record("181. Chaque theme : noms, date et bouton de reponse sans defiler", themeFirstScreen.length === 0, themeFirstScreen.join(" ") || "4 themes x 2 ecrans");
+  record("181. Chaque theme : noms, date et bouton de reponse sans defiler", themeFirstScreen.length === 0, themeFirstScreen.join(" ") || "19 themes x 2 ecrans");
 
   // Les reglages d un theme ne valent que pour lui : un accent de Royal Ivory
   // sur Editorial retombe sur la valeur par defaut d Editorial.
@@ -1435,11 +1451,16 @@ try {
   const odsMessage = await importer.evaluate(() => document.body.innerText);
   record("190. Fichier .ods : refuse avec la marche a suivre (enregistrer en .xlsx)", /enregistrez le fichier en \.xlsx/i.test(odsMessage));
 
-  // Le studio liste les cinq themes ; un theme hors offre reste visible mais verrouille.
+  // Le studio liste les vingt themes, groupes par collection ; un theme hors offre reste visible mais verrouille.
   await bench.setViewport({ width: 1280, height: 900 });
   await bench.goto(`${BASE}/dashboard/events/${EVENT_ID}/design`, { waitUntil: "networkidle0", timeout: 90000 });
-  const studioThemes = await bench.evaluate(() => [...document.querySelectorAll("button[aria-pressed]")].map((b) => b.textContent.trim().split("\n")[0]).filter((t) => /Royal Ivory|Midnight Gold|Botanical|Editorial|African Luxury/.test(t)).length);
-  record("191. Studio : les cinq themes sont proposes", studioThemes === 5, `${studioThemes} themes`);
+  const studioThemes = await bench.evaluate(() => [...document.querySelectorAll("button[aria-pressed]")].filter((b) => b.querySelector("span.font-semibold")).length);
+  const studioOrder = await bench.evaluate(() => {
+    // innerText rend le texte tel qu il s affiche : les titres de collection sont en capitales.
+    const text = document.body.innerText.toUpperCase();
+    return text.indexOf("MARIAGE") >= 0 && text.indexOf("MARIAGE") < text.indexOf("ANNIVERSAIRE") && text.includes("SERENITY") && text.includes("GALA");
+  });
+  record("191. Studio : les vingt themes sont proposes, la collection de l evenement en premier", studioThemes === 20 && studioOrder, `${studioThemes} themes`);
 
   // ---------------------------------------------------- NON-REGRESSION --
   for (const path of ["/dashboard", "/dashboard/stats", "/dashboard/share"]) {
@@ -1553,12 +1574,11 @@ try {
     return result.map((v) => `${label}: ${v}`);
   };
   const a11y = [];
-  const themeDark = { "royal-ivory": "nuit", "midnight-gold": "encre", botanical: "mousse", editorial: "noir", "african-luxury": "ebene" };
-  for (const [key, dark] of Object.entries(themeDark)) {
-    a11y.push(...(await axeOn(bench, `${key}/clair`, `/preview/invitation/banc?case=reference&theme=${key}`)));
-    a11y.push(...(await axeOn(bench, `${key}/sombre`, `/preview/invitation/banc?case=reference&theme=${key}&variant=${dark}`)));
+  const a11yThemes = [{ key: "royal-ivory", c: "reference", variants: ["ivoire", "nuit"] }, ...themesInfo];
+  for (const t of a11yThemes) {
+    for (const variant of t.variants.slice(0, 2)) a11y.push(...(await axeOn(bench, `${t.key}/${variant}`, `/preview/invitation/banc?case=${t.c}&theme=${t.key}&variant=${variant}`)));
   }
-  record("196. Accessibilite (axe, WCAG 2 AA) : aucune violation serieuse sur les 5 themes, clair et sombre", a11y.length === 0, a11y.join(" | ") || "10 rendus");
+  record("196. Accessibilite (axe, WCAG 2 AA) : aucune violation serieuse sur les 20 themes, clair et sombre", a11y.length === 0, a11y.join(" | ") || `${a11yThemes.length * 2} rendus`);
 
   const a11yPage = await newSession();
   const pendingForA11y = await prisma.invitation.findFirstOrThrow({ where: { group: { eventId: EVENT_ID }, revokedAt: null, response: null }, select: { token: true } });

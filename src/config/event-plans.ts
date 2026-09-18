@@ -25,7 +25,8 @@ export const EVENT_PLANS: Record<EventPlanKey, EventPlanDefinition> = {
     maxGroups: 30,
     maxCoorganizers: 1,
     maxCheckInStations: 1,
-    themeKeys: ["royal-ivory"],
+    // Un theme de base par collection.
+    themeKeys: ["royal-ivory", "minimal", "executive", "serenity"],
     exports: true,
   },
   premium: {
