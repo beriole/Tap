@@ -5,6 +5,7 @@ import { LogoMark, Wordmark } from "@/components/brand/logo";
 import { CardObject, PhoneFrame, RippleArcs } from "@/components/marketing/phone";
 import { ThemeRenderer } from "@/components/themes/theme-renderer";
 import { demoProfile } from "@/config/demo-profile";
+import { INVITATION_THEMES } from "@/config/invitation-themes";
 import { THEMES } from "@/config/themes";
 import { siteConfig } from "@/config/site";
 
@@ -12,6 +13,14 @@ export const metadata: Metadata = {
   title: `${siteConfig.name} - Cartes de visite NFC`,
   description: siteConfig.description,
 };
+
+/** Le parcours d un evenement, du cote de l organisateur puis de l invite. */
+const EVENT_STEPS = [
+  { title: "Creer", body: "Lieux, programme, menu, dress code. Une page par evenement, un theme par mariage." },
+  { title: "Inviter", body: "Un lien par famille, partage sur WhatsApp. Chaque invite voit son nom et ses places." },
+  { title: "Repondre", body: "Presence, repas, allergies, un mot : trois etapes au pouce, sans compte a creer." },
+  { title: "Accueillir", body: "QR d acces, postes d accueil, entrees en temps reel. Liste papier en secours." },
+];
 
 /** Les trois temps du geste, dans l ordre ou ils se produisent reellement. */
 const BEATS = [
@@ -312,6 +321,55 @@ export default function HomePage() {
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      {/* -------------------------------------------------------- Invitations */}
+      <section id="invitations" className="border-t border-[var(--brand-line)] bg-[var(--console-paper)] py-20 text-[var(--brand-ink)]">
+        <div className="app-shell">
+          <p className="eyebrow text-[var(--brand-ink)]/40">Invitations d evenements</p>
+          <h2 className="mt-4 max-w-xl font-[family-name:var(--font-grotesk)] text-[2rem] font-bold leading-[1.05] tracking-[-0.03em]">
+            Le faire-part devient un lien. La liste des invites, un tableau de bord.
+          </h2>
+          <p className="mt-4 max-w-lg text-[0.95rem] leading-relaxed text-[var(--brand-ink)]/60">
+            Mariages, anniversaires, receptions : une invitation par famille, une reponse en trois etapes,
+            un accueil par QR le jour J. Meme plateforme, meme compte.
+          </p>
+
+          <ol className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {EVENT_STEPS.map((step, i) => (
+              <li key={step.title} className="rounded-2xl border border-[var(--console-hairline)] bg-[var(--console-card)] p-5">
+                <span className="font-[family-name:var(--font-mono)] text-[0.68rem] uppercase tracking-[0.14em] text-[var(--brand-copper-deep)]">
+                  0{i + 1}
+                </span>
+                <h3 className="mt-3 font-[family-name:var(--font-display)] text-[1.2rem] font-semibold tracking-[-0.01em]">{step.title}</h3>
+                <p className="mt-2 text-[0.8rem] leading-relaxed text-[var(--brand-ink)]/60">{step.body}</p>
+              </li>
+            ))}
+          </ol>
+
+          {/* Chaque theme est une composition : on montre ses deux premieres variantes, pas un texte. */}
+          <ul className="mt-10 flex flex-wrap gap-3">
+            {Object.values(INVITATION_THEMES).map((theme) => (
+              <li key={theme.key} className="flex items-center gap-3 rounded-full border border-[var(--console-hairline)] bg-[var(--console-card)] py-2 pl-2.5 pr-4">
+                <span className="flex -space-x-1.5">
+                  {theme.variants.slice(0, 2).map((v) => (
+                    <span key={v.key} className="size-5 rounded-full ring-2 ring-[var(--console-card)]" style={{ background: v.swatch }} />
+                  ))}
+                  <span className="size-5 rounded-full ring-2 ring-[var(--console-card)]" style={{ background: theme.accents[0]!.swatch }} />
+                </span>
+                <span className="text-[0.85rem] font-medium">{theme.name}</span>
+              </li>
+            ))}
+          </ul>
+
+          <Link
+            href="/dashboard/events/new"
+            className="tap-target mt-10 w-fit rounded-xl bg-[var(--brand-ink)] px-6 font-medium text-[var(--brand-paper)] transition-opacity hover:opacity-90"
+          >
+            Creer un evenement
+            <ArrowRight className="size-4" />
+          </Link>
         </div>
       </section>
 

@@ -182,13 +182,20 @@ export function ImportPanel({
 
   async function readFile(file: File) {
     setError(null);
-    if (file.size > 2 * 1024 * 1024) return setError("Fichier trop volumineux (2 Mo maximum).");
-    if (/\.(xlsx?|ods)$/i.test(file.name)) {
-      return setError(
-        "Fichier Excel : enregistrez-le d abord au format CSV (Fichier > Enregistrer sous > CSV), ou copiez-collez les colonnes.",
-      );
+    if (file.size > 5 * 1024 * 1024) return setError("Fichier trop volumineux (5 Mo maximum).");
+    let rowsRead: string[][];
+    if (/\.xlsx$/i.test(file.name)) {
+      // Lecteur Excel charge a la demande : il ne pese que sur cet ecran.
+      try {
+        rowsRead = await (await import("@/lib/events/xlsx-import")).readXlsxRows(file);
+      } catch {
+        return setError("Ce fichier Excel n a pas pu etre lu. Enregistrez-le en .xlsx recent, ou en CSV.");
+      }
+    } else if (/\.(xls|ods)$/i.test(file.name)) {
+      return setError("Ancien format Excel ou OpenDocument : enregistrez le fichier en .xlsx ou en CSV.");
+    } else {
+      rowsRead = parseCsv(decodeCsvBytes(new Uint8Array(await file.arrayBuffer())));
     }
-    const rowsRead = parseCsv(decodeCsvBytes(new Uint8Array(await file.arrayBuffer())));
     if (rowsRead.length === 0) return setError("Ce fichier ne contient aucune ligne.");
     const hasHeader = looksLikeHeader(rowsRead[0]!);
     const width = Math.max(...rowsRead.map((r) => r.length));
@@ -216,7 +223,7 @@ export function ImportPanel({
           {(
             [
               ["paste", "Coller une liste", ClipboardPaste],
-              ["csv", "Fichier CSV", FileSpreadsheet],
+              ["csv", "Fichier Excel ou CSV", FileSpreadsheet],
             ] as const
           ).map(([key, label, Icon]) => (
             <button
@@ -243,17 +250,17 @@ export function ImportPanel({
         {source === "csv" && (
           <div className="space-y-4">
             <p className="text-[0.88rem] leading-relaxed text-[var(--muted)]">
-              Un fichier CSV exporte d Excel, de Google Sheets ou de vos contacts. Il est lu sur
+              Un fichier Excel (.xlsx) ou CSV, exporte d Excel, de Google Sheets ou de vos contacts. Il est lu sur
               votre appareil ; rien n est enregistre avant votre relecture.
             </p>
             <label className="flex w-fit cursor-pointer items-center gap-2 rounded-xl border border-dashed border-[var(--console-hairline)] px-4 py-3 text-[0.87rem] hover:border-[var(--brand-copper)]">
               <FileSpreadsheet className="size-4 text-[var(--muted)]" aria-hidden />
               {csv
                 ? `${csv.name} · ${csv.rows.length - (csv.hasHeader ? 1 : 0)} lignes`
-                : "Choisir un fichier CSV"}
+                : "Choisir un fichier (.xlsx ou .csv)"}
               <input
                 type="file"
-                accept=".csv,text/csv,text/plain,.xlsx,.xls"
+                accept=".csv,text/csv,text/plain,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 className="sr-only"
                 onChange={(e) => {
                   const file = e.target.files?.[0];

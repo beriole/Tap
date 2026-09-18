@@ -12,7 +12,7 @@ import { z } from "zod";
  * par le rendu (serveur).
  */
 
-export type InvitationThemeKey = "royal-ivory";
+export type InvitationThemeKey = "royal-ivory" | "midnight-gold" | "botanical" | "editorial" | "african-luxury";
 
 export type ThemeSwatch = {
   key: string;
@@ -52,6 +52,26 @@ const royalIvoryAccents = [
 
 const keysOf = (list: readonly ThemeSwatch[]) => list.map((i) => i.key) as [string, ...string[]];
 
+/** Tous les themes partagent aujourd hui les memes reglages : variante, accent, compte a rebours. */
+function define(
+  key: InvitationThemeKey,
+  name: string,
+  direction: string,
+  variants: readonly ThemeSwatch[],
+  accents: readonly ThemeSwatch[],
+): InvitationThemeDefinition {
+  return {
+    key,
+    name,
+    collection: "WEDDING",
+    direction,
+    variants,
+    accents,
+    settingsSchema: z.object({ variant: z.enum(keysOf(variants)), accent: z.enum(keysOf(accents)), countdown: z.boolean() }),
+    defaults: { variant: variants[0]!.key, accent: accents[0]!.key, countdown: true },
+  };
+}
+
 export const INVITATION_THEMES: Record<InvitationThemeKey, InvitationThemeDefinition> = {
   "royal-ivory": {
     key: "royal-ivory",
@@ -67,6 +87,63 @@ export const INVITATION_THEMES: Record<InvitationThemeKey, InvitationThemeDefini
     }),
     defaults: { variant: "ivoire", accent: "champagne", countdown: true },
   },
+  "midnight-gold": define(
+    "midnight-gold",
+    "Midnight Gold",
+    "Carton de gala : nuit profonde, double filet d or, monogramme en sceau, sections en chiffres romains.",
+    [
+      { key: "minuit", label: "Minuit", swatch: "#0F1521" },
+      { key: "encre", label: "Encre", swatch: "#121212" },
+      { key: "emeraude", label: "Emeraude", swatch: "#0E221E" },
+    ],
+    [
+      { key: "or", label: "Or", swatch: "#C9A75A" },
+      { key: "cuivre", label: "Cuivre", swatch: "#C1845A" },
+      { key: "argent", label: "Argent", swatch: "#B9BDC6" },
+    ],
+  ),
+  botanical: define(
+    "botanical",
+    "Botanical",
+    "Jardin de papier : photo en arche, serif douce, feuillages dessines, cartes arrondies.",
+    [
+      { key: "creme", label: "Creme", swatch: "#F7F3EA" },
+      { key: "mousse", label: "Mousse", swatch: "#1F2A22" },
+    ],
+    [
+      { key: "olive", label: "Olive", swatch: "#6E7F4E" },
+      { key: "terracotta", label: "Terracotta", swatch: "#B8664A" },
+      { key: "lavande", label: "Lavande", swatch: "#7C6F9E" },
+    ],
+  ),
+  editorial: define(
+    "editorial",
+    "Editorial",
+    "Couverture de magazine : prenoms en serif geante, tout a gauche, filets noirs, sections 01 02 03.",
+    [
+      { key: "blanc", label: "Blanc", swatch: "#FAFAF7" },
+      { key: "noir", label: "Noir", swatch: "#111111" },
+    ],
+    [
+      { key: "rouge", label: "Rouge", swatch: "#D93A2B" },
+      { key: "cobalt", label: "Cobalt", swatch: "#2A48D9" },
+      { key: "citron", label: "Citron", swatch: "#E5D400" },
+    ],
+  ),
+  "african-luxury": define(
+    "african-luxury",
+    "African Luxury",
+    "Etoffe tissee : bandes a motifs geometriques, medaillon, terre cuite et ocre, serif ronde.",
+    [
+      { key: "terre", label: "Terre", swatch: "#F6E9D6" },
+      { key: "ebene", label: "Ebene", swatch: "#1B120D" },
+    ],
+    [
+      { key: "ocre", label: "Ocre", swatch: "#C0782E" },
+      { key: "indigo", label: "Indigo", swatch: "#2E3F8F" },
+      { key: "cuivre", label: "Cuivre", swatch: "#A8543A" },
+    ],
+  ),
 };
 
 export function getInvitationTheme(key: string | null | undefined): InvitationThemeDefinition {

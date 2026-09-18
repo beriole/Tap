@@ -19,6 +19,7 @@
  * sur le contenu, pas sur le code HTTP.
  */
 import puppeteer from "puppeteer-core";
+import ExcelJS from "exceljs";
 import { PrismaClient } from "@prisma/client";
 
 const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
@@ -962,7 +963,7 @@ try {
   await importer.goto(`${BASE}/dashboard/events/${EVENT_ID}/invites`, { waitUntil: "networkidle0" });
   await clickText(importer, "button", "Coller une liste");
   await importer.waitForSelector('[role="tablist"]');
-  await clickText(importer, "button", "Fichier CSV");
+  await clickText(importer, "button", "Fichier Excel");
   const fileInput = await importer.waitForSelector('input[type="file"]');
   await fileInput.uploadFile(csvPath);
   await importer.waitForFunction(() => document.body.innerText.includes("500 lignes"), { timeout: 10000 });
@@ -1227,8 +1228,10 @@ try {
   const raceOk = [raceA, raceB].filter((r) => r.body?.ok).length;
   record(
     "164. Deux postes, meme QR, meme seconde : une seule entree, l autre en conflit ; jamais plus de places que prevu",
-    raceOk === 1 && racedTicket.seatsUsed === bigTicket.seats && racedTicket.checkIns.length === 2 && [raceA, raceB].some((r) => r.body?.reason === "conflict"),
-    `${raceA.status}/${raceB.status}, ${racedTicket.seatsUsed}/${racedTicket.seats}`,
+    // Le perdant voit « conflit » s il a lu le ticket avant l ecriture du gagnant, « plus rien a
+    // faire entrer » s il l a lu apres : les deux sont justes, et jamais une place de trop.
+    raceOk === 1 && racedTicket.seatsUsed === bigTicket.seats && racedTicket.checkIns.length === 2 && [raceA, raceB].some((r) => r.status === 409 && ["conflict", "nothing_to_admit"].includes(r.body?.reason)),
+    `${raceA.status}/${raceB.status}, ${racedTicket.seatsUsed}/${racedTicket.seats}, perdant: ${[raceA, raceB].find((r) => !r.body?.ok)?.body?.reason}`,
   );
 
   const againAdmit = await checkinCall("admit", { ...A, ticketId: bigTicket.id, quantity: 1, method: "QR" });
@@ -1291,6 +1294,152 @@ try {
   await stationPage.waitForFunction((n) => document.body.innerText.includes(n), { timeout: 15000 }, coupleNow.name);
   const stationOverflow = await stationPage.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   record("172. Poste d accueil sur telephone : PIN, recherche, resultat, sans debordement", stationOverflow <= 0, `${stationOverflow}px`);
+
+  // ============================================== PHASE 9 - MVP-B --
+  // Quatre themes de plus : chacun est une composition, verifiee comme Royal
+  // Ivory sur le banc (aucun debordement, premier ecran complet).
+  const themesInfo = [
+    { key: "midnight-gold", variants: ["minuit", "encre", "emeraude"], accents: ["or", "cuivre", "argent"] },
+    { key: "botanical", variants: ["creme", "mousse"], accents: ["olive", "terracotta", "lavande"] },
+    { key: "editorial", variants: ["blanc", "noir"], accents: ["rouge", "cobalt", "citron"] },
+    { key: "african-luxury", variants: ["terre", "ebene"], accents: ["ocre", "indigo", "cuivre"] },
+  ];
+  const themeOverflows = [];
+  let themeRenders = 0;
+  for (const t of themesInfo) {
+    for (const variant of t.variants) {
+      for (const benchCase of ["reference", "long", "minimal", "clos"]) {
+        // Le cas de reference aux 5 largeurs du cahier ; les cas limites aux deux extremes.
+        for (const width of benchCase === "reference" ? [360, 375, 390, 393, 430] : [360, 430]) {
+          await bench.setViewport({ width, height: 800 });
+          await bench.goto(`${BASE}/preview/invitation/banc?case=${benchCase}&theme=${t.key}&variant=${variant}`, { waitUntil: "networkidle0", timeout: 90000 });
+          themeRenders += 1;
+          const over = await bench.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+          if (over > 0) themeOverflows.push(`${t.key}/${benchCase}/${variant}/${width}px:+${over}`);
+        }
+      }
+    }
+  }
+  record("180. Quatre nouveaux themes : aucun debordement sur le banc", themeOverflows.length === 0, themeOverflows.join(" ") || `${themeRenders} rendus`);
+
+  const themeFirstScreen = [];
+  for (const t of themesInfo) {
+    for (const [width, height] of [[360, 740], [390, 844]]) {
+      await bench.setViewport({ width, height });
+      await bench.goto(`${BASE}/preview/invitation/banc?case=reference&theme=${t.key}`, { waitUntil: "networkidle0" });
+      await new Promise((r) => setTimeout(r, 900));
+      const bottom = await bench.evaluate(() => document.querySelector("[data-hero-cta]")?.getBoundingClientRect().bottom ?? Infinity);
+      if (bottom > height) themeFirstScreen.push(`${t.key} ${width}x${height}: bouton a ${Math.round(bottom)}px`);
+    }
+  }
+  record("181. Chaque theme : noms, date et bouton de reponse sans defiler", themeFirstScreen.length === 0, themeFirstScreen.join(" ") || "4 themes x 2 ecrans");
+
+  // Les reglages d un theme ne valent que pour lui : un accent de Royal Ivory
+  // sur Editorial retombe sur la valeur par defaut d Editorial.
+  const themeBefore = await prisma.event.findUniqueOrThrow({ where: { id: EVENT_ID }, select: { themeKey: true, themeSettings: true } });
+  const editorialDesign = await api(owner, `/api/organizer/events/${EVENT_ID}/design`, "PUT", { themeKey: "editorial", settings: { variant: "noir", accent: "champagne", countdown: true } });
+  const editorialPublic = await rawHtml(anon, `/i/${(await prisma.invitation.findFirstOrThrow({ where: { group: { eventId: EVENT_ID }, revokedAt: null } })).token}`);
+  await prisma.event.update({ where: { id: EVENT_ID }, data: { themeKey: themeBefore.themeKey, themeSettings: themeBefore.themeSettings } });
+  record(
+    "182. Theme Editorial enregistre, accent etranger remplace, page publique rendue avec le theme",
+    editorialDesign.status === 200 && editorialDesign.body?.settings?.variant === "noir" && editorialDesign.body?.settings?.accent === "rouge" && editorialPublic.html.includes("--ed-bg"),
+    JSON.stringify(editorialDesign.body?.settings),
+  );
+
+  // Equipe (D5) : inviter, ajuster, retirer ; reserve au proprietaire.
+  const teamEmail = `equipe-${Date.now()}@tap.exemple`;
+  const invite = await api(owner, `/api/organizer/events/${EVENT_ID}/team`, "POST", { email: teamEmail, name: "Chloe Equipe", permissions: ["guests", "team"] });
+  const invitedMember = invite.body?.memberId ? await prisma.eventMember.findUnique({ where: { id: invite.body.memberId } }) : null;
+  record(
+    "183. Equipe : invitation creee, lien d activation rendu, « team » jamais accorde",
+    invite.status === 201 && /^\/reset-password\?token=/.test(invite.body?.inviteUrl ?? "") && invitedMember?.role === "COORGANIZER" && invitedMember.permissions.join(",") === "guests",
+    `HTTP ${invite.status} ${invitedMember?.permissions.join(",")}`,
+  );
+  const activation = await rawHtml(anon, invite.body?.inviteUrl ?? "/reset-password");
+  // Le HTML de toute page embarque le composant "introuvable" de la racine : on juge sur le formulaire attendu.
+  record("184. Lien d activation : page servie a l invite (sans session)", activation.status === 200 && activation.html.includes("Nouveau mot de passe"), `HTTP ${activation.status}`);
+  const teamPatch = await api(owner, `/api/organizer/events/${EVENT_ID}/team`, "PATCH", { memberId: invite.body?.memberId, permissions: ["guests", "checkin", "team"] });
+  const patchedMember = invite.body?.memberId ? await prisma.eventMember.findUnique({ where: { id: invite.body.memberId } }) : null;
+  const coTeam = await api(co, `/api/organizer/events/${EVENT_ID}/team`, "POST", { email: "autre@tap.exemple", name: "Autre Personne", permissions: [] });
+  const intruderTeam = await api(intruder, `/api/organizer/events/${EVENT_ID}/team`, "POST", { email: "autre@tap.exemple", name: "Autre Personne", permissions: [] });
+  const teamDelete = await owner.evaluate(async (id, m) => (await fetch(`/api/organizer/events/${id}/team?member=${m}`, { method: "DELETE" })).status, EVENT_ID, invite.body?.memberId ?? "x");
+  const goneMember = invite.body?.memberId ? await prisma.eventMember.findUnique({ where: { id: invite.body.memberId } }) : null;
+  await prisma.user.deleteMany({ where: { email: teamEmail } });
+  record(
+    "185. Equipe : permissions ajustees ; co-organisateur et intrus refuses (404) ; retrait effectif",
+    teamPatch.status === 200 && patchedMember?.permissions.join(",") === "guests,checkin" && coTeam.status === 404 && intruderTeam.status === 404 && teamDelete === 204 && goneMember === null,
+    `${teamPatch.status} / ${coTeam.status} / ${intruderTeam.status} / ${teamDelete}`,
+  );
+
+  // Exports Excel et PDF : memes lignes que le CSV, formats verifies sur les octets.
+  const binaryOf = async (page, kind, format) =>
+    page.evaluate(
+      async (k, f, id) => {
+        const res = await fetch(`/api/organizer/events/${id}/export?kind=${k}&format=${f}`);
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        return { status: res.status, type: res.headers.get("content-type"), disposition: res.headers.get("content-disposition"), bytes: Array.from(bytes) };
+      },
+      kind,
+      format,
+      EVENT_ID,
+    );
+  const xlsx = await binaryOf(owner, "guests", "xlsx");
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(Buffer.from(xlsx.bytes));
+  const sheet = workbook.worksheets[0];
+  const xlsxRows = [];
+  // Ligne vide comprise (eachRow la saute sinon) ; une cellule en texte riche (numero commencant par +) redevient du texte.
+  sheet.eachRow({ includeEmpty: true }, (row) => xlsxRows.push(row.values.slice(1).map((c) => (c && typeof c === "object" && "richText" in c ? c.richText.map((t) => t.text).join("") : c))));
+  const csvNow = parseCsvRows((await csvOf(owner, "guests")).text);
+  // Le classeur commence par le titre de l evenement et une ligne vide, puis l en-tete.
+  const xlsxExpected = xlsxRows.slice(3).reduce((n, r) => n + Number(r[5] ?? 0), 0);
+  const xlsxSql = (await sqlTotals()).expected;
+  record(
+    "186. Export Excel : fichier .xlsx valide, memes lignes et memes totaux que le CSV",
+    xlsx.status === 200 && xlsx.bytes[0] === 0x50 && xlsx.bytes[1] === 0x4b && /spreadsheetml/.test(xlsx.type) && /-invites\.xlsx"/.test(xlsx.disposition) && xlsxRows[2].join(";") === csvNow[0].join(";") && xlsxRows.length === csvNow.length + 2 && xlsxExpected === xlsxSql,
+    `${xlsxRows.length} lignes (CSV ${csvNow.length}), ${xlsxExpected} attendus (SQL ${xlsxSql}) | ${xlsxRows[2].join(";")} / ${csvNow[0].join(";")}`,
+  );
+  const pdf = await binaryOf(owner, "checkin", "pdf");
+  const pdfHead = String.fromCharCode(...pdf.bytes.slice(0, 5));
+  record("187. Export PDF (liste d accueil) : document PDF, telechargement nomme", pdf.status === 200 && pdfHead === "%PDF-" && pdf.type === "application/pdf" && /-accueil\.pdf"/.test(pdf.disposition), pdf.disposition);
+  const badFormat = await owner.evaluate(async (id) => (await fetch(`/api/organizer/events/${id}/export?kind=guests&format=docx`)).status, EVENT_ID);
+  record("188. Format d export inconnu refuse", badFormat === 400, `HTTP ${badFormat}`);
+
+  // Import Excel : un classeur fabrique ici, lu dans le navigateur.
+  const xlsxBook = new ExcelJS.Workbook();
+  const xlsxSheet = xlsxBook.addWorksheet("Invites");
+  xlsxSheet.addRow(["Prénom", "Nom", "Téléphone", "Famille"]);
+  xlsxSheet.addRow(["Aïcha", "MBAPPÉ", 699111222, "Famille Mbappé"]);
+  xlsxSheet.addRow(["Jean-Baptiste", "OWONA", "6 99 33 44 55", "Famille Owona"]);
+  xlsxSheet.addRow(["Ligne", "Vide", null, null]);
+  const xlsxPath = join(csvDir, "invites.xlsx");
+  await xlsxBook.xlsx.writeFile(xlsxPath);
+  await importer.goto(`${BASE}/dashboard/events/${EVENT_ID}/invites`, { waitUntil: "networkidle0" });
+  await clickText(importer, "button", "Coller une liste");
+  await importer.waitForSelector('[role="tablist"]');
+  await clickText(importer, "button", "Fichier Excel");
+  const xlsxInput = await importer.waitForSelector('input[type="file"]');
+  await xlsxInput.uploadFile(xlsxPath);
+  await importer.waitForFunction(() => document.body.innerText.includes("3 lignes"), { timeout: 15000 });
+  const xlsxMapping = await importer.evaluate(() => [...document.querySelectorAll("thead select")].map((s) => s.value));
+  const xlsxPreview = await importer.evaluate(() => document.body.innerText);
+  record(
+    "189. Import Excel : classeur lu dans le navigateur, accents et numero saisi en nombre conserves, colonnes reconnues",
+    xlsxPreview.includes("Aïcha") && xlsxPreview.includes("699111222") && xlsxMapping.join(",") === "firstName,lastName,phone,group",
+    xlsxMapping.join(","),
+  );
+  const odsPath = join(csvDir, "invites.ods");
+  writeFileSync(odsPath, "not a spreadsheet");
+  await xlsxInput.uploadFile(odsPath);
+  await importer.waitForFunction(() => /enregistrez le fichier en \.xlsx/i.test(document.body.innerText), { timeout: 10000 }).catch(() => null);
+  const odsMessage = await importer.evaluate(() => document.body.innerText);
+  record("190. Fichier .ods : refuse avec la marche a suivre (enregistrer en .xlsx)", /enregistrez le fichier en \.xlsx/i.test(odsMessage));
+
+  // Le studio liste les cinq themes ; un theme hors offre reste visible mais verrouille.
+  await bench.setViewport({ width: 1280, height: 900 });
+  await bench.goto(`${BASE}/dashboard/events/${EVENT_ID}/design`, { waitUntil: "networkidle0", timeout: 90000 });
+  const studioThemes = await bench.evaluate(() => [...document.querySelectorAll("button[aria-pressed]")].map((b) => b.textContent.trim().split("\n")[0]).filter((t) => /Royal Ivory|Midnight Gold|Botanical|Editorial|African Luxury/.test(t)).length);
+  record("191. Studio : les cinq themes sont proposes", studioThemes === 5, `${studioThemes} themes`);
 
   // ---------------------------------------------------- NON-REGRESSION --
   for (const path of ["/dashboard", "/dashboard/stats", "/dashboard/share"]) {

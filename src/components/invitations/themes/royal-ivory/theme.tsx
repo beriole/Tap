@@ -1,10 +1,9 @@
 import Image from "next/image";
-import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { InvitationSection, InvitationView, RsvpFormData } from "@/types/invitation";
+import type { InvitationView, RsvpFormData } from "@/types/invitation";
 import { Envelope } from "../../envelope";
 import { RsvpDock } from "../../rsvp-dock";
-import { RsvpForm } from "../../rsvp-form";
+import { RsvpBlock, SectionBody, VenueList, countdownText, ctaLabel, monogram, salutation, type SectionStyles } from "../../shared";
 import { royalIvoryDisplay } from "./font";
 
 /**
@@ -79,14 +78,10 @@ function nameSize(longest: number): string {
 }
 
 export function RoyalIvory({ view, rsvpForm }: { view: InvitationView; rsvpForm?: RsvpFormData | null }) {
-  const { event, venues, sections, guest, rsvp, theme, preview } = view;
+  const { event, venues, sections, rsvp, theme, preview } = view;
   const p = palette(theme.settings.variant, theme.settings.accent);
   const longest = Math.max(...event.hostParts.map((h) => h.length));
-  const salutation = guest
-    ? guest.firstNames.length > 0 && guest.firstNames.length <= 2
-      ? guest.firstNames.join(" & ")
-      : guest.groupName
-    : null;
+  const dear = salutation(view);
 
   const style = {
     "--ri-bg": p.bg,
@@ -115,8 +110,6 @@ export function RoyalIvory({ view, rsvpForm }: { view: InvitationView; rsvpForm?
     "--env-seal-ink": p.bg,
     "--env-font": "var(--ri-display)",
   } as React.CSSProperties;
-  const monogram =
-    event.hostParts.length === 2 ? `${event.hostParts[0]!.charAt(0)} & ${event.hostParts[1]!.charAt(0)}` : event.hostParts[0]!.charAt(0);
 
   // Le formulaire reprend la palette de la page.
   const rsvpStyle = {
@@ -130,7 +123,6 @@ export function RoyalIvory({ view, rsvpForm }: { view: InvitationView; rsvpForm?
     "--rsvp-font": "var(--ri-display)",
   } as React.CSSProperties;
 
-  const ctaLabel = rsvp.closed ? "Voir les informations" : "Répondre à l’invitation";
 
   return (
     <main
@@ -146,7 +138,7 @@ export function RoyalIvory({ view, rsvpForm }: { view: InvitationView; rsvpForm?
           largeur minimale des grilles (contrairement a overflow-wrap:anywhere). */}
       {view.envelope && (
         <div style={envelopeStyle}>
-          <Envelope recipient={salutation} monogram={monogram} />
+          <Envelope recipient={dear} monogram={monogram(view)} />
         </div>
       )}
 
@@ -157,9 +149,9 @@ export function RoyalIvory({ view, rsvpForm }: { view: InvitationView; rsvpForm?
 
         {/* ------------------------------------------------ PREMIER ECRAN -- */}
         <header className="flex min-h-[calc(100svh-40px)] flex-col items-center justify-center py-10 text-center">
-          {salutation && (
+          {dear && (
             <p className="pc-fade mb-7 text-[14px] italic text-[var(--ri-ink-2)] [font-family:var(--ri-display)]" style={delay(0)}>
-              À l’attention de {salutation}
+              À l’attention de {dear}
             </p>
           )}
 
@@ -193,13 +185,13 @@ export function RoyalIvory({ view, rsvpForm }: { view: InvitationView; rsvpForm?
 
           {theme.settings.countdown && event.daysLeft !== null && (
             <p className="pc-fade mt-4 text-[15px] italic text-[var(--ri-ink-2)] [font-family:var(--ri-display)]" style={delay(560)}>
-              {event.daysLeft === 0 ? "C’est aujourd’hui" : event.daysLeft === 1 ? "C’est demain" : `Dans ${event.daysLeft} jours`}
+              {countdownText(event.daysLeft)}
             </p>
           )}
 
-          <div id="ri-hero-cta" className="mt-9 w-full max-w-[320px]">
+          <div id="ri-hero-cta" data-hero-cta className="mt-9 w-full max-w-[320px]">
             <a href="#rsvp" className={button}>
-              {ctaLabel}
+              {ctaLabel(view)}
             </a>
             {rsvp.deadline && !rsvp.closed && (
               <p className="mt-3 text-[12.5px] text-[var(--ri-ink-2)]">
@@ -227,91 +219,32 @@ export function RoyalIvory({ view, rsvpForm }: { view: InvitationView; rsvpForm?
         {/* ------------------------------------------------------ LIEUX -- */}
         {venues.length > 0 && (
           <Section title={venues.length > 1 ? "Les lieux" : "Le lieu"}>
-            <ul className="divide-y divide-[var(--ri-line)]">
-              {venues.map((venue) => (
-                <li key={`${venue.label}-${venue.name}`} className="py-7 text-center first:pt-0 last:pb-0">
-                  <p className={cn(smallCaps, "text-[var(--ri-accent)]")}>
-                    {venue.label}
-                    {venue.time && <span className="tracking-[0.12em]"> · {venue.time}</span>}
-                  </p>
-                  <p className="mt-3 text-[25px] leading-[1.15] [font-family:var(--ri-display)] [overflow-wrap:anywhere]">{venue.name}</p>
-                  <p className="mt-2 text-[15px] leading-relaxed text-[var(--ri-ink-2)]">{venue.address}</p>
-                  {venue.landmark && (
-                    <p className="mt-1 text-[15px] italic text-[var(--ri-ink-2)] [font-family:var(--ri-display)]">{venue.landmark}</p>
-                  )}
-                  <a
-                    href={preview ? undefined : venue.directionsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-4 inline-flex min-h-11 items-center gap-1.5 border-b border-[var(--ri-rule)] text-[13px] font-medium uppercase tracking-[0.16em] transition-colors hover:text-[var(--ri-accent)]"
-                  >
-                    Itinéraire
-                    <ArrowUpRight aria-hidden className="size-3.5" strokeWidth={1.5} />
-                  </a>
-                </li>
-              ))}
-            </ul>
+            <VenueList venues={venues} styles={styles} preview={preview} />
           </Section>
         )}
 
         {sections.map((section) => (
           <Section key={section.id} title={section.title}>
-            <SectionContent section={section} />
+            <SectionBody section={section} styles={styles} />
           </Section>
         ))}
 
         {/* ------------------------------------------------- REPONSE -- */}
-        <section id="rsvp" className="scroll-mt-6 pt-4 text-center">
-          <Fleuron />
-          <h2 className="mt-5 text-[32px] italic leading-tight [font-family:var(--ri-display)]">Votre réponse</h2>
-          {rsvp.closed && (!rsvpForm || rsvpForm.status === "PENDING") ? (
-            <p className="mx-auto mt-5 max-w-[320px] text-[15px] leading-relaxed text-[var(--ri-ink-2)]">
-              Les réponses sont closes. Pour toute question, contactez directement {event.hosts}.
-            </p>
-          ) : rsvpForm ? (
-            <div className="mt-8" style={rsvpStyle}>
-              <RsvpForm
-                data={rsvpForm}
-                intro={
-                  <p className="mx-auto mb-8 max-w-[330px] text-[15.5px] leading-relaxed text-[var(--ri-ink-2)] [text-wrap:pretty]">
-                    Nous vous avons réservé{" "}
-                    <strong className="font-medium text-[var(--ri-ink)]">
-                      {rsvpForm.maxSeats} place{rsvpForm.maxSeats > 1 ? "s" : ""}
-                    </strong>
-                    {rsvp.deadline ? `. Merci de répondre avant le ${rsvp.deadline.long}.` : "."}
-                  </p>
-                }
-              />
-            </div>
-          ) : (
-            <>
-              <p className="mx-auto mt-5 max-w-[330px] text-[15.5px] leading-relaxed text-[var(--ri-ink-2)] [text-wrap:pretty]">
-                {guest ? (
-                  <>
-                    Nous vous avons réservé{" "}
-                    <strong className="font-medium text-[var(--ri-ink)]">
-                      {guest.seats} place{guest.seats > 1 ? "s" : ""}
-                    </strong>
-                    .
-                  </>
-                ) : (
-                  "Chaque invité voit ici le nombre de places réservées pour lui."
-                )}
-              </p>
-              {rsvp.deadline && (
-                <p className="mt-2 text-[13px] text-[var(--ri-ink-2)]">
-                  Merci de répondre avant le {rsvp.deadline.long}.
-                </p>
-              )}
-              <div className="mx-auto mt-8 max-w-[320px]">
-                {/* Apercu organisateur : aucun invite reel, le formulaire n est pas actif. */}
-                <span aria-disabled className={cn(button, "cursor-default")}>
-                  Répondre
-                </span>
-              </div>
-            </>
-          )}
-        </section>
+        <div className="pt-4">
+          <RsvpBlock
+            view={view}
+            rsvpForm={rsvpForm}
+            rsvpStyle={rsvpStyle}
+            styles={styles}
+            button={button}
+            title={
+              <>
+                <Fleuron />
+                <h2 className={cn(styles.heading, "mt-5")}>Votre réponse</h2>
+              </>
+            }
+          />
+        </div>
 
         <footer className="mt-24 text-center">
           <p className="text-[22px] leading-none [font-family:var(--ri-display)]">
@@ -346,6 +279,16 @@ export function RoyalIvory({ view, rsvpForm }: { view: InvitationView; rsvpForm?
 
 const button =
   "flex min-h-[52px] w-full items-center justify-center rounded-[2px] bg-[var(--ri-ink)] px-6 text-[13px] font-medium uppercase tracking-[0.2em] text-[var(--ri-bg)] transition-[transform,opacity] duration-150 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--ri-rule)]";
+
+const styles: SectionStyles = {
+  heading: "text-[32px] italic leading-tight [font-family:var(--ri-display)]",
+  body: "text-[16px] leading-relaxed text-[var(--ri-ink-2)]",
+  muted: "text-[15px] leading-relaxed text-[var(--ri-ink-2)]",
+  label: cn(smallCaps, "text-[var(--ri-accent)]"),
+  rule: "divide-[var(--ri-line)] border-[var(--ri-line)]",
+  emphasis: "text-[23px] leading-[1.15] [font-family:var(--ri-display)]",
+  link: "border-b border-[var(--ri-rule)] text-[13px] font-medium uppercase tracking-[0.16em] transition-colors hover:text-[var(--ri-accent)]",
+};
 
 /**
  * Le cartouche : SAMEDI | 12 | DECEMBRE 2026.
@@ -394,87 +337,9 @@ function Section({ title, children }: { title: string | null; children: React.Re
   return (
     <section className="pc-inview mb-20">
       <Fleuron />
-      {title && <h2 className="mb-9 mt-5 text-center text-[32px] italic leading-tight [font-family:var(--ri-display)] [overflow-wrap:anywhere]">{title}</h2>}
+      {title && <h2 className={cn(styles.heading, "mb-9 mt-5 text-center [overflow-wrap:anywhere]")}>{title}</h2>}
       {!title && <div className="mb-9" />}
       {children}
     </section>
   );
-}
-
-function SectionContent({ section }: { section: InvitationSection }) {
-  switch (section.kind) {
-    case "program":
-      return (
-        <ol className="mx-auto max-w-[340px] divide-y divide-[var(--ri-line)]">
-          {section.data.items.map((item, i) => (
-            <li key={i} className="grid grid-cols-[4.75rem_1fr] items-baseline gap-4 py-4">
-              <span className="text-right text-[19px] italic tabular-nums text-[var(--ri-accent)] [font-family:var(--ri-display)]">
-                {item.time.replace(":", " h ")}
-              </span>
-              <span className="text-[16px] leading-snug [overflow-wrap:anywhere]">{item.label}</span>
-            </li>
-          ))}
-        </ol>
-      );
-    case "dresscode":
-      return (
-        <div className="text-center">
-          {section.data.text && (
-            <p className="mx-auto max-w-[340px] whitespace-pre-line text-[16px] leading-relaxed text-[var(--ri-ink-2)]">{section.data.text}</p>
-          )}
-          {section.data.palette.length > 0 && (
-            <ul className="mt-7 flex flex-wrap justify-center gap-3" aria-label="Couleurs conseillées">
-              {section.data.palette.map((color) => (
-                <li key={color}>
-                  <span
-                    className="block size-9 rounded-full ring-1 ring-[var(--ri-line)] ring-offset-4 ring-offset-[var(--ri-bg)]"
-                    style={{ backgroundColor: color }}
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      );
-    case "menu":
-      return (
-        <div className="space-y-9 text-center">
-          {section.data.courses.map((course, i) => (
-            <div key={i}>
-              <p className={cn(smallCaps, "text-[var(--ri-accent)]")}>{course.label}</p>
-              <ul className="mt-3 space-y-1.5">
-                {course.items.map((dish, k) => (
-                  <li key={k} className="text-[20px] leading-snug [font-family:var(--ri-display)] [overflow-wrap:anywhere]">
-                    {dish}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      );
-    case "faq":
-      return (
-        <div className="divide-y divide-[var(--ri-line)] border-y border-[var(--ri-line)]">
-          {section.data.items.map((item, i) => (
-            <details key={i} className="group">
-              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-4 text-[16px] leading-snug [&::-webkit-details-marker]:hidden">
-                <span className="[overflow-wrap:anywhere]">{item.q}</span>
-                <span aria-hidden className="relative size-3 shrink-0">
-                  <span className="absolute inset-x-0 top-1/2 h-px bg-[var(--ri-accent)]" />
-                  <span className="absolute inset-y-0 left-1/2 w-px bg-[var(--ri-accent)] transition-transform duration-300 group-open:scale-y-0" />
-                </span>
-              </summary>
-              <p className="whitespace-pre-line pb-5 text-[15px] leading-relaxed text-[var(--ri-ink-2)]">{item.a}</p>
-            </details>
-          ))}
-        </div>
-      );
-    default:
-      return (
-        <p className="mx-auto max-w-[360px] whitespace-pre-line text-center text-[16px] leading-relaxed text-[var(--ri-ink-2)]">
-          {section.data.text}
-        </p>
-      );
-  }
 }

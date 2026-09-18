@@ -105,21 +105,25 @@ export function DashboardTable({
 
       {canExport && (
         <Surface>
-          <SectionTitle hint="CSV pour Excel, memes totaux que cette page">Exports</SectionTitle>
+          <SectionTitle hint="Memes totaux que cette page">Exports</SectionTitle>
           <div className="grid gap-2 sm:grid-cols-3">
             {(Object.keys(EXPORT_LABELS) as ExportKind[]).map((kind) => (
-              <a
-                key={kind}
-                href={`/api/organizer/events/${eventId}/export?kind=${kind}`}
-                download
-                className="flex items-start gap-3 rounded-xl border border-[var(--console-hairline)] p-3.5 transition-colors hover:bg-[var(--console-paper)]"
-              >
-                <Download className="mt-0.5 size-4 shrink-0 text-[var(--brand-copper-deep)]" aria-hidden />
-                <span>
-                  <span className="block text-[0.88rem] font-semibold">{EXPORT_LABELS[kind].label}</span>
-                  <span className="mt-0.5 block text-[0.76rem] leading-snug text-[var(--muted)]">{EXPORT_LABELS[kind].description}</span>
+              <div key={kind} className="rounded-xl border border-[var(--console-hairline)] p-3.5">
+                <span className="block text-[0.88rem] font-semibold">{EXPORT_LABELS[kind].label}</span>
+                <span className="mt-0.5 block text-[0.76rem] leading-snug text-[var(--muted)]">{EXPORT_LABELS[kind].description}</span>
+                <span className="mt-2.5 flex flex-wrap gap-1.5">
+                  {(kind === "checkin" ? ["xlsx", "csv", "pdf"] : ["xlsx", "csv"]).map((format) => (
+                    <a
+                      key={format}
+                      href={`/api/organizer/events/${eventId}/export?kind=${kind}&format=${format}`}
+                      download
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--console-hairline)] px-2.5 py-1.5 text-[0.76rem] font-medium uppercase transition-colors hover:bg-[var(--console-paper)]"
+                    >
+                      <Download className="size-3.5 text-[var(--brand-copper-deep)]" aria-hidden /> {format}
+                    </a>
+                  ))}
                 </span>
-              </a>
+              </div>
             ))}
           </div>
         </Surface>

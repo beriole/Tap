@@ -22,6 +22,7 @@ export function EventTabs({ eventId, allowed }: { eventId: string; allowed: { co
     { href: `${base}/rsvp`, label: "Reponses", show: allowed.design },
     { href: `${base}/design`, label: "Design", show: allowed.design },
     { href: `${base}/accueil`, label: "Accueil", show: allowed.checkin },
+    { href: `${base}/equipe`, label: "Equipe", show: true },
   ].filter((t) => t.show);
 
   return (

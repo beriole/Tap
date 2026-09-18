@@ -38,10 +38,50 @@ Trois principes tiennent l'ensemble :
 | 6 — Distribution + import CSV | ✅ | `npm test` 72/72 · `npm run audit:invitations` 103/103, deux passages consécutifs |
 | 7 — Dashboard + exports | ✅ | `npm test` 79/79 · `npm run audit:invitations` 113/113, deux passages consécutifs |
 | 8 — QR, accueil, audit | ✅ | `npm test` 84/84 · `npm run audit:invitations` 137/137 (fonctionnel) |
-| 9 → 10 | à faire | |
+| 9 — MVP-b : thèmes, XLSX/PDF, équipe, vitrine | ✅ (Pearl, Romantic, Modern Glass reportés) | `npm test` 84/84 · `npm run audit:invitations` 148/149, trois passages : seul le LCP (voir ci-dessous) |
+| 10 | à faire | |
 
 > **Fin du MVP-a** : la boucle créer → inviter → répondre → piloter → accueillir est complète et testée
 > en local. Test grandeur nature recommandé avant la phase 9.
+
+**Phase 9, précisions**
+
+- Quatre thèmes de plus, chacun une **composition** : Midnight Gold (carton de gala, double filet d'or,
+  sceau, sections en chiffres romains), Botanical (photo en arche, serif douce Fraunces, feuillages en
+  SVG, cartes arrondies), Editorial (couverture de magazine, tout à gauche, prénoms en serif géante,
+  sections 01 02 03), African Luxury (bandes tissées en dégradés CSS, médaillon, ruban de date).
+  Aucune image décorative : les ornements sont du CSS ou du SVG en ligne.
+- Socle commun `components/invitations/shared.tsx` : lieux, sections (programme, dress code, menu,
+  FAQ, texte), bloc de réponse, salutation, monogramme. Un thème passe ses classes, le socle place les
+  données. Royal Ivory a été rebasé dessus — un seul endroit décide quand le formulaire s'affiche.
+- Banc d'essai : 99 rendus (4 thèmes × variantes × 4 cas × largeurs) sans débordement ; noms, date et
+  bouton visibles sans défiler à 360×740 et 390×844 pour chaque thème. L'arche de Botanical est bornée
+  à 22 svh pour cela.
+- Réglages : un accent d'un autre thème retombe sur la valeur par défaut du thème choisi (vérifié).
+- Import `.xlsx` lu dans le navigateur (`read-excel-file`, chargé à la demande, 5 Mo max) ; `.xls` et
+  `.ods` refusés avec la marche à suivre. Exports XLSX (`exceljs`, formules neutralisées) et PDF
+  (`pdf-lib`, A4, cases à cocher, Helvetica standard donc pas de police embarquée) : mêmes lignes que
+  le CSV, l'audit relit le classeur et retrouve les totaux SQL.
+- Équipe (`/equipe`, D5) : invitation par e-mail crée le compte en attente et rend un lien d'activation
+  que le propriétaire transmet lui-même (aucun envoi d'e-mail configuré) ; permissions ajustables ;
+  `team` jamais accordé à un co-organisateur ; limite de l'offre appliquée côté serveur.
+- Vitrine : section « Invitations » sur la page d'accueil (parcours en quatre temps, cinq thèmes).
+- **Performance, à traiter en phase 10** : le LCP médian mesuré par l'audit est passé de 2,2–2,6 s à
+  2,5–2,7 s sur cette machine. Ce n'est **pas** dû à la phase 9 : la même mesure sur le code d'avant
+  la phase 9, rejoué le même jour, donne 2,5–2,7 s aussi. Ce qui a été établi en traçant le navigateur :
+  le HTML arrive à 0,7 s, les feuilles de style à 1,6 s, et le premier rendu n'a lieu qu'à 2,4–2,6 s.
+  Cet écart de 0,8–1,0 s (processeur ralenti ×4) ne dépend ni du contenu (`body { display: none }`
+  le laisse intact), ni des polices (Arial forcé : idem), ni des animations. La page `/login` n'a
+  que 0,26 s d'écart, la page d'accueil 0,9 s. À isoler avec une trace `blink.debug.layout` ;
+  pistes : les 57 `@font-face` (deux fichiers CSS de polices) et la feuille Tailwind globale (132 ko,
+  22 ko compressés) chargée par la page invité. Un import dynamique par thème ne sépare pas les
+  `@font-face` (vérifié : Next rassemble le CSS de tout le graphe de la page).
+- **Préchargement des polices** : `.next/server/next-font-manifest.json` est vide sur cette machine
+  (`app: {}`), y compris pour les polices du layout racine — d'où l'absence de `<link rel="preload">`
+  constatée depuis la phase 4. Hypothèse : chemins Windows dans le plugin de manifeste. À vérifier sur
+  un déploiement de prévisualisation Vercel (Linux) avant d'y toucher.
+- L'audit consomme des groupes « sans réponse » à chaque passage : **relancer le jeu de données avant
+  chaque audit**, sinon un passage sur trois échoue faute de groupe disponible (« reading 'guests' »).
 
 **Phase 8, précisions**
 
@@ -603,9 +643,13 @@ un QR décodé ne contient aucun nom ni numéro.
 - Limites d'offre (`event-plans.ts`) appliquées côté serveur.
 - Vitrine : section « Invitations » sur la page d'accueil.
 
+**Fait** (voir « Phase 9, précisions ») ; Pearl, Romantic et Modern Glass restent à dessiner.
+
 ### Phase 10 — Qualité et lancement · 3–4 j
 
 - Lighthouse sur les 5 thèmes, accessibilité (focus, contraste, textes alternatifs).
+- Premier rendu de la page invité : isoler l'écart de 0,8–1,0 s entre l'arrivée du CSS et le premier
+  rendu (voir phase 9) ; vérifier le préchargement des polices sur Vercel.
 - Revue de sécurité : IDOR sur toutes les routes, énumération de jetons, XSS dans les champs
   libres (FAQ, questions), uploads.
 - Purge automatique (Vercel Cron, `vercel.json` a déjà `crons: []`) : allergies J+30,

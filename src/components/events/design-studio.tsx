@@ -70,7 +70,7 @@ export function DesignStudio({
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:items-start">
       <div className="space-y-6">
         <Surface>
-          <SectionTitle hint={`${Object.keys(INVITATION_THEMES).length} disponible`}>
+          <SectionTitle hint={`${Object.keys(INVITATION_THEMES).length} disponibles`}>
             Theme
           </SectionTitle>
           <ul className="grid gap-3 sm:grid-cols-2">
