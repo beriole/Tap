@@ -111,9 +111,9 @@ export const INVITATION_THEMES: Record<InvitationThemeKey, InvitationThemeDefini
       { key: "mousse", label: "Mousse", swatch: "#1F2A22" },
     ],
     [
-      { key: "olive", label: "Olive", swatch: "#6E7F4E" },
-      { key: "terracotta", label: "Terracotta", swatch: "#B8664A" },
-      { key: "lavande", label: "Lavande", swatch: "#7C6F9E" },
+      { key: "olive", label: "Olive", swatch: "#5E6E40" },
+      { key: "terracotta", label: "Terracotta", swatch: "#A5573C" },
+      { key: "lavande", label: "Lavande", swatch: "#6B5F8E" },
     ],
   ),
   editorial: define(

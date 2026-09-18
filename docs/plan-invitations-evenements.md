@@ -39,10 +39,51 @@ Trois principes tiennent l'ensemble :
 | 7 — Dashboard + exports | ✅ | `npm test` 79/79 · `npm run audit:invitations` 113/113, deux passages consécutifs |
 | 8 — QR, accueil, audit | ✅ | `npm test` 84/84 · `npm run audit:invitations` 137/137 (fonctionnel) |
 | 9 — MVP-b : thèmes, XLSX/PDF, équipe, vitrine | ✅ (Pearl, Romantic, Modern Glass reportés) | `npm test` 84/84 · `npm run audit:invitations` 148/149, trois passages : seul le LCP (voir ci-dessous) |
-| 10 | à faire | |
+| 10 — Qualité et lancement | ✅ en local (reste : vérifications sur Vercel, voir ci-dessous) | `npm test` 93/93 · `npm run audit:invitations` 156/156 · `npm run db:backup:verify` |
 
 > **Fin du MVP-a** : la boucle créer → inviter → répondre → piloter → accueillir est complète et testée
 > en local. Test grandeur nature recommandé avant la phase 9.
+
+**Phase 10, précisions**
+
+- **Premier rendu de la page invité, résolu.** Trace Chrome (catégories layout + fonts) : sur les 1,34 s
+  de première mise en page (processeur ×4), 1 s partait en recherches DirectWrite « par nom unique »
+  et en rechargements d'Arial / Times New Roman pour chaque graisse et style (22 chargements). Cause :
+  les faces « X Fallback » en `src: local()` que `next/font` ajoute par défaut (`adjustFontFallback`).
+  Désactivées partout : mise en page 0,65 s, LCP médian **2,0 s** (était 2,5–2,7 s), CLS 0,005. Sur
+  Android ces faces n'avaient aucun effet (pas d'Arial) : rien de perdu là où l'invitation est lue.
+- **Sécurité** : toutes les routes `/api/organizer/events/*` passent par `eventRoute(id, permission)`,
+  les sous-ressources (groupe, poste, membre) sont filtrées par `eventId` dans la requête même ; jetons
+  de 32 octets sur les trois surfaces publiques, format vérifié puis limitation de débit avant toute
+  lecture en base ; aucun HTML brut sauf le SVG du QR généré côté serveur ; liens externes construits
+  par `encodeURIComponent`. Ajout : le type d'une image téléversée est lu dans ses octets
+  (`lib/image-type.ts`), un HTML annoncé `image/png` est refusé (415) — audit 195.
+- **Purge quotidienne** (`/api/cron/retention`, `vercel.json` 03:00 UTC, `CRON_SECRET` en Bearer) :
+  allergies effacées J+30 après la fin de l'événement, postes d'accueil révoqués J+7, événement
+  archivé J+90 (liens et QR cessent de répondre, rien n'est supprimé), jetons de compte échus et
+  invitations à date limite passée révoqués. Règles pures dans `lib/events/retention.ts` (tests à la
+  date près), application idempotente et journalisée — audit 192–194.
+- **Sauvegarde + restauration testée** : `npm run db:backup` (pg_dump format custom, `backups/`
+  ignoré par git) ; `npm run db:backup:verify` restaure dans une base jetable `<nom>_restore_check` et
+  compare les comptes de 12 tables ; `--restore <fichier>` vise obligatoirement `RESTORE_DATABASE_URL`,
+  jamais la base courante. Vérifié en local : 12/12 tables identiques.
+- **Sentry sans SDK** : `lib/monitoring.ts` envoie une enveloppe à l'API Sentry avec la clé publique du
+  `SENTRY_DSN` (rien ne part sans DSN). Branché sur `onRequestError` (rendu et routes) et sur la limite
+  d'erreur globale du navigateur via `/api/monitoring` (5 par minute par adresse). Ni corps de requête,
+  ni cookie : une invitation contient des noms et un jeton. Le SDK aurait ajouté ~30 ko à chaque page.
+- **Accessibilité** (axe-core, WCAG 2 A/AA, audit 196–198) : 5 thèmes × clair/sombre, page invité
+  réelle avec le formulaire, quatre écrans organisateur — zéro violation sérieuse. Corrigé : contrastes
+  des pastilles d'état de la console (`--state-*`), du cuivre foncé (`--brand-copper-deep`), de la
+  barre latérale, des accents texte d'Editorial (une valeur par variante ; le citron devient moutarde
+  sur papier), du bouton Botanical, de l'ocre d'African Luxury (encre sur ocre, pas blanc), du sceau de
+  l'enveloppe ; `<dl>` des indicateurs sans enfant illégal. La mesure émule `prefers-reduced-motion` :
+  sans cela axe lit les sections en cours d'apparition à 10 % d'opacité.
+- **À vérifier sur un déploiement de prévisualisation Vercel** (impossible en local) :
+  `<link rel="preload" as="font">` présent (le manifeste de polices est vide sur Windows) ; le cron
+  appelle bien `/api/cron/retention` avec `CRON_SECRET` ; `UPSTASH_*`, `SENTRY_DSN`,
+  `NEXT_PUBLIC_APP_URL` renseignés.
+- Non fait : Pearl, Romantic, Modern Glass (thèmes), passe « suppression » §15.1 formelle (les thèmes
+  ont été dessinés avec cette règle ; une relecture à froid reste utile).
 
 **Phase 9, précisions**
 
@@ -209,7 +250,8 @@ npx prisma migrate dev                      # applique les migrations
 SEED_QA_PASSWORD='QaLocal2026a' npm run db:seed:events   # base locale uniquement
 npm test
 npm run build && npx next start -p 3100
-BASE_URL=http://localhost:3100 npm run audit:invitations -- QaLocal2026a
+BASE_URL=http://localhost:3100 npm run audit:invitations -- QaLocal2026a   # relancer le seed avant chaque audit
+npm run db:backup:verify                    # sauvegarde + restauration dans une base jetable
 ```
 
 ---
@@ -675,20 +717,23 @@ un QR décodé ne contient aucun nom ni numéro.
 
 | Critère | Phase | Preuve |
 |---|---|---|
-| Créer et publier sans intervention technique | 2, 4 | audit-invitations : parcours complet |
-| Jeton non devinable et révocable | 1, 6 | 32 octets aléatoires, hash stocké ; test de révocation |
-| Réponse sans compte | 5 | audit en session anonyme |
-| Quota non dépassable | 5 | appel API direct refusé |
-| Dashboard sans double comptage | 1, 7 | tests `headcount.ts` |
-| QR sans donnée personnelle | 8 | décodage du QR dans l'audit |
-| QR déjà consommé signalé | 8 | test de concurrence deux postes |
-| Lisible à 360 et 430 px | 3, 9 | banc d'essai `/qa-designs` |
-| Reduced-motion supprime la séquence | 4 | audit avec `prefers-reduced-motion` émulé |
-| Galerie et carte non bloquantes | 4 | Lighthouse + inspection réseau |
-| OCR jamais envoyé sans validation | V1 | pas d'envoi automatique possible depuis un import |
-| Changement de thème conserve les données | 3 | test : bascule de thème, comparaison de `InvitationView` |
-| Pas d'accès par modification d'URL | 1 | test IDOR |
-| Exports = totaux du dashboard | 7 | test automatisé |
+| Créer et publier sans intervention technique | 2, 4 | audit 1–3 (création par l'interface), 84 (publication) |
+| Jeton non devinable et révocable | 1, 6 | 32 octets `base64url` en clair (D-écart, voir plus haut) ; audit 86 (limitation), 102, 117–118 (révocation) |
+| Réponse sans compte | 5 | audit 90–94 en session anonyme |
+| Quota non dépassable | 5 | audit 94 (API directe → 422, rien écrit) |
+| Dashboard sans double comptage | 1, 7 | `headcount.test.ts` ; audit 131, 139 (page = SQL) |
+| QR sans donnée personnelle | 8 | audit 152 (page QR : ni numéro ni jeton) |
+| QR déjà consommé signalé | 8 | audit 164 (deux postes, même seconde), 165 |
+| Lisible à 360 et 430 px | 3, 9 | audit 50–51, 61, 107, 172, 180–181 |
+| Reduced-motion supprime la séquence | 4 | audit 52, 79 |
+| Galerie et carte non bloquantes | 4 | audit 83 (LCP médian 2,0 s en 4G lente) ; carte = lien, jamais d'iframe |
+| OCR jamais envoyé sans validation | V1 | pas d'envoi automatique possible depuis un import (audit 123 : rien n'est écrit avant validation) |
+| Changement de thème conserve les données | 3 | audit 54 (instantané métier identique), 182 |
+| Pas d'accès par modification d'URL | 1 | audit 4, 12, 38–41, 58, 60, 110, 117, 136, 157, 185 |
+| Exports = totaux du dashboard | 7 | audit 132, 186 ; route refuse un export dont les totaux divergent |
+| Données de santé purgées | 10 | audit 193 (allergies effacées à J+30) |
+| Sauvegarde restaurable | 10 | `npm run db:backup:verify` |
+| Accessibilité AA | 10 | audit 196–198 (axe-core) |
 
 ---
 

@@ -148,7 +148,7 @@ export function AppShell({
                 "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.88rem] transition-colors duration-200",
                 isActive(item)
                   ? "bg-white/[0.07] font-medium text-[var(--brand-paper)]"
-                  : "text-white/40 hover:bg-white/[0.04] hover:text-white/80",
+                  : "text-white/55 hover:bg-white/[0.04] hover:text-white/85",
               )}
             >
               {/* Repere cuivre de la page courante : une barre qui grandit
@@ -194,14 +194,14 @@ export function AppShell({
               <span className="block truncate text-[0.78rem] font-medium text-[var(--brand-paper)]">
                 {user.name ?? "Compte"}
               </span>
-              <span className="block truncate text-[0.68rem] text-white/35">{user.email}</span>
+              <span className="block truncate text-[0.68rem] text-white/55">{user.email}</span>
             </span>
           </div>
 
           <form action={logout}>
             <button
               type="submit"
-              className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[0.82rem] text-white/40 transition-colors hover:bg-white/5 hover:text-white/80"
+              className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[0.82rem] text-white/55 transition-colors hover:bg-white/5 hover:text-white/85"
             >
               <LogOut className="size-4" />
               Se deconnecter
@@ -237,7 +237,7 @@ export function AppShell({
             <button
               type="submit"
               aria-label="Se deconnecter"
-              className="flex size-9 items-center justify-center rounded-lg text-white/45 transition-colors hover:text-white/80"
+              className="flex size-9 items-center justify-center rounded-lg text-white/55 transition-colors hover:text-white/85"
             >
               <LogOut className="size-4" />
             </button>

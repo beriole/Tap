@@ -1468,6 +1468,113 @@ try {
     statuses.slice(0, 30).every((s) => s !== 429) && statuses.at(-1) === 429,
     `${statuses.filter((s) => s === 429).length} reponse(s) 429 sur 32`,
   );
+
+  // ================================================ PHASE 10 - RETENTION --
+  // Purge quotidienne : un evenement fictif fini il y a 40 jours, avec une
+  // allergie, un poste et une invitation a date limite depassee.
+  const cronSecret = process.env.CRON_SECRET;
+  const cronCall = (auth) => anon.evaluate(async (a) => {
+    const r = await fetch("/api/cron/retention", { headers: a ? { authorization: `Bearer ${a}` } : {} });
+    return { status: r.status, body: await r.json().catch(() => null) };
+  }, auth);
+  if (!cronSecret) {
+    record("192. Purge : CRON_SECRET absent du .env local, cas non testable", true, "definir CRON_SECRET pour couvrir la purge");
+  } else {
+    const ownerUser = await prisma.user.findUniqueOrThrow({ where: { email: "organisateur@tap.exemple" } });
+    const day = 86_400_000;
+    const oldEvent = await prisma.event.create({
+      data: {
+        type: "WEDDING", status: "PUBLISHED", title: "Audit retention", hosts: "A & B", startsAt: new Date(Date.now() - 40 * day),
+        members: { create: { userId: ownerUser.id, role: "OWNER", permissions: [] } },
+        groups: {
+          create: {
+            name: "Famille Retention", maxSeats: 1,
+            guests: { create: { firstName: "Reta", position: 0, preference: { create: { allergies: "Arachides" } } } },
+            invitation: { create: { token: "r".repeat(43), expiresAt: new Date(Date.now() - day) } },
+          },
+        },
+        stations: { create: { label: "Poste retention", token: "s".repeat(43), pinHash: "x" } },
+      },
+    });
+    const noAuth = await cronCall(null);
+    const wrongAuth = await cronCall("mauvais-secret");
+    const first = await cronCall(cronSecret);
+    const afterFirst = await prisma.event.findUniqueOrThrow({
+      where: { id: oldEvent.id },
+      include: { stations: true, groups: { include: { invitation: true, guests: { include: { preference: true } } } } },
+    });
+    record("192. Purge : sans secret 401, mauvais secret 401, bon secret 200 avec rapport", noAuth.status === 401 && wrongAuth.status === 401 && first.status === 200 && typeof first.body?.allergiesCleared === "number", `${noAuth.status}/${wrongAuth.status}/${first.status}`);
+    record(
+      "193. J+40 : allergie effacee, poste revoque, invitation echue revoquee, evenement PAS archive, invite conserve",
+      afterFirst.groups[0].guests[0].preference.allergies === null && afterFirst.stations[0].revokedAt !== null && afterFirst.groups[0].invitation.revokedAt !== null && afterFirst.status === "PUBLISHED" && afterFirst.groups[0].guests[0].firstName === "Reta",
+      `statut ${afterFirst.status}`,
+    );
+    await prisma.event.update({ where: { id: oldEvent.id }, data: { startsAt: new Date(Date.now() - 100 * day) } });
+    const second = await cronCall(cronSecret);
+    const afterSecond = await prisma.event.findUniqueOrThrow({ where: { id: oldEvent.id } });
+    const demoAfter = await prisma.event.findUniqueOrThrow({ where: { id: EVENT_ID }, select: { status: true } });
+    const demoAllergies = await prisma.guestPreference.count({ where: { allergies: { not: null }, guest: { group: { eventId: EVENT_ID } } } });
+    const retentionAudits = await prisma.auditLog.count({ where: { action: "retention.apply" } });
+    record(
+      "194. J+100 : archive ; l evenement a venir n est pas touche (statut, allergies) ; purge journalisee ; rejeu sans effet",
+      second.status === 200 && afterSecond.status === "ARCHIVED" && demoAfter.status !== "ARCHIVED" && demoAllergies > 0 && retentionAudits >= 2 && (await cronCall(cronSecret)).body?.eventsArchived === 0,
+      `${afterSecond.status}, demo ${demoAfter.status}, ${demoAllergies} allergies demo, ${retentionAudits} audits`,
+    );
+    await prisma.event.delete({ where: { id: oldEvent.id } });
+  }
+
+  // Televersement : le type annonce ne fait pas foi.
+  const fakePng = await owner.evaluate(async (id) => {
+    const file = new File(["<!doctype html><script>alert(1)</script>"], "photo.png", { type: "image/png" });
+    const form = new FormData();
+    form.append("file", file);
+    const r = await fetch(`/api/organizer/events/${id}/hero`, { method: "POST", body: form });
+    return r.status;
+  }, EVENT_ID);
+  record("195. Photo : un fichier HTML annonce en image/png est refuse (415)", fakePng === 415, `HTTP ${fakePng}`);
+
+  // ================================================ PHASE 10 - ACCESSIBILITE --
+  // axe-core (WCAG 2 A/AA) sur chaque theme, clair et sombre, sur la page
+  // invite reelle avec son formulaire, et sur les ecrans organisateur.
+  const axePath = new URL("../node_modules/axe-core/axe.min.js", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+  // Mouvement reduit pendant la mesure : les sections sous la ligne de
+  // flottaison s animent a l entree dans l ecran (opacity 0 → 1, pilotee par
+  // le defilement) et axe lirait un texte a 10 % d opacite. Les couleurs
+  // finales sont celles de la page sans animation.
+  const axeOn = async (page, label, url, viewport = { width: 390, height: 844 }) => {
+    await page.setViewport(viewport);
+    await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+    await page.goto(`${BASE}${url}`, { waitUntil: "networkidle0", timeout: 90000 });
+    await page.addScriptTag({ path: axePath });
+    const result = await page.evaluate(async () => {
+      const r = await window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } });
+      return r.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => `${v.id}(${v.nodes.length}: ${v.nodes[0]?.target?.[0] ?? ""})`);
+    });
+    return result.map((v) => `${label}: ${v}`);
+  };
+  const a11y = [];
+  const themeDark = { "royal-ivory": "nuit", "midnight-gold": "encre", botanical: "mousse", editorial: "noir", "african-luxury": "ebene" };
+  for (const [key, dark] of Object.entries(themeDark)) {
+    a11y.push(...(await axeOn(bench, `${key}/clair`, `/preview/invitation/banc?case=reference&theme=${key}`)));
+    a11y.push(...(await axeOn(bench, `${key}/sombre`, `/preview/invitation/banc?case=reference&theme=${key}&variant=${dark}`)));
+  }
+  record("196. Accessibilite (axe, WCAG 2 AA) : aucune violation serieuse sur les 5 themes, clair et sombre", a11y.length === 0, a11y.join(" | ") || "10 rendus");
+
+  const a11yPage = await newSession();
+  const pendingForA11y = await prisma.invitation.findFirstOrThrow({ where: { group: { eventId: EVENT_ID }, revokedAt: null, response: null }, select: { token: true } });
+  const a11yGuest = await axeOn(a11yPage, "invitation", `/i/${pendingForA11y.token}`);
+  await a11yPage.close();
+  record("197. Accessibilite : page invite reelle avec le formulaire de reponse", a11yGuest.length === 0, a11yGuest.join(" | ") || "aucune violation");
+
+  const a11yOrganizer = [
+    ...(await axeOn(owner, "dashboard", `/dashboard/events/${EVENT_ID}`)),
+    ...(await axeOn(owner, "invites", `/dashboard/events/${EVENT_ID}/invites`)),
+    ...(await axeOn(owner, "design", `/dashboard/events/${EVENT_ID}/design`, { width: 1280, height: 900 })),
+    ...(await axeOn(owner, "accueil", `/dashboard/events/${EVENT_ID}/accueil`)),
+  ];
+  record("198. Accessibilite : ecrans organisateur (vue d ensemble, invites, design, accueil)", a11yOrganizer.length === 0, a11yOrganizer.join(" | ") || "aucune violation");
+  await owner.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "no-preference" }]);
+  await bench.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "no-preference" }]);
 } catch (error) {
   record("Execution", false, error.message);
 } finally {

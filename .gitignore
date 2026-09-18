@@ -20,3 +20,4 @@ coverage/
 
 # Secrets generes pour le deploiement — ne doit JAMAIS etre versionne
 .deploy-secrets
+backups/

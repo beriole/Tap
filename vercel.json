@@ -3,5 +3,5 @@
   "framework": "nextjs",
   "regions": ["cdg1"],
   "buildCommand": "prisma generate && next build",
-  "crons": []
+  "crons": [{ "path": "/api/cron/retention", "schedule": "0 3 * * *" }]
 }

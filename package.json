@@ -18,6 +18,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:events": "tsx --env-file=.env prisma/seed-events.ts",
     "db:deploy": "prisma migrate deploy",
+    "db:backup": "node --env-file=.env scripts/db-backup.mjs",
+    "db:backup:verify": "node --env-file=.env scripts/db-backup.mjs --verify",
     "audit:vitrine": "node scripts/audit-vitrine.mjs",
     "audit:admin": "node scripts/audit-admin.mjs",
     "audit:parcours": "node scripts/audit-parcours.mjs",

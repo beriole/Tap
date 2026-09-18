@@ -33,11 +33,11 @@ const VARIANTS: Record<string, Pick<Palette, "bg" | "paper" | "ink" | "ink2" | "
   mousse: { bg: "#1F2A22", paper: "#28352C", ink: "#F1EEE4", ink2: "#B6BDAE", line: "#3A473C" },
 };
 
-/** [filet et bouton, texte d accent (clair / sombre), texte sur bouton, feuille] */
+/** [filet et bouton, texte d accent (clair / sombre), texte sur bouton, feuille] - bouton >= 4,5:1 (axe). */
 const ACCENTS: Record<string, { creme: [string, string, string, string]; mousse: [string, string, string, string] }> = {
-  olive: { creme: ["#6E7F4E", "#556340", "#FFFFFF", "#8A9A67"], mousse: ["#9FB07A", "#B9C79A", "#1F2A22", "#8A9A67"] },
-  terracotta: { creme: ["#B8664A", "#8E4B34", "#FFFFFF", "#C88A73"], mousse: ["#D48A6E", "#E3A68F", "#1F2A22", "#C88A73"] },
-  lavande: { creme: ["#7C6F9E", "#5F5480", "#FFFFFF", "#A497C4"], mousse: ["#AFA2D0", "#C5BADF", "#1F2A22", "#A497C4"] },
+  olive: { creme: ["#5E6E40", "#4E5C36", "#FFFFFF", "#8A9A67"], mousse: ["#9FB07A", "#B9C79A", "#1F2A22", "#8A9A67"] },
+  terracotta: { creme: ["#A5573C", "#864330", "#FFFFFF", "#C88A73"], mousse: ["#D48A6E", "#E3A68F", "#1F2A22", "#C88A73"] },
+  lavande: { creme: ["#6B5F8E", "#584D7A", "#FFFFFF", "#A497C4"], mousse: ["#AFA2D0", "#C5BADF", "#1F2A22", "#A497C4"] },
 };
 
 function palette(variant: string, accent: string): Palette {

@@ -106,7 +106,8 @@ export function RoyalIvory({ view, rsvpForm }: { view: InvitationView; rsvpForm?
     "--env-card": paper.card,
     "--env-card-ink": paper.cardInk,
     "--env-liner": p.rule,
-    "--env-seal": p.rule,
+    // Le sceau porte le monogramme : texte d accent (4,5:1 sur le papier), pas le filet.
+    "--env-seal": p.accentText,
     "--env-seal-ink": p.bg,
     "--env-font": "var(--ri-display)",
   } as React.CSSProperties;

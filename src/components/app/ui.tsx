@@ -142,14 +142,15 @@ export function PageHeader({
                     )}
                   >
                     <CountUp value={s.value} figure={s.figure} />
+                    {/* Une courbe occupe deja le bas de la case : y superposer une
+                        legende rendait les deux illisibles. La legende reste dans
+                        la definition : un <dl> n admet que dt et dd. */}
+                    {s.hint && !s.trend && (
+                      <span className="relative mt-1 block font-[family-name:var(--app-font-sans)] text-[0.7rem] font-normal normal-case tracking-normal text-[var(--console-on-band-dim)]">
+                        {s.hint}
+                      </span>
+                    )}
                   </dd>
-                  {/* Une courbe occupe deja le bas de la case : y superposer une
-                      legende rendait les deux illisibles. */}
-                  {s.hint && !s.trend && (
-                    <p className="relative mt-1 text-[0.7rem] text-[var(--console-on-band-dim)]">
-                      {s.hint}
-                    </p>
-                  )}
                 </div>
               ))}
             </dl>

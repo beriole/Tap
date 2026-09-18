@@ -2,6 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { mkdir, readFile, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
+import { sniffImageType } from "@/lib/image-type";
 
 /**
  * Stockage des medias (§8 "Stockage images").
@@ -173,18 +174,32 @@ export async function deleteObject(url: string): Promise<void> {
 // Interface commune
 // ---------------------------------------------------------------------------
 
-export async function putObject(input: { ownerId: string; file: File }): Promise<StoredObject> {
-  if (storageDriver() === "cloudinary") return putCloudinary(input);
+export class UnsupportedImageError extends Error {
+  constructor() {
+    super("Ce fichier n est pas une image JPEG, PNG, WebP ou AVIF.");
+    this.name = "UnsupportedImageError";
+  }
+}
 
-  const extension = EXTENSIONS[input.file.type] ?? "bin";
-  const key = `${makeKey(input.ownerId)}.${extension}`;
+/**
+ * Le type annonce par le navigateur ne fait pas foi : on lit les premiers
+ * octets, et le fichier est stocke sous le type CONSTATE.
+ */
+export async function putObject(input: { ownerId: string; file: File }): Promise<StoredObject> {
+  const bytes = Buffer.from(await input.file.arrayBuffer());
+  const type = sniffImageType(bytes);
+  if (!type) throw new UnsupportedImageError();
+  const file = type === input.file.type ? input.file : new File([bytes], input.file.name, { type });
+
+  if (storageDriver() === "cloudinary") return putCloudinary({ ...input, file });
+
+  const key = `${makeKey(input.ownerId)}.${EXTENSIONS[type]}`;
   const dir = uploadDir();
 
   await mkdir(dir, { recursive: true });
-  const bytes = Buffer.from(await input.file.arrayBuffer());
   await writeFile(path.join(dir, key), bytes);
 
-  return { key, url: `/api/media/${key}`, contentType: input.file.type, size: bytes.byteLength };
+  return { key, url: `/api/media/${key}`, contentType: type, size: bytes.byteLength };
 }
 
 export async function getObject(key: string): Promise<{ body: Buffer; contentType: string } | null> {

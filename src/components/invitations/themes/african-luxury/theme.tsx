@@ -30,10 +30,10 @@ const VARIANTS: Record<string, Pick<Palette, "bg" | "paper" | "ink" | "ink2" | "
   ebene: { bg: "#1B120D", paper: "#251A13", ink: "#F6E9D6", ink2: "#C5B09A", line: "#3D2C21" },
 };
 
-/** [aplat, texte d accent (terre / ebene), texte sur aplat, seconde couleur du tissage] */
+/** [aplat, texte d accent (terre / ebene), texte sur aplat, seconde couleur du tissage] - texte sur aplat >= 4,5:1 (axe) : l ocre clair porte de l encre, pas du blanc. */
 const ACCENTS: Record<string, { terre: [string, string, string, string]; ebene: [string, string, string, string] }> = {
-  ocre: { terre: ["#C0782E", "#8F5615", "#FFF7EA", "#2A1A12"], ebene: ["#D9923F", "#E8AE66", "#1B120D", "#F6E9D6"] },
-  indigo: { terre: ["#2E3F8F", "#26346F", "#FFFFFF", "#C0782E"], ebene: ["#5A6FD1", "#8C9CE6", "#0F1330", "#D9923F"] },
+  ocre: { terre: ["#C0782E", "#8F5615", "#2A1A12", "#2A1A12"], ebene: ["#D9923F", "#E8AE66", "#1B120D", "#F6E9D6"] },
+  indigo: { terre: ["#2E3F8F", "#26346F", "#FFFFFF", "#C0782E"], ebene: ["#6F82DC", "#9AA8EC", "#0F1330", "#D9923F"] },
   cuivre: { terre: ["#A8543A", "#82402C", "#FFF7EA", "#2A1A12"], ebene: ["#C9714F", "#E09374", "#1B120D", "#F6E9D6"] },
 };
 

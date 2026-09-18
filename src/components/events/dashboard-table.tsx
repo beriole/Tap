@@ -161,7 +161,7 @@ export function DashboardTable({
                     : "border-[var(--console-hairline)] bg-[var(--console-card)] text-[var(--muted)] hover:text-[var(--foreground)]",
                 )}
               >
-                {f.label} <span className="tabular-nums opacity-70">{rows.filter(f.test).length}</span>
+                {f.label} <span className="tabular-nums">{rows.filter(f.test).length}</span>
               </button>
             ))}
           </div>

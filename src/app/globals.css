@@ -59,7 +59,8 @@
   --brand-line: #1e2531;
   --brand-paper: #f5f2ed;
   --brand-copper: #d98e5a;
-  --brand-copper-deep: #b4703f;
+  /* 5,3:1 sur blanc, 4,7:1 sur le papier de la console (axe, phase 10). */
+  --brand-copper-deep: #9a5d32;
   --brand-signal: #7dd3fc;
 
   --background: #ffffff;
@@ -178,13 +179,14 @@ body {
   /* Etats d une carte et d un compte. Les enums bruts (ACTIVE, SUSPENDED)
      etaient affiches tels quels : du vocabulaire de base de donnees livre a
      l utilisateur. Ils ont maintenant une couleur et un mot francais. */
-  --state-live: #0f9b6c;
+  /* Contrastes >= 4,5:1 sur leur fond (axe, phase 10). */
+  --state-live: #0a6f4e;
   --state-live-bg: #e6f6ef;
-  --state-warn: #b57314;
+  --state-warn: #8a550c;
   --state-warn-bg: #fdf2e0;
-  --state-stop: #c0453f;
+  --state-stop: #a8352f;
   --state-stop-bg: #fdecec;
-  --state-idle: #6b7280;
+  --state-idle: #5b6270;
   --state-idle-bg: #f1efec;
 }
 

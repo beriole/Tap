@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
-import { deleteObject, putObject, storageDriver } from "@/lib/storage";
+import { deleteObject, putObject, storageDriver, UnsupportedImageError } from "@/lib/storage";
 import { revalidateProfileCards } from "@/server/card-resolution";
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -48,6 +48,7 @@ export async function POST(request: Request) {
   try {
     stored = await putObject({ ownerId: user.id, file });
   } catch (error) {
+    if (error instanceof UnsupportedImageError) return NextResponse.json({ error: error.message }, { status: 415 });
     // Message utilisable par le client, detail complet dans les journaux.
     console.error("[upload]", error);
     return NextResponse.json(

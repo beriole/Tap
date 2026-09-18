@@ -1,6 +1,18 @@
 "use client";
 
-export default function GlobalError({ reset }: { error: Error; reset: () => void }) {
+import { useEffect } from "react";
+
+export default function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
+  // Une erreur qui a atteint cette page a echappe a tout le reste : on la remonte (§20).
+  useEffect(() => {
+    fetch("/api/monitoring", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: error.message, name: error.name, stack: error.stack?.slice(0, 4000), url: location.pathname }),
+      keepalive: true,
+    }).catch(() => {});
+  }, [error]);
+
   return (
     <main className="profile-shell flex min-h-dvh flex-col items-center justify-center gap-4 text-center">
       <p className="text-sm tracking-widest text-[var(--muted)]">500</p>

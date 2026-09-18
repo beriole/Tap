@@ -34,15 +34,20 @@ const VARIANTS: Record<string, Omit<Palette, "accent">> = {
   noir: { bg: "#111111", paper: "#1C1C1C", ink: "#F5F5F0", ink2: "#A9A9A4", line: "#F5F5F0", onInk: "#111111" },
 };
 
-const ACCENTS: Record<string, string> = {
-  rouge: "#D93A2B",
-  cobalt: "#2A48D9",
-  citron: "#E5D400",
+/**
+ * L accent porte du texte (numeros, date) : il doit tenir 4,5:1 sur le papier
+ * ET sur l encre, donc une valeur par variante. Le citron pur (#E5D400) ne
+ * tient pas sur du blanc ; sur papier il devient une moutarde.
+ */
+const ACCENTS: Record<string, { blanc: string; noir: string }> = {
+  rouge: { blanc: "#C7301F", noir: "#FF6A5B" },
+  cobalt: { blanc: "#2A48D9", noir: "#7A8CFF" },
+  citron: { blanc: "#8A6D00", noir: "#F5DA3B" },
 };
 
 function palette(variant: string, accent: string): Palette {
-  const base = VARIANTS[variant] ?? VARIANTS.blanc!;
-  return { ...base, accent: ACCENTS[accent] ?? ACCENTS.rouge! };
+  const v = (VARIANTS[variant] ? variant : "blanc") as "blanc" | "noir";
+  return { ...VARIANTS[v]!, accent: (ACCENTS[accent] ?? ACCENTS.rouge!)[v] };
 }
 
 const KIND: Record<InvitationView["event"]["type"], string> = {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
-import { deleteObject, putObject } from "@/lib/storage";
+import { deleteObject, putObject, UnsupportedImageError } from "@/lib/storage";
 import { eventRoute } from "@/server/events/api";
 
 type Params = { params: Promise<{ id: string }> };
@@ -27,6 +27,7 @@ export async function POST(request: Request, { params }: Params) {
   try {
     stored = await putObject({ ownerId: access.value.userId, file });
   } catch (error) {
+    if (error instanceof UnsupportedImageError) return NextResponse.json({ error: error.message }, { status: 415 });
     console.error("[hero]", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Envoi impossible." }, { status: 502 });
   }
