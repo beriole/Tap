@@ -6,4 +6,5 @@ export const blockDisplay = Anton({
   weight: "400",
   variable: "--pc-display",
   display: "swap",
+  adjustFontFallback: false,
 });

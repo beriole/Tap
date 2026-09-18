@@ -7,4 +7,5 @@ export const tableDisplay = DM_Serif_Display({
   style: ["normal", "italic"],
   variable: "--pc-display",
   display: "swap",
+  adjustFontFallback: false,
 });

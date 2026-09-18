@@ -11,4 +11,5 @@ export const botanicalDisplay = Fraunces({
   axes: ["opsz", "SOFT"],
   variable: "--bt-display",
   display: "swap",
+  adjustFontFallback: false,
 });

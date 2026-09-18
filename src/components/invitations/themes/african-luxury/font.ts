@@ -11,4 +11,5 @@ export const africanLuxuryDisplay = DM_Serif_Display({
   style: ["normal", "italic"],
   variable: "--al-display",
   display: "swap",
+  adjustFontFallback: false,
 });

@@ -6,4 +6,5 @@ export const carteDisplay = Sora({
   weight: ["400", "500", "600"],
   variable: "--pc-display",
   display: "swap",
+  adjustFontFallback: false,
 });

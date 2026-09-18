@@ -9,4 +9,5 @@ export const immersiveDisplay = Plus_Jakarta_Sans({
   weight: ["500", "600", "700", "800"],
   variable: "--pc-display",
   display: "swap",
+  adjustFontFallback: false,
 });

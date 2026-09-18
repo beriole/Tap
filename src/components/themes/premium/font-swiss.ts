@@ -6,4 +6,5 @@ export const swissDisplay = Inter_Tight({
   weight: ["500", "600", "700"],
   variable: "--pc-display",
   display: "swap",
+  adjustFontFallback: false,
 });

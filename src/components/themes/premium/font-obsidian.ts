@@ -11,4 +11,5 @@ export const obsidianDisplay = Instrument_Serif({
   style: ["normal", "italic"],
   variable: "--pc-display",
   display: "swap",
+  adjustFontFallback: false,
 });

@@ -13,4 +13,5 @@ export const midnightGoldDisplay = Cormorant_Garamond({
   style: ["normal", "italic"],
   variable: "--mg-display",
   display: "swap",
+  adjustFontFallback: false,
 });

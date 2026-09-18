@@ -16,4 +16,5 @@ export const royalIvoryDisplay = Bodoni_Moda({
   axes: ["opsz"],
   variable: "--ri-display",
   display: "swap",
+  adjustFontFallback: false,
 });

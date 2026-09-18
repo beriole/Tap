@@ -7,4 +7,5 @@ export const journalDisplay = Newsreader({
   style: ["normal", "italic"],
   variable: "--pc-display",
   display: "swap",
+  adjustFontFallback: false,
 });

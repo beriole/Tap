@@ -11,4 +11,5 @@ export const editorialDisplay = Instrument_Serif({
   style: ["normal", "italic"],
   variable: "--ed-display",
   display: "swap",
+  adjustFontFallback: false,
 });
