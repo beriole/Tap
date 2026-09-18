@@ -1,9 +1,11 @@
 import { ArrowUpRight, MapPin, UserRoundPlus } from "lucide-react";
 import { BrandIcon } from "@/components/profile/brand-icon";
-import { Portrait, SaveContact, ShareControl, TrackedLink } from "./premium/atoms";
+import { Portrait, SaveContact, ShareControl, TiltCard, TrackedLink } from "./premium/atoms";
+import { GRAIN } from "./premium/paper";
 import { signatureDisplay } from "./premium/font-signature";
 import { ActionIcon } from "./premium/action-icon";
 import { buildCardModel } from "./premium/model";
+import { formatPhone, normalizePhone } from "@/lib/events/phone";
 import { cn } from "@/lib/utils";
 import type { ThemeProps } from "@/types/profile";
 
@@ -27,6 +29,14 @@ export function ThemeSignature({ profile, preview }: ThemeProps) {
   const { identity } = profile;
   const Name = preview ? "p" : "h1";
   const intro = identity.bio ?? identity.tagline;
+  const { contact, location } = profile;
+  // Les coordonnees ECRITES sur le carton, comme sur une carte imprimee.
+  const cardLines = [
+    contact.phone && formatPhone(normalizePhone(contact.phone).e164) || contact.phone,
+    contact.email,
+    contact.website?.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""),
+    location.city,
+  ].filter((l): l is string => Boolean(l));
 
   return (
     <main
@@ -37,27 +47,8 @@ export function ThemeSignature({ profile, preview }: ThemeProps) {
       )}
     >
       <div className="mx-auto w-full max-w-[440px] px-6 pb-14 pt-[max(14px,env(safe-area-inset-top))] md:pt-12">
-        {/* Barre haute : la marque du client a gauche, le partage a droite. */}
-        <header className="pc-fade flex h-12 items-center justify-between" style={{ "--d": "0ms" } as React.CSSProperties}>
-          <div className="flex min-w-0 items-center gap-2.5">
-            {identity.logoUrl && (
-              <Portrait
-                src={identity.logoUrl}
-                alt=""
-                sizes="28px"
-                position="50% 50%"
-                priority={false}
-                className="size-7 shrink-0 rounded-[8px] ring-1 ring-[var(--pc-line)]"
-                imageClassName="object-contain"
-                fallback={null}
-              />
-            )}
-            {identity.logoUrl && identity.company && (
-              <span className="truncate text-[13px] font-medium tracking-[-0.005em] text-[var(--pc-ink-2)]">
-                {identity.company}
-              </span>
-            )}
-          </div>
+        {/* Barre haute : seulement le partage - l identite est sur le carton. */}
+        <header className="pc-fade flex h-12 items-center justify-end" style={{ "--d": "0ms" } as React.CSSProperties}>
           <ShareControl
             url={profile.canonicalUrl}
             title={identity.displayName}
@@ -67,77 +58,99 @@ export function ThemeSignature({ profile, preview }: ThemeProps) {
           />
         </header>
 
-        {/* Identite : texte fer a gauche, tirage a droite, bas alignes. */}
-        <section className="mt-4 grid grid-cols-[1fr_auto] items-end gap-5">
-          <div className="min-w-0">
-            {m.availability && (
-              <p
-                className="pc-rise mb-4 flex items-center gap-2 text-[12.5px] leading-snug text-[var(--pc-ink-2)]"
-                style={{ "--d": "80ms" } as React.CSSProperties}
-              >
-                <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-[var(--pc-accent)]" />
-                <span className="line-clamp-2">{m.availability}</span>
-              </p>
-            )}
-            <Name
-              className="pc-rise font-[family-name:var(--pc-display)] text-[clamp(30px,8.6vw,35px)] font-semibold leading-[1.02] tracking-[-0.038em]"
-              style={{ "--d": "120ms" } as React.CSSProperties}
-            >
-              {m.name.first}
-              {m.name.last && (
-                <>
-                  <br />
-                  {m.name.last}
-                </>
+        {/* Le portrait en tirage, puis le carton de visite pose dessus. */}
+        <section className="relative mt-1">
+          {identity.avatarUrl && (
+            <div className="pc-unveil relative aspect-square w-full overflow-hidden rounded-[22px] bg-[var(--pc-surface)]">
+              <Portrait
+                src={identity.avatarUrl}
+                alt={identity.displayName}
+                sizes="(max-width: 440px) 92vw, 392px"
+                position={m.photoPosition}
+                className="size-full"
+                fallback={null}
+              />
+              <span aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/30" />
+              {m.availability && (
+                <p className="absolute left-3.5 top-3.5 flex max-w-[calc(100%-28px)] items-center gap-2 rounded-full bg-black/35 px-3 py-1.5 text-[12px] font-medium text-white backdrop-blur-md">
+                  <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-[#7BE0A0]" />
+                  <span className="truncate">{m.availability}</span>
+                </p>
               )}
-            </Name>
-          </div>
+            </div>
+          )}
 
-          {/* L entree est portee par le conteneur : le squelette de l image
-              utilise lui aussi `animation`, les deux ne peuvent pas cohabiter
-              sur le meme element. Le filet est interieur - une ombre
-              exterieure serait rognee par le clip-path du devoilement. */}
-          <div className="pc-unveil relative h-[140px] w-[112px] overflow-hidden rounded-[18px]">
-            <Portrait
-              src={identity.avatarUrl}
-              alt={identity.displayName}
-              sizes="112px"
-              position={m.photoPosition}
-              className="size-full bg-[var(--pc-surface)]"
-              fallback={
-                <div className="flex size-full items-center justify-center bg-[var(--pc-surface)] font-[family-name:var(--pc-display)] text-[34px] font-semibold tracking-[-0.04em] text-[var(--pc-ink-2)]">
-                  {m.name.initials}
+          <div
+            className={cn("pc-lift relative z-10 mx-auto w-[calc(100%-22px)]", identity.avatarUrl ? "-mt-[92px]" : "mt-8")}
+            style={{ "--d": "180ms" } as React.CSSProperties}
+          >
+            <TiltCard className="rounded-[8px]">
+              <div className="relative aspect-[85/55] w-full overflow-hidden rounded-[8px] bg-[var(--pc-x-card)] shadow-[0_1px_1px_rgba(0,0,0,0.05),0_3px_6px_-2px_rgba(0,0,0,0.08),0_28px_50px_-26px_rgba(0,0,0,0.45)]">
+                <span aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07] mix-blend-multiply" style={{ backgroundImage: GRAIN }} />
+                <div className="relative grid h-full grid-cols-[1.2fr_1fr]">
+                  <div className="flex min-w-0 flex-col justify-between py-[17px] pl-[18px] pr-3">
+                    {identity.logoUrl ? (
+                      <Portrait
+                        src={identity.logoUrl}
+                        alt=""
+                        sizes="32px"
+                        position="50% 50%"
+                        priority={false}
+                        className="size-8 shrink-0 rounded-[7px]"
+                        imageClassName="object-contain"
+                        fallback={null}
+                      />
+                    ) : (
+                      <span aria-hidden className="flex size-[34px] items-center justify-center rounded-full border border-[var(--pc-line)] font-[family-name:var(--pc-display)] text-[12px] font-semibold tracking-[0.02em]">
+                        {m.name.initials}
+                      </span>
+                    )}
+                    <div>
+                      <Name className="font-[family-name:var(--pc-display)] text-[clamp(18px,5.3vw,22px)] font-semibold leading-[1.08] tracking-[-0.03em]">
+                        {m.name.first}
+                        {m.name.last && (
+                          <>
+                            <br />
+                            {m.name.last}
+                          </>
+                        )}
+                      </Name>
+                      {identity.title && (
+                        <p className="mt-1.5 line-clamp-2 text-[11.5px] leading-[1.35] text-[var(--pc-ink-2)]">{identity.title}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex min-w-0 flex-col justify-between border-l border-[var(--pc-line)] py-[17px] pl-3.5 pr-4">
+                    {identity.company ? (
+                      <p className="line-clamp-2 text-[9.5px] font-semibold uppercase leading-[1.5] tracking-[0.16em]">{identity.company}</p>
+                    ) : (
+                      <span />
+                    )}
+                    <ul className="space-y-[3px] text-[10.5px] leading-[1.35] text-[var(--pc-ink-2)]">
+                      {cardLines.map((line) => (
+                        <li key={line} className={line.includes("@") ? "[overflow-wrap:anywhere]" : "truncate"}>
+                          {/* Une adresse e-mail se coupe apres l arobase, jamais au milieu d un mot. */}
+                          {line.includes("@") ? (
+                            <>
+                              {line.slice(0, line.indexOf("@") + 1)}
+                              <wbr />
+                              {line.slice(line.indexOf("@") + 1)}
+                            </>
+                          ) : (
+                            line
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-              }
-            />
-            <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-[var(--pc-line)]" />
+              </div>
+            </TiltCard>
           </div>
         </section>
 
-        {(identity.title || identity.company) && (
-          <p
-            className="pc-rise mt-3.5 text-[16px] leading-[1.45] text-[var(--pc-ink-2)]"
-            style={{ "--d": "170ms" } as React.CSSProperties}
-          >
-            {identity.title}
-            {identity.title && identity.company && <br />}
-            {identity.company && (
-              <span className="font-medium text-[var(--pc-ink)]">{identity.company}</span>
-            )}
-          </p>
-        )}
-
-        {intro && (
-          <p
-            className="pc-rise mt-5 line-clamp-4 text-[15px] leading-[1.6] text-[var(--pc-ink-2)]"
-            style={{ "--d": "220ms" } as React.CSSProperties}
-          >
-            {intro}
-          </p>
-        )}
-
         {/* L action principale, seule a porter un aplat. */}
-        <div className="pc-rise mt-7" style={{ "--d": "280ms" } as React.CSSProperties}>
+        <div className="pc-rise mt-6" style={{ "--d": "280ms" } as React.CSSProperties}>
           <SaveContact
             token={profile.cardToken}
             profileId={profile.id}
@@ -178,6 +191,15 @@ export function ThemeSignature({ profile, preview }: ThemeProps) {
               </TrackedLink>
             ))}
           </nav>
+        )}
+
+        {intro && (
+          <section className="pc-inview mt-11">
+            <SectionLabel>À propos</SectionLabel>
+            <p className="mt-3 font-[family-name:var(--pc-display)] text-[18px] font-medium leading-[1.55] tracking-[-0.015em] text-[var(--pc-ink)]">
+              {intro}
+            </p>
+          </section>
         )}
 
         {/* Au-dela du premier ecran : les liens, puis le lieu. */}

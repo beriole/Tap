@@ -131,7 +131,7 @@ export const PREMIUM_ENGINES: PremiumEngineDefinition[] = [
     audience: "Consultants, avocats, cadres, professions libérales",
     tags: ["Minimal", "Professional", "Elegant"],
     pitch:
-      "Une mise en page de papier a lettres : le nom compose sur deux lignes, le portrait a sa droite, et l espace pour tout le reste.",
+      "Le carton de visite pose sur votre portrait : nom, fonction et coordonnees ecrits comme sur une carte imprimee.",
     defaultShape: "soft",
     palette: ["#1C1B19", "#1E3A5F", "#2D5A47", "#7A4E2D", "#5A2E3E"],
     variants: [
@@ -151,6 +151,7 @@ export const PREMIUM_ENGINES: PremiumEngineDefinition[] = [
           ctaBg: "#1C1B19",
           ctaInk: "#F6F3EC",
           scheme: "light",
+          extra: { card: "#FFFDF8" },
         },
       },
       {
@@ -169,6 +170,7 @@ export const PREMIUM_ENGINES: PremiumEngineDefinition[] = [
           ctaBg: "#1D1D1F",
           ctaInk: "#FFFFFF",
           scheme: "light",
+          extra: { card: "#FFFFFF" },
         },
       },
       {
@@ -187,6 +189,7 @@ export const PREMIUM_ENGINES: PremiumEngineDefinition[] = [
           ctaBg: "#F2F2F4",
           ctaInk: "#141416",
           scheme: "dark",
+          extra: { card: "#212125" },
         },
       },
       {
@@ -205,6 +208,7 @@ export const PREMIUM_ENGINES: PremiumEngineDefinition[] = [
           ctaBg: "#2D5A47",
           ctaInk: "#F1F1EA",
           scheme: "light",
+          extra: { card: "#FCFCF7" },
         },
       },
     ],
