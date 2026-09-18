@@ -81,6 +81,8 @@ export const BENCH_CASES: Record<string, { label: string; event: RawInvitationEv
       type: "BIRTHDAY",
       title: "Les 30 ans de Maeva",
       hosts: "Maeva",
+      // Une vraie photo : l image abstraite de demonstration faussait le jugement des themes.
+      heroImageUrl: "https://res.cloudinary.com/sz6vjbkr/image/upload/samples/food/dessert.jpg",
       startsAt: new Date("2026-11-07T19:00:00Z"),
       rsvpSettings: { deadline: "2026-10-30T22:59:00Z" },
       venues: [{ label: "Soirée", name: "Rooftop du Djeuga Palace", address: "Rue Joseph Essono Balla, Yaoundé", landmark: "Accès par le parking arrière", lat: null, lng: null, startsAt: new Date("2026-11-07T19:00:00Z") }],

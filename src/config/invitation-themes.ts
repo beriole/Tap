@@ -196,9 +196,9 @@ export const INVITATION_THEMES: Record<InvitationThemeKey, InvitationThemeDefini
     "elegant",
     "Elegant",
     "BIRTHDAY",
-    "Minimal chic pour adultes : serif, l age en grand, beaucoup d air.",
+    "Le carton grave : age en chiffre dore, date en cartouche, encarts de papeterie.",
     [sw("lin", "Lin", "#F4F1EA"), sw("anthracite", "Anthracite", "#1E1F22")],
-    [sw("noir", "Noir", "#1E1F22"), sw("bronze", "Bronze", "#8C6A3F"), sw("bordeaux", "Bordeaux", "#7A2E3B")],
+    [sw("bronze", "Bronze", "#8C6A3F"), sw("noir", "Noir", "#1E1F22"), sw("bordeaux", "Bordeaux", "#7A2E3B")],
   ),
   neon: define(
     "neon",

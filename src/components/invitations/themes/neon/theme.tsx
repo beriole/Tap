@@ -2,156 +2,184 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import type { InvitationView, RsvpFormData } from "@/types/invitation";
 import { HeroCta, HostNames, ThemeShell, countdownText, delay, longestHost, nameSizeClass, salutation, type SectionStyles } from "../../shared";
+import { ageOf, cityOf, monthNumber } from "../../stationery";
 import { spaceGrotesk } from "../fonts";
 
 /**
- * NEON - sombre, un accent lumineux CONTROLE.
+ * NEON - l enseigne et le flyer.
  *
- * Le parti pris : la lumiere ne touche que deux choses - les noms et l heure.
- * Un halo (text-shadow en deux couches) sur ces mots, et rien d autre : pas
- * de fond en degrade anime, pas de bordure qui clignote (§12.2 "pas de glow
- * RGB"). Le reste de la page est un gris presque noir, un quadrillage a peine
- * visible, une grotesque (Space Grotesk) aux chiffres larges.
+ * Le parti pris : un flyer de club, sobre. Sur un carton noir mat, l age est
+ * dessine en tube - un chiffre au trait, lumineux - et le prenom est la seule
+ * ligne vraiment allumee : coeur blanc, halo de couleur, comme un vrai neon.
+ * L enseigne s allume une fois a l arrivee (un court gresillement) puis reste
+ * fixe.
  *
- * Le bouton est un tube : bordure d accent, texte d accent, fond
- * transparent ; au toucher il se remplit. Les sections sont alignees a
- * gauche, titres en accent SANS halo.
+ * En pied de flyer, les informations en colonnes etiquetees, comme sur un
+ * billet : date, heure, lieu. Tout le reste est gris, pour que la lumiere
+ * reste rare.
  */
 
-type Palette = { bg: string; card: string; ink: string; ink2: string; line: string; accent: string; onAccent: string };
+type Palette = { table: string; card: string; ink: string; ink2: string; line: string; glow: string; onGlow: string };
 
-const VARIANTS: Record<string, Pick<Palette, "bg" | "card" | "ink" | "ink2" | "line">> = {
-  noir: { bg: "#0B0B10", card: "#14141B", ink: "#F3F3F7", ink2: "#A6A7B3", line: "#24242E" },
-  marine: { bg: "#0B1224", card: "#111A31", ink: "#F0F3FA", ink2: "#A3ACC4", line: "#1F2A47" },
+const VARIANTS: Record<string, Pick<Palette, "table" | "card" | "ink" | "ink2" | "line">> = {
+  noir: { table: "#060609", card: "#0F0F15", ink: "#F3F3F7", ink2: "#9A9AAB", line: "#23232E" },
+  marine: { table: "#050A17", card: "#0B1326", ink: "#F1F4FA", ink2: "#95A0B8", line: "#1C2640" },
 };
 
-/** [accent (>= 4,5:1 sur le fond sombre), texte sur accent] */
-const ACCENTS: Record<string, [string, string]> = {
-  cyan: ["#3DF2E0", "#062A26"],
-  magenta: ["#FF6FE0", "#33062B"],
-  lime: ["#C6FF4A", "#1F2E05"],
+const ACCENTS: Record<string, { glow: string; onGlow: string }> = {
+  cyan: { glow: "#3DF2E0", onGlow: "#04211E" },
+  magenta: { glow: "#FF4FD8", onGlow: "#2A0322" },
+  lime: { glow: "#C6FF4A", onGlow: "#1A2400" },
 };
 
 function palette(variant: string, accent: string): Palette {
-  const [acc, onAccent] = ACCENTS[accent] ?? ACCENTS.cyan!;
-  return { ...(VARIANTS[variant] ?? VARIANTS.noir!), accent: acc, onAccent };
+  return { ...(VARIANTS[variant] ?? VARIANTS.noir!), ...(ACCENTS[accent] ?? ACCENTS.cyan!) };
 }
 
 const EYEBROW: Record<InvitationView["event"]["type"], string> = {
-  WEDDING: "Nous nous marions",
+  WEDDING: "Soirée de mariage",
   BIRTHDAY: "Soirée d’anniversaire",
-  CORPORATE: "Invitation",
-  MEMORIAL: "En souvenir de",
-  OTHER: "Invitation",
+  CORPORATE: "Soirée privée",
+  MEMORIAL: "En mémoire",
+  OTHER: "Soirée privée",
 };
 
-const glow = "[text-shadow:0_0_12px_color-mix(in_srgb,var(--ne-accent)_70%,transparent),0_0_36px_color-mix(in_srgb,var(--ne-accent)_35%,transparent)]";
-const mono = "text-[11px] font-medium uppercase tracking-[0.24em]";
-const button =
-  "flex min-h-[54px] w-full items-center justify-center rounded-lg border-2 border-[var(--ne-accent)] px-6 text-[13px] font-bold uppercase tracking-[0.18em] text-[var(--ne-accent)] transition-[background-color,color,transform] duration-150 hover:bg-[var(--ne-accent)] hover:text-[var(--ne-on-accent)] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--ne-accent)]";
+const space = "[font-family:var(--inv-space)]";
+const caps = cn(space, "text-[10.5px] font-medium uppercase tracking-[0.28em]");
+/** Tube : coeur presque blanc, halo en trois couches de la couleur choisie. */
+const tube =
+  "text-[color-mix(in_srgb,var(--ne-glow)_35%,white)] [text-shadow:0_0_2px_color-mix(in_srgb,var(--ne-glow)_60%,white),0_0_10px_var(--ne-glow),0_0_28px_color-mix(in_srgb,var(--ne-glow)_70%,transparent),0_0_60px_color-mix(in_srgb,var(--ne-glow)_40%,transparent)]";
+
+const button = cn(
+  space,
+  "flex min-h-[54px] w-full items-center justify-center rounded-full bg-[var(--ne-glow)] px-6 text-[13px] font-bold uppercase tracking-[0.18em] text-[var(--ne-on-glow)] shadow-[0_0_28px_-4px_var(--ne-glow)] transition-[transform,box-shadow] duration-150 hover:shadow-[0_0_40px_-2px_var(--ne-glow)] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--ne-glow)]",
+);
 
 const styles: SectionStyles = {
-  heading: "text-[26px] font-bold leading-tight tracking-[-0.01em] text-[var(--ne-accent)] [font-family:var(--inv-space)]",
+  heading: cn(space, "text-[13px] font-bold uppercase tracking-[0.24em] text-[var(--ne-glow)]"),
   body: "text-[16px] leading-relaxed text-[var(--ne-ink)]",
   muted: "text-[15px] leading-relaxed text-[var(--ne-ink-2)]",
-  label: cn(mono, "text-[var(--ne-ink-2)]"),
+  label: cn(caps, "text-[10px] text-[var(--ne-ink-2)]"),
   rule: "divide-[var(--ne-line)] border-[var(--ne-line)]",
-  emphasis: "text-[21px] font-medium leading-[1.2] [font-family:var(--inv-space)]",
-  link: "border-b border-[var(--ne-accent)] text-[13px] font-bold uppercase tracking-[0.14em] text-[var(--ne-accent)] transition-opacity hover:opacity-80",
-};
-
-const GRID: React.CSSProperties = {
-  backgroundImage: "linear-gradient(var(--ne-line) 1px, transparent 1px), linear-gradient(90deg, var(--ne-line) 1px, transparent 1px)",
-  backgroundSize: "36px 36px",
-  maskImage: "radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 80%)",
-  WebkitMaskImage: "radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 80%)",
+  emphasis: cn(space, "text-[20px] font-medium leading-[1.2] tracking-[-0.01em]"),
+  link: cn(space, "border-b border-[var(--ne-glow)] text-[12px] font-bold uppercase tracking-[0.18em] text-[var(--ne-glow)]"),
 };
 
 export function Neon({ view, rsvpForm }: { view: InvitationView; rsvpForm?: RsvpFormData | null }) {
-  const { event, theme } = view;
+  const { event, theme, venues } = view;
   const p = palette(theme.settings.variant, theme.settings.accent);
   const dear = salutation(view);
   const { starts } = event;
+  const age = ageOf(view);
+  const venue = venues[0];
+  const city = cityOf(view);
+  const insert = "relative rounded-[20px] border border-[var(--ne-line)] bg-[var(--ne-card)] px-6 py-8";
+
+  const ticket = [
+    { k: "Date", v: `${starts.day}.${monthNumber(starts.month)}.${starts.year.slice(2)}` },
+    { k: "Heure", v: starts.time.replace(" h ", ":") },
+    (city ?? venue?.name) ? { k: "Lieu", v: (city ?? venue?.name)! } : null,
+  ].filter((t): t is { k: string; v: string } => t !== null);
 
   return (
     <ThemeShell
       view={view}
       rsvpForm={rsvpForm}
       dark
-      mainClassName={cn(spaceGrotesk.variable, "bg-[var(--ne-bg)] text-[var(--ne-ink)]")}
-      vars={{ "--ne-bg": p.bg, "--ne-card": p.card, "--ne-ink": p.ink, "--ne-ink-2": p.ink2, "--ne-line": p.line, "--ne-accent": p.accent, "--ne-on-accent": p.onAccent }}
+      mainClassName={cn(spaceGrotesk.variable, "bg-[var(--ne-table)] text-[var(--ne-ink)]")}
+      vars={{ "--ne-table": p.table, "--ne-bg": p.table, "--ne-card": p.card, "--ne-ink": p.ink, "--ne-ink-2": p.ink2, "--ne-line": p.line, "--ne-glow": p.glow, "--ne-on-glow": p.onGlow }}
       envelope={{
-        "--env-bg": p.bg, "--env-ink": p.ink, "--env-ink-2": p.ink2, "--env-line": p.line,
-        "--env-paper": "#1B1B24", "--env-fold": "#16161E", "--env-flap": "#23232E", "--env-edge": "#34344A",
-        "--env-card": "#F3F3F7", "--env-card-ink": "#0B0B10", "--env-liner": p.accent, "--env-seal": p.accent, "--env-seal-ink": p.onAccent, "--env-font": "var(--inv-space)",
+        "--env-bg": p.table, "--env-ink": p.ink, "--env-ink-2": p.ink2, "--env-line": p.line,
+        "--env-paper": "#16161E", "--env-fold": "#12121A", "--env-flap": "#1B1B25", "--env-edge": "#2C2C3A",
+        "--env-card": p.card, "--env-card-ink": p.ink, "--env-liner": p.glow, "--env-seal": p.glow, "--env-seal-ink": p.onGlow, "--env-font": "var(--inv-space)",
       }}
-      rsvp={{ "--rsvp-bg": p.bg, "--rsvp-ink": p.ink, "--rsvp-ink-2": p.ink2, "--rsvp-line": p.line, "--rsvp-rule": p.accent, "--rsvp-accent": p.accent, "--rsvp-error": "#FF8A80", "--rsvp-font": "var(--inv-space)" }}
+      rsvp={{ "--rsvp-bg": p.card, "--rsvp-ink": p.ink, "--rsvp-ink-2": p.ink2, "--rsvp-line": p.line, "--rsvp-rule": p.glow, "--rsvp-accent": p.glow, "--rsvp-error": "#FF8A80", "--rsvp-font": "var(--inv-space)" }}
       styles={styles}
       button={button}
       heroCtaId="ne-hero-cta"
-      containerClassName="pt-[max(16px,env(safe-area-inset-top))]"
-      dockClassName="border-t border-[var(--ne-line)] bg-[var(--ne-bg)]/95 px-6 pb-[max(12px,env(safe-area-inset-bottom))] pt-3"
-      before={<div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[100svh]" style={GRID} />}
+      before={<div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[70svh]" style={{ background: `radial-gradient(60% 50% at 50% 30%, color-mix(in srgb, ${p.glow} 14%, transparent), transparent 70%)` }} />}
+      containerClassName="relative px-4 pt-[max(16px,env(safe-area-inset-top))]"
+      dockClassName="bg-[color-mix(in_srgb,var(--ne-table)_85%,transparent)] px-5 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md"
       hero={
-        <header className="relative flex min-h-[calc(100svh-32px)] flex-col justify-center py-10">
-          {event.updatedNote && <p className={cn(mono, "pc-fade mb-6 text-[10px] text-[var(--ne-accent)]")}>{event.updatedNote}</p>}
-          {dear && (
-            <p className="pc-fade mb-4 text-[14px] text-[var(--ne-ink-2)]" style={delay(0)}>
-              {dear} —
-            </p>
-          )}
-          <p className={cn(mono, "pc-fade text-[var(--ne-ink-2)]")} style={delay(80)}>
-            {EYEBROW[event.type]}
-          </p>
-          <h1 className={cn("mt-5 font-bold tracking-[-0.02em] text-[var(--ne-accent)] [font-family:var(--inv-space)]", glow)}>
-            <HostNames
-              view={view}
-              sizeClass={nameSizeClass(longestHost(view), ["text-[clamp(56px,17vw,76px)]", "text-[clamp(44px,13vw,60px)]", "text-[clamp(34px,10vw,44px)]", "text-[clamp(28px,8vw,36px)]"])}
-              lineClassName="leading-[0.95]"
-              separator={<span className="block text-[22px] leading-[1.8] text-[var(--ne-ink-2)] [text-shadow:none]">&amp;</span>}
-            />
-          </h1>
+        <header className="flex min-h-[calc(100svh-16px)] flex-col items-center justify-center gap-5 pb-6">
           <p className="sr-only">
             {starts.long}, {starts.time}
           </p>
-          <div aria-hidden className="mt-8 border-l-2 border-[var(--ne-accent)] pl-4">
-            <p className="text-[19px] font-medium [font-family:var(--inv-space)]">
-              {starts.weekday} {starts.day} {starts.month} {starts.year}
-            </p>
-            <p className={cn("mt-1 text-[clamp(30px,8vw,38px)] font-bold leading-none text-[var(--ne-accent)] [font-family:var(--inv-space)]", glow)}>{starts.time}</p>
-          </div>
-          {theme.settings.countdown && event.daysLeft !== null && (
-            <p className={cn(mono, "pc-fade mt-5 text-[var(--ne-ink-2)]")} style={delay(560)}>
-              {countdownText(event.daysLeft)}
+          {dear && (
+            <p className={cn(caps, "pc-fade text-[var(--ne-ink-2)]")} style={delay(0)}>
+              Sur la liste · {dear}
             </p>
           )}
-          <HeroCta view={view} id="ne-hero-cta" button={button} className="mt-8 max-w-[320px]" noteClassName="text-[var(--ne-ink-2)]" />
+
+          {/* Le flyer */}
+          <div className="pc-lift relative w-full max-w-[400px] overflow-hidden rounded-[22px] border border-[var(--ne-line)] bg-[var(--ne-card)] text-center shadow-[0_40px_80px_-40px_rgba(0,0,0,0.9)]" style={delay(40)}>
+            <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.35]" style={{ backgroundImage: "linear-gradient(transparent 0 calc(100% - 1px), rgba(255,255,255,0.035) calc(100% - 1px))", backgroundSize: "100% 22px" }} />
+
+            <div className="relative px-6 pt-7">
+              {event.updatedNote && <p className={cn(caps, "mb-3 text-[9.5px] text-[var(--ne-glow)]")}>{event.updatedNote}</p>}
+              <p className={cn(caps, "text-[var(--ne-ink-2)]")}>{EYEBROW[event.type]}</p>
+
+              <div className="[animation:inv-flicker_1.1s_linear_0.4s_both]">
+                {age !== null && (
+                  <p
+                    aria-hidden
+                    className={cn(space, "mt-2 text-[clamp(120px,38vw,160px)] font-bold leading-[1] tracking-[-0.04em] text-transparent [-webkit-text-stroke:2px_color-mix(in_srgb,var(--ne-glow)_55%,white)] [filter:drop-shadow(0_0_6px_var(--ne-glow))_drop-shadow(0_0_22px_color-mix(in_srgb,var(--ne-glow)_60%,transparent))]")}
+                  >
+                    {age}
+                  </p>
+                )}
+                <h1 className={cn(space, tube, age !== null ? "-mt-1" : "mt-8", "font-medium tracking-[-0.03em]")}>
+                  {age !== null && <span className="sr-only">Les {age} ans de </span>}
+                  <HostNames view={view} sizeClass={nameSizeClass(longestHost(view), ["text-[clamp(48px,14vw,60px)]", "text-[clamp(38px,11vw,48px)]", "text-[clamp(30px,8.5vw,36px)]", "text-[clamp(24px,6.6vw,28px)]"])} lineClassName="leading-[1.05]" separator={<span className="block text-[22px] leading-[1.5] text-[var(--ne-ink-2)] [text-shadow:none]">&amp;</span>} />
+                </h1>
+              </div>
+              {venue && <p className="mx-auto mt-4 max-w-[280px] text-[14px] leading-snug text-[var(--ne-ink-2)] [overflow-wrap:anywhere]">{venue.name}</p>}
+            </div>
+
+            {/* Talon : colonnes etiquetees */}
+            <dl aria-hidden className={cn("relative mt-7 grid border-t", ticket.length === 3 ? "grid-cols-3" : "grid-cols-2", " border-dashed border-[var(--ne-line)]")}>
+              {ticket.map((t, i) => (
+                <div key={t.k} className={cn("min-w-0 px-2 py-4", i > 0 && "border-l border-[var(--ne-line)]")}>
+                  <dt className={cn(caps, "text-[9px] text-[var(--ne-ink-2)]")}>{t.k}</dt>
+                  <dd className={cn(space, "mt-1 truncate text-[15px] font-bold tabular-nums")}>{t.v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          <div className="pc-fade w-full max-w-[400px] text-center" style={delay(320)}>
+            <HeroCta view={view} id="ne-hero-cta" button={button} noteClassName="text-[var(--ne-ink-2)]" />
+            {theme.settings.countdown && event.daysLeft !== null && <p className={cn(caps, "mt-1 text-[9.5px] text-[var(--ne-glow)]")}>{countdownText(event.daysLeft)}</p>}
+          </div>
         </header>
       }
       photo={
-        <figure className="pc-inview mb-14 mt-6 rounded-xl border border-[var(--ne-line)] p-1.5">
-          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg bg-[var(--ne-card)]">
-            <Image src={event.heroImageUrl!} alt={event.hosts} fill sizes="(max-width: 460px) 100vw, 460px" className="object-cover" />
+        <figure className="pc-inview mx-auto mb-4 mt-4 max-w-[400px]">
+          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[20px] border border-[var(--ne-line)] bg-[var(--ne-card)]">
+            <Image src={event.heroImageUrl!} alt={event.hosts} fill sizes="(max-width: 460px) 92vw, 400px" className="object-cover" />
+            <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
           </div>
         </figure>
       }
-      section={({ key, index, title, children }) => (
-        <section key={key} className="pc-inview mb-14">
-          <p className={cn(mono, "text-[var(--ne-ink-2)]")}>{String(index + 1).padStart(2, "0")}</p>
-          {title ? <h2 className={cn(styles.heading, "mb-6 mt-2 [overflow-wrap:anywhere]")}>{title}</h2> : <div className="mb-6" />}
+      section={({ key, title, children }) => (
+        <section key={key} className={cn("pc-inview mx-auto mb-4 max-w-[400px]", insert)}>
+          {title && (
+            <h2 className={cn(styles.heading, "mb-6 flex items-center gap-3 [overflow-wrap:anywhere]")}>
+              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-[var(--ne-glow)] shadow-[0_0_10px_var(--ne-glow)]" />
+              {title}
+            </h2>
+          )}
           {children}
         </section>
       )}
       sectionAlign="left"
       rsvpAlign="left"
-      rsvpWrapperClassName="rounded-2xl border border-[var(--ne-line)] bg-[var(--ne-card)] px-5 py-8"
-      rsvpTitle={<h2 className={cn(styles.heading, "text-[30px]")}>Votre réponse</h2>}
+      rsvpWrapperClassName={cn("pc-inview mx-auto max-w-[400px]", insert)}
+      rsvpTitle={<h2 className={cn(space, tube, "text-[38px] font-medium leading-tight tracking-[-0.03em]")}>Tu viens&nbsp;?</h2>}
       footer={
-        <footer className="mt-20 flex items-center justify-between">
-          <span className="text-[15px] font-bold [font-family:var(--inv-space)]">{event.hostParts.join(" & ")}</span>
-          <span className={cn(mono, "text-[10px] text-[var(--ne-ink-2)]")}>
-            {starts.day}.{starts.month.slice(0, 3)}.{starts.year}
-          </span>
+        <footer className="mx-auto mt-14 flex max-w-[400px] items-center justify-between border-t border-[var(--ne-line)] pt-5">
+          <span className={cn(space, "text-[16px] font-medium")}>{event.hostParts.join(" & ")}</span>
+          <span className={cn(caps, "text-[9.5px] text-[var(--ne-ink-2)]")}>{ticket[0]!.v}</span>
         </footer>
       }
     />

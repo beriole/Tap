@@ -1,4 +1,4 @@
-import { EB_Garamond, Fredoka, Great_Vibes, Libre_Baskerville, Manrope, Playfair_Display, Space_Grotesk } from "next/font/google";
+import { Cormorant_Garamond, EB_Garamond, Fredoka, Great_Vibes, Libre_Baskerville, Manrope, Playfair_Display, Space_Grotesk } from "next/font/google";
 
 /**
  * Polices partagees par les themes des collections Mariage (suite),
@@ -69,6 +69,16 @@ export const libreBaskerville = Libre_Baskerville({
   weight: ["400", "700"],
   style: ["normal", "italic"],
   variable: "--inv-baskerville",
+  display: "swap",
+  adjustFontFallback: false,
+});
+
+/** Elegant : garalde de titrage aux italiques tres dessinees, chiffres de gravure. */
+export const cormorant = Cormorant_Garamond({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  variable: "--inv-cormorant",
   display: "swap",
   adjustFontFallback: false,
 });

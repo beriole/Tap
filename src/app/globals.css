@@ -573,6 +573,22 @@ body {
   }
 }
 
+/* Invitations : une enseigne qui s allume (une fois), des ballons qui flottent. */
+@keyframes inv-flicker {
+  0%, 12%, 20%, 34% { opacity: 0.15; }
+  8%, 16%, 26%, 100% { opacity: 1; }
+}
+
+@keyframes inv-bob {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  50% { transform: translateY(-6px) rotate(calc(var(--r, 0deg) * -1)); }
+}
+
+@keyframes inv-pop {
+  from { opacity: 0; transform: scale(0.4) rotate(var(--r, 0deg)); }
+  to { opacity: 1; transform: scale(1) rotate(var(--r, 0deg)); }
+}
+
 /* ---------------------------------------------------------------------------
  * Accessibilite : rien de tout cela ne doit s imposer (§13).
  * ------------------------------------------------------------------------ */

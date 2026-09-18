@@ -78,7 +78,7 @@ export function SectionBody({ section, styles, align = "center" }: { section: In
             <ul className={cn("mt-7 flex flex-wrap gap-3", centered && "justify-center")} aria-label="Couleurs conseillées">
               {section.data.palette.map((color) => (
                 <li key={color}>
-                  <span className="block size-9 rounded-full ring-1 ring-black/10" style={{ backgroundColor: color }} />
+                  <span className="block size-9 rounded-full ring-1 ring-[color-mix(in_srgb,currentColor_22%,transparent)]" style={{ backgroundColor: color }} />
                 </li>
               ))}
             </ul>
