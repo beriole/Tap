@@ -5,6 +5,7 @@
  *
  *   node --env-file=.env scripts/create-test-accounts.mjs
  *   DATABASE_URL="postgresql://..." node scripts/create-test-accounts.mjs
+ *   ... scripts/create-test-accounts.mjs <mdp-admin> <mdp-client>   (mots de passe imposes)
  *
  * Deux garde-fous, parce que ce script peut viser la production :
  *  - il n ecrit QUE sur les deux adresses ci-dessous ;
@@ -32,11 +33,12 @@ function makePassword(prefix) {
 }
 
 const prisma = new PrismaClient();
-const given = process.argv[2];
+const [, , givenAdmin, givenClient] = process.argv;
+const given = Boolean(givenAdmin);
 
 try {
-  const adminPassword = given ?? makePassword("Demo");
-  const clientPassword = given ?? makePassword("Demo");
+  const adminPassword = givenAdmin ?? makePassword("Demo");
+  const clientPassword = givenClient ?? givenAdmin ?? makePassword("Demo");
 
   for (const [email, role] of [
     [ADMIN_EMAIL, "SUPERADMIN"],
