@@ -9,7 +9,12 @@
  * et une arrivee qui prolonge l objet physique plutot que de charger une page.
  */
 
-@theme {
+/* static : Tailwind 4 n emet une variable de theme que si une classe
+ * utilitaire s en sert. Les themes et la vitrine ecrivent
+ * font-[family-name:var(--font-display)] - une valeur arbitraire, que le
+ * compilateur ne compte pas comme un usage : la variable n existait donc pas a
+ * l execution, et 77 titres retombaient en police systeme. */
+@theme static {
   --font-sans: var(--app-font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--app-font-display), ui-serif, Georgia, serif;
   --font-grotesk: var(--app-font-grotesk), var(--app-font-sans), sans-serif;
@@ -619,6 +624,79 @@ body {
   animation: pc-cue 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
+/* ---------------------------------------------------------------------------
+ * Vitrine : le recit au defilement.
+ *
+ * Tout est pilote par la POSITION de defilement, jamais par le temps : la
+ * scene avance quand le lecteur avance, s arrete quand il s arrete. Sans
+ * animation-timeline (Safari), les scenes restent a leur etat de depart,
+ * lisibles ; rien ne joue tout seul.
+ * ------------------------------------------------------------------------ */
+
+/* Profondeur du heros : trois calques, trois vitesses, sur le defilement de la page. */
+@keyframes mk-drift-slow {
+  to { transform: translate3d(0, -6vh, 0); }
+}
+@keyframes mk-drift-mid {
+  to { transform: translate3d(0, -14vh, 0) rotate(-12deg); }
+}
+@keyframes mk-drift-fast {
+  to { transform: translate3d(0, -24vh, 0); }
+}
+
+@utility mk-layer-slow {
+  @supports (animation-timeline: scroll()) {
+    animation: mk-drift-slow linear both;
+    animation-timeline: scroll();
+    animation-range: 0 100vh;
+  }
+}
+@utility mk-layer-mid {
+  @supports (animation-timeline: scroll()) {
+    animation: mk-drift-mid linear both;
+    animation-timeline: scroll();
+    animation-range: 0 100vh;
+  }
+}
+@utility mk-layer-fast {
+  @supports (animation-timeline: scroll()) {
+    animation: mk-drift-fast linear both;
+    animation-timeline: scroll();
+    animation-range: 0 100vh;
+  }
+}
+
+/* L ouverture du pli, image par image, sur la traversee de sa scene. */
+@keyframes mk-seal {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  18% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+}
+@keyframes mk-flap {
+  0%, 12% { transform: rotateX(0); z-index: 30; }
+  48% { transform: rotateX(180deg); z-index: 30; }
+  49%, 100% { transform: rotateX(180deg); z-index: 0; }
+}
+@keyframes mk-card {
+  0%, 40% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-66%) scale(1.06); }
+}
+@keyframes mk-caption {
+  0%, 55% { opacity: 0; transform: translateY(12px); }
+  85%, 100% { opacity: 1; transform: translateY(0); }
+}
+
+.mk-scene {
+  view-timeline-name: --mk-scene;
+  view-timeline-axis: block;
+}
+@supports (animation-timeline: view()) {
+  .mk-scene .mk-seal { animation: mk-seal linear both; animation-timeline: --mk-scene; animation-range: contain 4% contain 72%; }
+  .mk-scene .mk-flap { animation: mk-flap linear both; animation-timeline: --mk-scene; animation-range: contain 4% contain 72%; }
+  .mk-scene .mk-card { animation: mk-card linear both; animation-timeline: --mk-scene; animation-range: contain 4% contain 72%; }
+  .mk-scene .mk-caption { animation: mk-caption linear both; animation-timeline: --mk-scene; animation-range: contain 4% contain 72%; }
+}
+
 /* Sous pli : tant que l enveloppe est fermee, la page dessous garde ses
  * entrees en attente. Sans cela, l invite ouvre le pli sur une page deja
  * animee - donc figee - et le geste ne revele rien. L attribut est pose par le
@@ -673,7 +751,14 @@ body {
   .pc-inview,
   .pc-parallax,
   .pc-cue,
-  .pc-skeleton {
+  .pc-skeleton,
+  .mk-layer-slow,
+  .mk-layer-mid,
+  .mk-layer-fast,
+  .mk-scene .mk-seal,
+  .mk-scene .mk-flap,
+  .mk-scene .mk-card,
+  .mk-scene .mk-caption {
     animation: none !important;
   }
 }
