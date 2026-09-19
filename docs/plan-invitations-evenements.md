@@ -41,9 +41,30 @@ Trois principes tiennent l'ensemble :
 | 9 — MVP-b : thèmes, XLSX/PDF, équipe, vitrine | ✅ (Pearl, Romantic, Modern Glass reportés) | `npm test` 84/84 · `npm run audit:invitations` 148/149, trois passages : seul le LCP (voir ci-dessous) |
 | 10 — Qualité et lancement | ✅ en local (reste : vérifications sur Vercel, voir ci-dessous) | `npm test` 93/93 · `npm run audit:invitations` 156/156 · `npm run db:backup:verify` |
 | 11 — Catalogue complet des thèmes (§13) | ✅ | `npm test` 93/93 · `npm run audit:invitations` (banc : 19 thèmes × variantes × 4 cas) |
+| 12 — Refonte de la direction artistique | ✅ en local | `npm test` 93/93 · build de production · banc : 216 rendus sans débordement, bouton au premier écran |
 
 > **Fin du MVP-a** : la boucle créer → inviter → répondre → piloter → accueillir est complète et testée
 > en local. Test grandeur nature recommandé avant la phase 9.
+
+**Phase 12, précisions — refonte de la direction artistique**
+
+- **L’enveloppe devient une scène** (`components/invitations/envelope.tsx`) : lumière haute, grain,
+  cachet de cire au tracé irrégulier, nom de l’invité calligraphié (`--env-script`), appel à l’action
+  en filets. Séquence Motion : cachet, rabat, carton qui sort, caméra qui avance, voile qui se fond.
+- **La page attend l’ouverture** : le conteneur du thème porte `data-sealed` (rendu serveur) ; les
+  entrées `pc-*` sont en pause (`globals.css`) jusqu’à ce que l’enveloppe retire l’attribut. Un
+  nouveau thème à enveloppe doit poser `data-sealed={view.envelope ? "" : undefined}` sur son
+  conteneur, **hors** de l’enveloppe elle-même.
+- **Le mot des hôtes** : le premier texte libre SANS titre est promu en grande citation (prop `word`
+  de `ThemeShell`, ou géré par le thème) ; à défaut, une phrase d’accueil par type d’événement.
+- **Papeterie** (`components/invitations/stationery.tsx`) : grain, ombres de carton, âge lu dans le
+  titre, nombres en lettres, ville, mois en chiffres.
+- **Directions** : Royal Ivory éditorial, Midnight Gold black tie, Pearl modern luxury, African
+  Luxury contemporain (soleil + trame fine, plus de zigzag), Modern Glass cinématique ; Anniversaire
+  en objets (carton gravé, affiche, carte à gommettes, flyer néon, grille) ; Conference et Executive
+  en affiches.
+- **Parallaxe** : `pc-parallax` (piloté par le défilement, sans JavaScript), neutralisé par
+  `prefers-reduced-motion`.
 
 **Phase 11, précisions — les 20 thèmes du §13**
 

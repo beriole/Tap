@@ -148,7 +148,7 @@ export function Pearl({ view, rsvpForm }: { view: InvitationView; rsvpForm?: Rsv
               </p>
             </div>
             {theme.settings.countdown && event.daysLeft !== null && (
-              <p className={cn(caps, "pc-fade mt-4 text-[10px] text-[var(--pl-gold)]")} style={delay(400)}>
+              <p className={cn(caps, "pc-fade mt-4 text-[10px] text-[var(--pl-accent)]")} style={delay(400)}>
                 {countdownText(event.daysLeft)}
               </p>
             )}

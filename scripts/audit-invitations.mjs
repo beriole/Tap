@@ -523,7 +523,8 @@ try {
   const opened = await prisma.invitation.findUniqueOrThrow({ where: { id: openTarget.id } });
   record("75. Premiere visite : enveloppe, ouverture comptee une fois", veilFirst && opened.openCount === 1 && opened.state === "OPENED" && Boolean(opened.firstOpenedAt), `ouvertures ${opened.openCount}, etat ${opened.state}`);
 
-  await visitor.click('button[aria-label="Ouvrir l invitation"]');
+  // Le bouton se trouve par ce que l invite LIT (« Ouvrir l'invitation »), pas par un attribut technique.
+  await visitor.evaluate(() => [...document.querySelectorAll(".env-veil button")].find((b) => /^Ouvrir/.test(b.textContent.trim()))?.click());
   const openStart = Date.now();
   await visitor.waitForFunction(() => !document.querySelector(".env-veil"), { timeout: 5000 }).catch(() => null);
   const openMs = Date.now() - openStart;
@@ -541,7 +542,8 @@ try {
 
   await visitor.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
   await visitor.goto(`${BASE}${openUrl}?enveloppe=1`, { waitUntil: "networkidle0" });
-  await visitor.click('button[aria-label="Ouvrir l invitation"]');
+  // Le bouton se trouve par ce que l invite LIT (« Ouvrir l'invitation »), pas par un attribut technique.
+  await visitor.evaluate(() => [...document.querySelectorAll(".env-veil button")].find((b) => /^Ouvrir/.test(b.textContent.trim()))?.click());
   const reducedStart = Date.now();
   await visitor.waitForFunction(() => !document.querySelector(".env-veil"), { timeout: 3000 }).catch(() => null);
   record("79. Mouvement reduit : fondu court a la place de la sequence", Date.now() - reducedStart < 700, `${Date.now() - reducedStart} ms`);

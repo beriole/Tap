@@ -22,7 +22,7 @@ import { cormorant } from "../fonts";
 type Palette = { table: string; paper: string; ink: string; ink2: string; line: string; foil: string; foilHi: string };
 
 const VARIANTS: Record<string, Omit<Palette, "foil" | "foilHi">> = {
-  lin: { table: "#E4DDCF", paper: "#FBF8F2", ink: "#1F1D1A", ink2: "#6A655C", line: "#E0D8C9" },
+  lin: { table: "#E4DDCF", paper: "#FBF8F2", ink: "#1F1D1A", ink2: "#57524A", line: "#E0D8C9" },
   anthracite: { table: "#111113", paper: "#1D1D21", ink: "#F2EEE6", ink2: "#A8A49B", line: "#34343A" },
 };
 
@@ -171,7 +171,7 @@ export function Elegant({ view, rsvpForm }: { view: InvitationView; rsvpForm?: R
           <div className="pc-fade w-full max-w-[400px] text-center" style={delay(360)}>
             <HeroCta view={view} id="el-hero-cta" button={button} noteClassName="text-[var(--el-ink-2)]" />
             {theme.settings.countdown && event.daysLeft !== null && (
-              <p className={cn(caps, "mt-2 text-[9.5px] text-[var(--el-foil)]")}>{countdownText(event.daysLeft)}</p>
+              <p className={cn(caps, "mt-2 text-[9.5px] text-[var(--el-ink-2)]")}>{countdownText(event.daysLeft)}</p>
             )}
           </div>
         </header>
