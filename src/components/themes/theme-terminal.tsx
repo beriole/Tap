@@ -1,21 +1,28 @@
-import { ArrowUpRight, Download } from "lucide-react";
+import Image from "next/image";
+import { ArrowUpRight, UserRoundPlus } from "lucide-react";
 import { BrandIcon } from "@/components/profile/brand-icon";
-import { Portrait, SaveContact, ShareControl, TrackedLink } from "./premium/atoms";
+import { FlipCard, Portrait, SaveContact, ShareControl, TrackedLink } from "./premium/atoms";
 import { ActionIcon } from "./premium/action-icon";
 import { buildCardModel } from "./premium/model";
+import { formatPhone, normalizePhone } from "@/lib/events/phone";
+import { isValidCardToken } from "@/lib/tokens";
+import { cn } from "@/lib/utils";
 import type { ThemeProps } from "@/types/profile";
 
 /**
- * TERMINAL - Tech · Precise · Developer.
+ * TERMINAL - Tech founder.
  *
- * Le parti pris : la rigueur d un editeur de code, sans le costume. Pas de
- * faux boutons de fenetre, pas de texte vert fluo qui defile. Une invite qui
- * annonce le nom, une fiche en cles et valeurs alignees, des liens qui se
- * lisent comme des chemins. Le nom lui-meme reste en Geist, lisible : seules
- * les etiquettes parlent la langue du terminal.
+ * Le parti pris : la precision d un produit logiciel bien fait, sans le
+ * costume du developpeur. Plus d invite de commande, plus de curseur, plus de
+ * "whoami" : ces cliches disaient "geek", pas "fondateur". Ce qui reste du
+ * monde technique, c est la RIGUEUR - une grille de points, une fonte mono
+ * reservee aux etiquettes, des alignements au pixel, un seul signal de
+ * couleur.
  *
- * Seul clin d oeil anime : le curseur apres le nom clignote trois fois, puis
- * s arrete. Rien ne bouge en continu.
+ * La carte a deux faces :
+ *  - recto : le nom en Geist tres serre, la fonction, et une grille de points
+ *    qui s eclaire vers un coin - la seule image de la page ;
+ *  - verso : les coordonnees en cles / valeurs alignees, et le QR.
  *
  * Polices : Geist et Geist Mono, deja chargees par la plateforme.
  */
@@ -24,168 +31,141 @@ export function ThemeTerminal({ profile, preview }: ThemeProps) {
   const { identity, location, contact } = profile;
   const Name = preview ? "p" : "h1";
   const intro = identity.bio ?? identity.tagline;
-  const slug = m.name.full.toLowerCase().normalize("NFD").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-");
+  const token = profile.cardToken;
+  const qrReady = !preview && isValidCardToken(token);
+  const mono = "font-[family-name:var(--font-mono)]";
 
   const fields = [
-    ["role", identity.title],
-    ["company", identity.company],
-    ["location", [location.city, location.country].filter(Boolean).join(", ") || null],
-    ["email", contact.email],
+    ["tel", (contact.phone && formatPhone(normalizePhone(contact.phone).e164)) || contact.phone],
+    ["mail", contact.email],
+    ["web", contact.website?.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") ?? null],
+    ["loc", [location.city, location.country].filter(Boolean).join(", ") || null],
   ].filter((f): f is [string, string] => Boolean(f[1]));
+
+  const dots: React.CSSProperties = {
+    backgroundImage: "radial-gradient(color-mix(in srgb, var(--pc-ink) 26%, transparent) 1px, transparent 1.3px)",
+    backgroundSize: "12px 12px",
+    maskImage: "radial-gradient(120% 120% at 100% 0%, black 0%, transparent 65%)",
+  };
+  const face =
+    "relative flex size-full overflow-hidden rounded-[12px] bg-[var(--pc-surface)] ring-1 ring-[var(--pc-line)] shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_24px_50px_-28px_rgba(0,0,0,0.6)]";
 
   return (
     <main style={m.style} className="min-h-dvh bg-[var(--pc-bg)] text-[var(--pc-ink)] antialiased">
       <div className="mx-auto w-full max-w-[460px] px-5 pb-14 pt-[max(12px,env(safe-area-inset-top))] md:pt-10">
-        <header
-          className="pc-fade flex h-12 items-center justify-between font-[family-name:var(--font-mono)] text-[12.5px] text-[var(--pc-ink-2)]"
-          style={{ "--d": "0ms" } as React.CSSProperties}
-        >
-          <span className="truncate">~/cartes/{slug}</span>
-          <ShareControl
-            url={profile.canonicalUrl}
-            title={identity.displayName}
-            profileId={profile.id}
-            preview={preview}
-            className="-mr-2 size-10 rounded-[10px] hover:bg-[var(--pc-press)]"
-          />
+        <header className={cn(mono, "pc-fade flex h-12 items-center justify-between text-[11.5px] text-[var(--pc-ink-2)]")} style={{ "--d": "0ms" } as React.CSSProperties}>
+          <span className="flex items-center gap-2">
+            <span aria-hidden className="size-1.5 rounded-full bg-[var(--pc-accent)]" />
+            {m.availability ? <span className="truncate">{m.availability}</span> : <span>{identity.company ?? "Carte"}</span>}
+          </span>
+          <ShareControl url={profile.canonicalUrl} title={identity.displayName} profileId={profile.id} preview={preview} className="-mr-2 size-10 rounded-[10px] hover:bg-[var(--pc-press)]" />
         </header>
 
-        <section className="mt-5 flex items-end gap-4">
-          <div className="pc-unveil relative size-[76px] shrink-0 overflow-hidden rounded-[14px]">
-            <Portrait
-              src={identity.avatarUrl}
-              alt={identity.displayName}
-              sizes="76px"
-              position={m.photoPosition}
-              className="size-full bg-[var(--pc-surface)]"
-              fallback={
-                <div className="flex size-full items-center justify-center font-[family-name:var(--font-mono)] text-[22px] text-[var(--pc-accent)]">
-                  {m.name.initials}
+        <section className="pc-lift mt-4" style={{ "--d": "100ms" } as React.CSSProperties}>
+          <FlipCard
+            className="aspect-[85/55] rounded-[12px]"
+            front={
+              <div className={face}>
+                <span aria-hidden className="absolute inset-0" style={dots} />
+                <span aria-hidden className="absolute right-4 top-4 size-2 rounded-full bg-[var(--pc-accent)] shadow-[0_0_12px_var(--pc-accent)]" />
+                <div className="relative flex flex-1 flex-col justify-between p-[18px]">
+                  {identity.logoUrl ? (
+                    <Portrait src={identity.logoUrl} alt="" sizes="32px" position="50% 50%" priority={false} className="size-8 rounded-[8px]" imageClassName="object-contain" fallback={null} />
+                  ) : (
+                    <span className={cn(mono, "text-[11px] text-[var(--pc-ink-2)]")}>{identity.company ?? m.name.initials}</span>
+                  )}
+                  <div>
+                    <Name className="text-[clamp(24px,7.2vw,30px)] font-semibold leading-[1] tracking-[-0.04em]">
+                      {m.name.first}
+                      {m.name.last && (
+                        <>
+                          <br />
+                          {m.name.last}
+                        </>
+                      )}
+                    </Name>
+                    {identity.title && <p className="mt-2 line-clamp-1 text-[12px] text-[var(--pc-ink-2)]">{identity.title}</p>}
+                  </div>
                 </div>
-              }
-            />
-            <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-[var(--pc-line)]" />
-          </div>
-          <div className="min-w-0">
-            <p className="pc-rise font-[family-name:var(--font-mono)] text-[13px] text-[var(--pc-ink-2)]" style={{ "--d": "80ms" } as React.CSSProperties}>
-              <span className="text-[var(--pc-accent)]">$</span> whoami
-            </p>
-            <Name
-              className="pc-rise mt-1 text-[clamp(30px,9vw,38px)] font-semibold leading-[1.04] tracking-[-0.035em]"
-              style={{ "--d": "130ms" } as React.CSSProperties}
-            >
-              {m.name.full}
-              <span
-                aria-hidden
-                className="ml-1 inline-block h-[0.8em] w-[0.42em] translate-y-[0.1em] bg-[var(--pc-accent)] [animation:pc-caret_1s_steps(1)_3]"
-              />
-            </Name>
-          </div>
+              </div>
+            }
+            back={
+              <div className={face}>
+                <div className="flex min-w-0 flex-1 flex-col justify-between p-[18px]">
+                  <p className="text-[15px] font-semibold tracking-[-0.02em]">{m.name.full}</p>
+                  <dl className={cn(mono, "space-y-[3px] text-[10.5px] leading-[1.45]")}>
+                    {fields.map(([key, value]) => (
+                      <div key={key} className="grid grid-cols-[34px_1fr] gap-2">
+                        <dt className="text-[var(--pc-ink-3)]">{key}</dt>
+                        <dd className={value.includes("@") ? "min-w-0 [overflow-wrap:anywhere]" : "min-w-0 truncate"}>{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+                {qrReady && (
+                  <div className="flex shrink-0 items-end p-[14px] pl-0">
+                    <span className="block size-[62px] overflow-hidden rounded-[6px] bg-white p-1">
+                      <Image src={`/api/qr/${token}`} alt="" width={54} height={54} unoptimized className="size-full" />
+                    </span>
+                  </div>
+                )}
+              </div>
+            }
+          />
         </section>
 
-        {/* Fiche en cles et valeurs */}
-        <dl
-          className="pc-rise mt-6 rounded-[14px] border border-[var(--pc-line)] bg-[var(--pc-surface)] px-4 py-3 font-[family-name:var(--font-mono)] text-[13px]"
-          style={{ "--d": "200ms" } as React.CSSProperties}
-        >
-          {fields.map(([key, value]) => (
-            <div key={key} className="grid grid-cols-[82px_1fr] gap-2 py-1">
-              <dt className="text-[var(--pc-ink-2)]">{key}</dt>
-              <dd className="break-words text-[var(--pc-ink)]">
-                <span className="text-[var(--pc-ink-3)]">&quot;</span>
-                {value}
-                <span className="text-[var(--pc-ink-3)]">&quot;</span>
-              </dd>
-            </div>
-          ))}
-          {m.availability && (
-            <div className="grid grid-cols-[82px_1fr] gap-2 py-1">
-              <dt className="text-[var(--pc-ink-2)]">status</dt>
-              <dd className="flex items-start gap-2 text-[var(--pc-accent)]">
-                <span aria-hidden className="mt-[5px] size-2 shrink-0 rounded-full bg-[var(--pc-accent)]" />
-                {m.availability}
-              </dd>
-            </div>
-          )}
-        </dl>
-
-        <div className="pc-rise mt-5" style={{ "--d": "260ms" } as React.CSSProperties}>
+        <div className="pc-rise mt-6" style={{ "--d": "240ms" } as React.CSSProperties}>
           <SaveContact
             token={profile.cardToken}
             profileId={profile.id}
             name={identity.displayName}
             preview={preview}
-            icon={null}
-            trailing={
-              <span className="inline-flex items-center gap-1.5 rounded-[6px] bg-black/10 px-2 py-1 font-[family-name:var(--font-mono)] text-[11.5px] font-medium">
-                <Download aria-hidden className="size-3" />
-                .vcf
-              </span>
-            }
-            className="h-[54px] w-full rounded-[var(--pc-radius)] bg-[var(--pc-cta)] px-5 text-[15px] font-semibold tracking-[-0.01em] text-[var(--pc-cta-ink)]"
+            icon={<UserRoundPlus className="size-[18px]" strokeWidth={2} />}
+            className="h-[52px] w-full rounded-[var(--pc-radius)] bg-[var(--pc-cta)] px-5 text-[15px] font-semibold tracking-[-0.01em] text-[var(--pc-cta-ink)]"
           />
         </div>
 
         {m.actions.length > 0 && (
-          <nav
-            aria-label="Contacter"
-            className="pc-rise mt-2.5 grid gap-2"
-            style={
-              { "--d": "310ms", gridTemplateColumns: `repeat(${m.actions.length}, minmax(0, 1fr))` } as React.CSSProperties
-            }
-          >
+          <nav aria-label="Contacter" className="pc-rise mt-2.5 grid gap-2" style={{ "--d": "290ms", gridTemplateColumns: `repeat(${m.actions.length}, minmax(0, 1fr))` } as React.CSSProperties}>
             {m.actions.map((a) => (
-              <TrackedLink
-                key={a.kind}
-                href={a.href}
-                profileId={profile.id}
-                action={a.action}
-                linkId={a.linkId}
-                preview={preview}
-                external={a.external}
-                className="flex h-[48px] items-center justify-center gap-2 rounded-[var(--pc-radius)] border border-[var(--pc-line)] font-[family-name:var(--font-mono)] text-[12.5px] hover:border-[var(--pc-accent)]"
-              >
+              <TrackedLink key={a.kind} href={a.href} profileId={profile.id} action={a.action} linkId={a.linkId} preview={preview} external={a.external} className="flex h-[46px] items-center justify-center gap-2 rounded-[var(--pc-radius)] border border-[var(--pc-line)] text-[13px] font-medium hover:border-[var(--pc-accent)]">
                 <ActionIcon kind={a.kind} className="size-[15px] text-[var(--pc-accent)]" />
-                {a.label.toLowerCase()}
+                {a.label}
               </TrackedLink>
             ))}
           </nav>
         )}
 
-        {intro && (
-          <section className="pc-inview mt-10">
-            <p className="font-[family-name:var(--font-mono)] text-[12.5px] text-[var(--pc-ink-3)]">{"/* à propos */"}</p>
-            <p className="mt-2 text-[15.5px] leading-[1.65] text-[var(--pc-ink-2)]">{intro}</p>
+        {/* A propos : portrait carre, texte a cote - la seule photographie de la page. */}
+        {(intro || identity.avatarUrl) && (
+          <section className="pc-inview mt-12 grid grid-cols-[72px_1fr] gap-4">
+            {identity.avatarUrl ? (
+              <div className="relative size-[72px] overflow-hidden rounded-[12px] bg-[var(--pc-surface)] ring-1 ring-[var(--pc-line)]">
+                <Portrait src={identity.avatarUrl} alt={identity.displayName} sizes="72px" position={m.photoPosition} className="size-full" fallback={null} />
+              </div>
+            ) : (
+              <span />
+            )}
+            <div className="min-w-0">
+              <p className={cn(mono, "text-[11px] uppercase tracking-[0.12em] text-[var(--pc-ink-3)]")}>À propos</p>
+              {intro && <p className="mt-2 text-[15.5px] leading-[1.6] text-[var(--pc-ink-2)]">{intro}</p>}
+            </div>
           </section>
         )}
 
         {m.destinations.length > 0 && (
-          <section className="mt-10">
-            <p className="font-[family-name:var(--font-mono)] text-[12.5px] text-[var(--pc-ink-3)]">{"/* liens */"}</p>
-            <ul className="mt-2">
+          <section className="mt-12">
+            <p className={cn(mono, "text-[11px] uppercase tracking-[0.12em] text-[var(--pc-ink-3)]")}>Liens</p>
+            <ul className="mt-3 border-t border-[var(--pc-line)]">
               {m.destinations.map((link) => (
                 <li key={link.id} className="pc-inview border-b border-[var(--pc-line)]">
-                  <TrackedLink
-                    href={link.href}
-                    profileId={profile.id}
-                    action="LINK"
-                    linkId={link.id.startsWith("profile-") ? null : link.id}
-                    preview={preview}
-                    external={link.external}
-                    className="group -mx-2 flex items-center gap-3 rounded-[10px] px-2 py-3.5"
-                  >
-                    <span aria-hidden className="font-[family-name:var(--font-mono)] text-[14px] text-[var(--pc-accent)] transition-transform group-hover:translate-x-0.5">
-                      →
-                    </span>
+                  <TrackedLink href={link.href} profileId={profile.id} action="LINK" linkId={link.id.startsWith("profile-") ? null : link.id} preview={preview} external={link.external} className="group flex items-center gap-3 py-3.5">
+                    <BrandIcon name={link.icon ?? link.type} className="size-[17px] shrink-0 text-[var(--pc-ink-2)]" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[15.5px] font-medium">{link.label}</span>
-                      {(link.hint ?? link.detail) && (
-                        <span className="block truncate font-[family-name:var(--font-mono)] text-[12px] text-[var(--pc-ink-2)]">
-                          {link.hint ?? link.detail}
-                        </span>
-                      )}
+                      <span className="block truncate text-[15px] font-medium">{link.label}</span>
+                      {(link.hint ?? link.detail) && <span className={cn(mono, "block truncate text-[11.5px] text-[var(--pc-ink-3)]")}>{link.hint ?? link.detail}</span>}
                     </span>
-                    <ArrowUpRight aria-hidden className="size-4 shrink-0 text-[var(--pc-ink-3)]" />
+                    <ArrowUpRight aria-hidden className="size-4 shrink-0 text-[var(--pc-ink-3)] transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[var(--pc-accent)]" />
                   </TrackedLink>
                 </li>
               ))}
@@ -194,20 +174,11 @@ export function ThemeTerminal({ profile, preview }: ThemeProps) {
         )}
 
         {m.social.length > 0 && (
-          <ul className="pc-inview mt-8 grid grid-cols-2 gap-2">
+          <ul className="pc-inview mt-8 flex flex-wrap gap-2">
             {m.social.map((link) => (
               <li key={link.id}>
-                <TrackedLink
-                  href={link.href}
-                  profileId={profile.id}
-                  action="LINK"
-                  linkId={link.id}
-                  preview={preview}
-                  external={link.external}
-                  className="flex h-11 items-center gap-2.5 rounded-[10px] bg-[var(--pc-surface)] px-3 font-[family-name:var(--font-mono)] text-[12.5px]"
-                >
-                  <BrandIcon name={link.icon ?? link.type} className="size-[16px] shrink-0" />
-                  <span className="truncate">{link.hint ?? link.label}</span>
+                <TrackedLink href={link.href} profileId={profile.id} action="LINK" linkId={link.id} preview={preview} external={link.external} ariaLabel={link.label} className="flex size-11 items-center justify-center rounded-[10px] border border-[var(--pc-line)] hover:border-[var(--pc-accent)]">
+                  <BrandIcon name={link.icon ?? link.type} className="size-[17px]" />
                 </TrackedLink>
               </li>
             ))}
@@ -215,30 +186,18 @@ export function ThemeTerminal({ profile, preview }: ThemeProps) {
         )}
 
         {m.place && m.mapHref && (
-          <TrackedLink
-            href={m.mapHref}
-            profileId={profile.id}
-            action="DIRECTIONS"
-            preview={preview}
-            external
-            className="pc-inview mt-8 flex items-center justify-between gap-3 font-[family-name:var(--font-mono)] text-[13px]"
-          >
-            <span className="min-w-0 truncate text-[var(--pc-ink-2)]">{"// "}{m.place}</span>
-            <span className="shrink-0 text-[var(--pc-accent)]">itinéraire →</span>
+          <TrackedLink href={m.mapHref} profileId={profile.id} action="DIRECTIONS" preview={preview} external className="pc-inview mt-8 flex items-center justify-between gap-3 border-t border-[var(--pc-line)] pt-4 text-[13.5px]">
+            <span className="min-w-0 truncate text-[var(--pc-ink-2)]">{m.place}</span>
+            <span className="flex shrink-0 items-center gap-1 font-medium">
+              Itinéraire
+              <ArrowUpRight aria-hidden className="size-3.5 text-[var(--pc-accent)]" />
+            </span>
           </TrackedLink>
         )}
 
-        <footer className="mt-12 flex items-center justify-between border-t border-[var(--pc-line)] pt-4 font-[family-name:var(--font-mono)] text-[12px] text-[var(--pc-ink-3)]">
-          <span>carte nfc · tap</span>
-          <ShareControl
-            url={profile.canonicalUrl}
-            title={identity.displayName}
-            profileId={profile.id}
-            preview={preview}
-            showLabel
-            label="partager"
-            className="h-9 rounded-[8px] px-2 text-[var(--pc-ink)]"
-          />
+        <footer className={cn(mono, "mt-12 flex items-center justify-between border-t border-[var(--pc-line)] pt-4 text-[11.5px] text-[var(--pc-ink-3)]")}>
+          <span>Carte NFC · Tap</span>
+          <ShareControl url={profile.canonicalUrl} title={identity.displayName} profileId={profile.id} preview={preview} showLabel label="Partager" className="h-9 rounded-[8px] px-2 text-[var(--pc-ink)]" />
         </footer>
       </div>
     </main>

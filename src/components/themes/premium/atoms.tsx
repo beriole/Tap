@@ -429,7 +429,7 @@ export function FlipCard({
         style={{ transformStyle: "preserve-3d" }}
         className={cn("relative block w-full cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--pc-accent)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--pc-bg)]", className)}
       >
-        <div aria-hidden={flipped} className="relative [backface-visibility:hidden]">
+        <div aria-hidden={flipped} className="absolute inset-0 [backface-visibility:hidden]">
           {front}
         </div>
         <div aria-hidden={!flipped} className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
