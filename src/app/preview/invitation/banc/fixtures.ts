@@ -22,7 +22,8 @@ const reference: RawInvitationEvent = {
   startsAt: new Date("2026-12-12T13:00:00Z"),
   endsAt: null,
   timezone: "Africa/Douala",
-  heroImageUrl: "/demo/cover.jpg",
+  // Une vraie photographie : l image abstraite de demo faussait le jugement.
+  heroImageUrl: "https://res.cloudinary.com/sz6vjbkr/image/upload/samples/landscapes/girl-urban-view.jpg",
   contentUpdatedAt: null,
   publishedAt: new Date("2026-09-10T09:00:00Z"),
   themeKey: "royal-ivory",

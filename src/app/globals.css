@@ -573,6 +573,68 @@ body {
   }
 }
 
+/* Parallaxe d image, pilotee par le DEFILEMENT et non par le temps : l image
+ * derive lentement dans son cadre pendant qu elle traverse l ecran. Sans
+ * JavaScript, sans listener de scroll. La mise a l echelle evite les bords
+ * vides ; les navigateurs sans animation-timeline n ont simplement pas
+ * l effet. */
+@keyframes pc-parallax {
+  from {
+    transform: translate3d(0, -5%, 0) scale(1.14);
+  }
+  to {
+    transform: translate3d(0, 5%, 0) scale(1.14);
+  }
+}
+
+@utility pc-parallax {
+  @supports (animation-timeline: view()) {
+    animation: pc-parallax linear both;
+    animation-timeline: view();
+    animation-range: entry 0% exit 100%;
+  }
+}
+
+/* Indice de defilement : un filet qui se remplit, une fois toutes les 2,4 s. */
+@keyframes pc-cue {
+  0% {
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  40% {
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+  60% {
+    transform: scaleY(1);
+    transform-origin: bottom;
+  }
+  100% {
+    transform: scaleY(0);
+    transform-origin: bottom;
+  }
+}
+
+@utility pc-cue {
+  animation: pc-cue 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+/* Sous pli : tant que l enveloppe est fermee, la page dessous garde ses
+ * entrees en attente. Sans cela, l invite ouvre le pli sur une page deja
+ * animee - donc figee - et le geste ne revele rien. L attribut est pose par le
+ * serveur (le theme sait s il y a une enveloppe) et retire par
+ * components/invitations/envelope.tsx quand le carton sort. */
+[data-sealed] .pc-rise,
+[data-sealed] .pc-fade,
+[data-sealed] .pc-unveil,
+[data-sealed] .pc-draw,
+[data-sealed] .pc-lift,
+[data-sealed] .pc-settle,
+[data-sealed] .pc-inview,
+[data-sealed] .pc-parallax {
+  animation-play-state: paused;
+}
+
 /* Invitations : une enseigne qui s allume (une fois), des ballons qui flottent. */
 @keyframes inv-flicker {
   0%, 12%, 20%, 34% { opacity: 0.15; }
@@ -609,6 +671,8 @@ body {
   .halo,
   .live-dot::after,
   .pc-inview,
+  .pc-parallax,
+  .pc-cue,
   .pc-skeleton {
     animation: none !important;
   }

@@ -63,8 +63,9 @@ export function SectionBody({ section, styles, align = "center" }: { section: In
       return (
         <ol className={cn("divide-y", styles.rule, centered && "mx-auto max-w-[340px]")}>
           {section.data.items.map((item, i) => (
-            <li key={i} className="grid grid-cols-[4.75rem_1fr] items-baseline gap-4 py-4">
-              <span className={cn("text-right tabular-nums", styles.emphasis)}>{item.time.replace(":", " h ")}</span>
+            <li key={i} className="grid grid-cols-[5.5rem_1fr] items-baseline gap-4 py-4">
+              {/* L heure ne se coupe jamais : "10 h 30" sur deux lignes ruine la colonne. */}
+              <span className={cn("whitespace-nowrap text-right tabular-nums", styles.emphasis)}>{item.time.replace(":", " h ")}</span>
               <span className={cn("text-left [overflow-wrap:anywhere]", styles.body)}>{item.label}</span>
             </li>
           ))}
@@ -265,11 +266,12 @@ export function ThemeShell(p: ThemeShellProps) {
     <main style={p.vars as React.CSSProperties} className={cn("relative min-h-dvh overflow-x-clip font-[family-name:var(--app-font-sans)] antialiased", p.dark ? "[color-scheme:dark]" : "[color-scheme:light]", p.mainClassName)}>
       {view.envelope && (
         <div style={p.envelope as React.CSSProperties}>
-          <Envelope recipient={dear} monogram={monogram(view)} />
+          <Envelope recipient={dear ? `Pour ${dear}` : null} monogram={monogram(view)} hosts={event.hosts} />
         </div>
       )}
       {p.before}
-      <div className={cn("mx-auto w-full max-w-[460px] break-words px-5 pb-28", p.containerClassName)}>
+      {/* data-sealed : les entrees attendent l ouverture du pli (globals.css). */}
+      <div data-sealed={view.envelope ? "" : undefined} className={cn("mx-auto w-full max-w-[460px] break-words px-5 pb-28", p.containerClassName)}>
         {p.hero}
         {event.heroImageUrl && p.photo}
         {blocks.map((b, i) => p.section({ key: b.key, index: i, title: b.title, children: b.body }))}

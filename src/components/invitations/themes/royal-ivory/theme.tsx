@@ -4,32 +4,32 @@ import type { InvitationView, RsvpFormData } from "@/types/invitation";
 import { Envelope } from "../../envelope";
 import { RsvpDock } from "../../rsvp-dock";
 import { RsvpBlock, SectionBody, VenueList, countdownText, ctaLabel, monogram, salutation, type SectionStyles } from "../../shared";
+import { greatVibes } from "../fonts";
 import { royalIvoryDisplay } from "./font";
 
 /**
- * ROYAL IVORY - papeterie gravee.
+ * ROYAL IVORY - le faire-part grave, en composition editoriale.
  *
- * Le parti pris : un faire-part qu on aurait pu recevoir sous pli, pas une
- * application. Pas une carte posee sur un fond : la page EST le papier.
+ * Le parti pris : la page EST le papier, et la lecture se deroule comme une
+ * papeterie de mariage qu on ouvre feuille apres feuille - le pli, l ouverture,
+ * le mot des maries, la photographie pleine largeur, les lieux, le programme,
+ * la reponse. Aucune carte, aucun rectangle d application : des sections
+ * ouvertes, des filets d un pixel, et beaucoup d air entre elles.
  *
- * La signature est le cartouche de date - le jour en didone monumentale entre
- * deux filets verticaux, le jour de la semaine et le mois graves en petites
- * capitales de part et d autre. C est l information que l invite doit
- * retenir ; c est donc la seule audace de la page. Tout le reste est calme :
- * filets d un pixel, petites capitales espacees, italique pour les heures.
+ * Trois signatures :
+ *  - le cartouche de date : le quantieme en didone monumentale entre deux
+ *    filets verticaux, la semaine et le mois graves en petites capitales ;
+ *  - le mot des maries, compose en grand italique, seul sur sa page ;
+ *  - la photographie pleine largeur qui derive dans son cadre au defilement
+ *    (parallaxe CSS, sans JavaScript ni ecouteur de scroll).
  *
- * L accent (champagne, rose poudre, sauge) sert a SIGNALER - filets, fleurons,
- * heures - jamais a remplir une surface. Le bouton est a l encre.
+ * L accent (champagne, rose poudre, sauge) SIGNALE - filets, fleurons, heures.
+ * Il ne remplit jamais une surface. Le bouton reste a l encre.
  *
- * Premier ecran, de 360 a 430 px : destinataire, noms, date, bouton de
- * reponse. La photo, les lieux et le reste viennent apres (§12.1 hierarchie).
- *
- * Mouvement : l ESSENTIEL du premier ecran - noms, date, bouton - n a aucune
- * entree. Il est la au premier rendu, meme sur un telephone lent (§12.1 "les
- * animations ne doivent jamais retarder l acces aux informations
- * essentielles"). Mesure en 4G lente : les entrees retardaient l affichage
- * des noms. Seuls les ornements (filets, esperluette, mentions secondaires)
- * gardent une entree CSS, neutralisee par prefers-reduced-motion.
+ * Mouvement : hors enveloppe, l essentiel du premier ecran - noms, date,
+ * bouton - n a aucune entree temporisee ; il est la au premier rendu, meme sur
+ * un telephone lent. Sous enveloppe, les entrees attendent l ouverture du pli
+ * (data-sealed, voir globals.css et components/invitations/envelope.tsx).
  */
 
 type Palette = { bg: string; paper: string; ink: string; ink2: string; line: string; rule: string; accentText: string };
@@ -66,14 +66,23 @@ const EYEBROW: Record<InvitationView["event"]["type"], string> = {
   OTHER: "Invitation",
 };
 
+/** Le mot d accueil, quand l organisateur n en a pas ecrit un. */
+const WELCOME: Record<InvitationView["event"]["type"], string> = {
+  WEDDING: "Nous serions heureux de partager avec vous l’un des plus beaux jours de notre histoire.",
+  BIRTHDAY: "Nous serions heureux de vous compter parmi nous pour fêter cette journée.",
+  CORPORATE: "Nous serions honorés de vous compter parmi nos invités.",
+  MEMORIAL: "Votre présence et vos prières nous accompagnent.",
+  OTHER: "Nous serions heureux de vous compter parmi nous.",
+};
+
 const smallCaps = "text-[11px] font-medium uppercase tracking-[0.3em]";
 const delay = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
 
 /** Taille des noms selon leur longueur : un prenom de douze lettres ne doit pas deborder a 360 px. */
 function nameSize(longest: number): string {
-  if (longest <= 8) return "text-[clamp(52px,16vw,68px)]";
-  if (longest <= 12) return "text-[clamp(42px,12.5vw,56px)]";
-  if (longest <= 18) return "text-[clamp(34px,9.5vw,44px)]";
+  if (longest <= 8) return "text-[clamp(56px,17vw,76px)]";
+  if (longest <= 12) return "text-[clamp(44px,13vw,60px)]";
+  if (longest <= 18) return "text-[clamp(34px,9.5vw,46px)]";
   return "text-[clamp(28px,7.5vw,36px)]";
 }
 
@@ -82,6 +91,16 @@ export function RoyalIvory({ view, rsvpForm }: { view: InvitationView; rsvpForm?
   const p = palette(theme.settings.variant, theme.settings.accent);
   const longest = Math.max(...event.hostParts.map((h) => h.length));
   const dear = salutation(view);
+
+  /**
+   * Le premier texte libre SANS titre devient le mot des maries, compose en
+   * grand : c est la phrase qu on lit avant les informations pratiques. Il ne
+   * redescend donc pas dans la liste des rubriques. A defaut, une phrase
+   * d accueil selon le type d evenement.
+   */
+  const wordSection = sections.find((s) => s.kind === "custom" && !s.title);
+  const word = wordSection?.kind === "custom" ? wordSection.data.text : null;
+  const rest = sections.filter((s) => s !== wordSection);
 
   const style = {
     "--ri-bg": p.bg,
@@ -110,6 +129,8 @@ export function RoyalIvory({ view, rsvpForm }: { view: InvitationView; rsvpForm?
     "--env-seal": p.accentText,
     "--env-seal-ink": p.bg,
     "--env-font": "var(--ri-display)",
+    // Le nom de l invite, ecrit a la main sur le pli : la seule calligraphie.
+    "--env-script": "var(--inv-script)",
   } as React.CSSProperties;
 
   // Le formulaire reprend la palette de la page.
@@ -124,145 +145,175 @@ export function RoyalIvory({ view, rsvpForm }: { view: InvitationView; rsvpForm?
     "--rsvp-font": "var(--ri-display)",
   } as React.CSSProperties;
 
-
   return (
     <main
       style={style}
       className={cn(
         royalIvoryDisplay.variable,
-        "min-h-dvh bg-[var(--ri-bg)] font-[family-name:var(--app-font-sans)] text-[var(--ri-ink)] antialiased [color-scheme:light]",
+        greatVibes.variable,
+        "min-h-dvh overflow-x-clip bg-[var(--ri-bg)] font-[family-name:var(--app-font-sans)] text-[var(--ri-ink)] antialiased [color-scheme:light]",
         theme.settings.variant === "nuit" && "[color-scheme:dark]",
       )}
     >
-      {/* break-words : tout texte saisi par l organisateur peut contenir un mot
-          interminable. Il ne se coupe qu en dernier recours, sans changer la
-          largeur minimale des grilles (contrairement a overflow-wrap:anywhere). */}
       {view.envelope && (
         <div style={envelopeStyle}>
-          <Envelope recipient={dear} monogram={monogram(view)} />
+          <Envelope recipient={dear ? `Pour ${dear}` : null} monogram={monogram(view)} hosts={event.hosts} />
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-[460px] break-words px-6 pb-28 pt-[max(20px,env(safe-area-inset-top))]">
-        {event.updatedNote && (
-          <p className={cn(smallCaps, "pc-fade pt-1 text-center text-[10px] text-[var(--ri-accent)]")}>{event.updatedNote}</p>
-        )}
-
-        {/* ------------------------------------------------ PREMIER ECRAN -- */}
-        <header className="flex min-h-[calc(100svh-40px)] flex-col items-center justify-center py-10 text-center">
-          {dear && (
-            <p className="pc-fade mb-7 text-[14px] italic text-[var(--ri-ink-2)] [font-family:var(--ri-display)]" style={delay(0)}>
-              À l’attention de {dear}
-            </p>
+      {/* break-words : tout texte saisi par l organisateur peut contenir un mot
+          interminable. Il ne se coupe qu en dernier recours, sans changer la
+          largeur minimale des grilles (contrairement a overflow-wrap:anywhere). */}
+      <div data-sealed={view.envelope ? "" : undefined} className="mx-auto w-full max-w-[460px] break-words pb-28">
+        <div className="px-6 pt-[max(20px,env(safe-area-inset-top))]">
+          {event.updatedNote && (
+            <p className={cn(smallCaps, "pc-fade pt-1 text-center text-[10px] text-[var(--ri-accent)]")}>{event.updatedNote}</p>
           )}
 
-          <p className={cn(smallCaps, "pc-fade text-[var(--ri-accent)]")} style={delay(80)}>
-            {EYEBROW[event.type]}
-          </p>
-
-          <h1 className="mt-7 font-normal [font-family:var(--ri-display)] [font-optical-sizing:auto]">
-            {event.hostParts.length === 2 ? (
-              <>
-                <span className={cn("block leading-[0.95] tracking-[-0.015em] [overflow-wrap:anywhere]", nameSize(longest))}>
-                  {event.hostParts[0]}
-                </span>
-                <span className="pc-fade my-2 flex items-center justify-center gap-4" style={delay(260)}>
-                  <span aria-hidden className="pc-draw h-px w-10 bg-[var(--ri-rule)]" style={{ ...delay(320), transformOrigin: "right" }} />
-                  <span className="text-[34px] italic leading-none text-[var(--ri-accent)]">&amp;</span>
-                  <span aria-hidden className="pc-draw h-px w-10 bg-[var(--ri-rule)]" style={delay(320)} />
-                </span>
-                <span className={cn("block leading-[0.95] tracking-[-0.015em] [overflow-wrap:anywhere]", nameSize(longest))}>
-                  {event.hostParts[1]}
-                </span>
-              </>
-            ) : (
-              <span className={cn("block leading-[1] tracking-[-0.015em] [overflow-wrap:anywhere] [text-wrap:balance]", nameSize(longest))}>
-                {event.hostParts[0]}
-              </span>
-            )}
-          </h1>
-
-          <DateCartouche view={view} />
-
-          {theme.settings.countdown && event.daysLeft !== null && (
-            <p className="pc-fade mt-4 text-[15px] italic text-[var(--ri-ink-2)] [font-family:var(--ri-display)]" style={delay(560)}>
-              {countdownText(event.daysLeft)}
-            </p>
-          )}
-
-          <div id="ri-hero-cta" data-hero-cta className="mt-9 w-full max-w-[320px]">
-            <a href="#rsvp" className={button}>
-              {ctaLabel(view)}
-            </a>
-            {rsvp.deadline && !rsvp.closed && (
-              <p className="mt-3 text-[12.5px] text-[var(--ri-ink-2)]">
-                Réponse souhaitée avant le {rsvp.deadline.day} {rsvp.deadline.month}
+          {/* --------------------------------------------- L OUVERTURE -- */}
+          <header className="flex min-h-[calc(100svh-40px)] flex-col items-center justify-center py-10 text-center">
+            {dear && (
+              <p
+                className="pc-fade mb-8 text-[clamp(22px,6.8vw,28px)] leading-none text-[var(--ri-accent)] [font-family:var(--inv-script)]"
+                style={delay(0)}
+              >
+                Pour {dear}
               </p>
             )}
-          </div>
-        </header>
 
-        {/* ------------------------------------------------------ PHOTO -- */}
-        {event.heroImageUrl && (
-          <figure className="pc-inview -mx-6 mb-20">
-            <div className="relative aspect-[4/5] w-full overflow-hidden bg-[var(--ri-paper)]">
-              <Image
-                src={event.heroImageUrl}
-                alt={`${event.hosts}`}
-                fill
-                sizes="(max-width: 460px) 100vw, 460px"
-                className="object-cover"
-              />
+            <p className={cn(smallCaps, "pc-fade text-[var(--ri-ink-2)]")} style={delay(80)}>
+              {EYEBROW[event.type]}
+            </p>
+
+            <h1 className="mt-7 font-normal [font-family:var(--ri-display)] [font-optical-sizing:auto]">
+              {event.hostParts.length === 2 ? (
+                <>
+                  <span className={cn("block leading-[0.92] tracking-[-0.02em] [overflow-wrap:anywhere]", nameSize(longest))}>
+                    {event.hostParts[0]}
+                  </span>
+                  <span className="pc-fade my-1.5 flex items-center justify-center gap-4" style={delay(260)}>
+                    <span aria-hidden className="pc-draw h-px w-12 bg-[var(--ri-rule)]" style={{ ...delay(320), transformOrigin: "right" }} />
+                    <span className="text-[30px] italic leading-none text-[var(--ri-accent)]">&amp;</span>
+                    <span aria-hidden className="pc-draw h-px w-12 bg-[var(--ri-rule)]" style={delay(320)} />
+                  </span>
+                  <span className={cn("block leading-[0.92] tracking-[-0.02em] [overflow-wrap:anywhere]", nameSize(longest))}>
+                    {event.hostParts[1]}
+                  </span>
+                </>
+              ) : (
+                <span className={cn("block leading-[1] tracking-[-0.02em] [overflow-wrap:anywhere] [text-wrap:balance]", nameSize(longest))}>
+                  {event.hostParts[0]}
+                </span>
+              )}
+            </h1>
+
+            <DateCartouche view={view} />
+
+            {theme.settings.countdown && event.daysLeft !== null && (
+              <p className="pc-fade mt-4 text-[15px] italic text-[var(--ri-ink-2)] [font-family:var(--ri-display)]" style={delay(560)}>
+                {countdownText(event.daysLeft)}
+              </p>
+            )}
+
+            <div id="ri-hero-cta" data-hero-cta className="mt-9 w-full max-w-[320px]">
+              <a href="#rsvp" className={button}>
+                {ctaLabel(view)}
+              </a>
+              {rsvp.deadline && !rsvp.closed && (
+                <p className="mt-3 text-[12.5px] text-[var(--ri-ink-2)]">
+                  Réponse souhaitée avant le {rsvp.deadline.day} {rsvp.deadline.month}
+                </p>
+              )}
             </div>
+
+            {/* Le filet d appel : il dit qu il y a une suite, sans l ecrire. */}
+            <span aria-hidden className="mt-10 block h-10 w-px overflow-hidden bg-[var(--ri-line)]">
+              <span className="pc-cue block h-full w-full bg-[var(--ri-rule)]" />
+            </span>
+          </header>
+        </div>
+
+        {/* ---------------------------------------------------- LE MOT -- */}
+        <section className="pc-inview px-8 pb-20 pt-4 text-center">
+          <Fleuron />
+          <p className="mx-auto mt-8 max-w-[19rem] whitespace-pre-line text-[clamp(20px,5.6vw,24px)] italic leading-[1.55] tracking-[-0.01em] [font-family:var(--ri-display)] [text-wrap:pretty]">
+            {word ?? WELCOME[event.type]}
+          </p>
+          {!word && event.hostParts.length === 2 && (
+            <p className={cn(smallCaps, "mt-8 text-[10px] text-[var(--ri-ink-2)]")}>{event.hosts}</p>
+          )}
+        </section>
+
+        {/* -------------------------------------------------- LA PHOTO -- */}
+        {event.heroImageUrl && (
+          <figure className="pc-inview mb-20">
+            <div className="relative aspect-[3/4] w-full overflow-hidden bg-[var(--ri-paper)]">
+              {/* La derive se fait sur un calque a part : l image garde son
+                  object-fit, et le cadre reste net. */}
+              <div className="pc-parallax absolute inset-0">
+                <Image
+                  src={event.heroImageUrl}
+                  alt={event.hosts}
+                  fill
+                  sizes="(max-width: 460px) 100vw, 460px"
+                  className="object-cover"
+                />
+              </div>
+            </div>
+            <figcaption className={cn(smallCaps, "mt-4 px-6 text-center text-[10px] text-[var(--ri-ink-2)]")}>
+              {event.hostParts.join(" · ")}
+            </figcaption>
           </figure>
         )}
 
-        {/* ------------------------------------------------------ LIEUX -- */}
-        {venues.length > 0 && (
-          <Section title={venues.length > 1 ? "Les lieux" : "Le lieu"}>
-            <VenueList venues={venues} styles={styles} preview={preview} />
-          </Section>
-        )}
+        <div className="px-6">
+          {/* ---------------------------------------------- LES LIEUX -- */}
+          {venues.length > 0 && (
+            <Section title={venues.length > 1 ? "Les lieux" : "Le lieu"}>
+              <VenueList venues={venues} styles={styles} preview={preview} />
+            </Section>
+          )}
 
-        {sections.map((section) => (
-          <Section key={section.id} title={section.title}>
-            <SectionBody section={section} styles={styles} />
-          </Section>
-        ))}
+          {rest.map((section) => (
+            <Section key={section.id} title={section.title}>
+              <SectionBody section={section} styles={styles} />
+            </Section>
+          ))}
 
-        {/* ------------------------------------------------- REPONSE -- */}
-        <div className="pt-4">
-          <RsvpBlock
-            view={view}
-            rsvpForm={rsvpForm}
-            rsvpStyle={rsvpStyle}
-            styles={styles}
-            button={button}
-            title={
-              <>
-                <Fleuron />
-                <h2 className={cn(styles.heading, "mt-5")}>Votre réponse</h2>
-              </>
-            }
-          />
+          {/* ------------------------------------------------- REPONSE -- */}
+          <div className="pt-4">
+            <RsvpBlock
+              view={view}
+              rsvpForm={rsvpForm}
+              rsvpStyle={rsvpStyle}
+              styles={styles}
+              button={button}
+              title={
+                <>
+                  <Fleuron />
+                  <h2 className={cn(styles.heading, "mt-5")}>Votre réponse</h2>
+                </>
+              }
+            />
+          </div>
+
+          <footer className="mt-24 text-center">
+            <p className="text-[26px] leading-none [font-family:var(--ri-display)]">
+              {event.hostParts.length === 2 ? (
+                <>
+                  {event.hostParts[0]!.charAt(0)}
+                  <span className="mx-1.5 italic text-[var(--ri-accent)]">&amp;</span>
+                  {event.hostParts[1]!.charAt(0)}
+                </>
+              ) : (
+                event.hostParts[0]
+              )}
+            </p>
+            <p className={cn(smallCaps, "mt-3 text-[10px] text-[var(--ri-ink-2)]")}>
+              {event.starts.day} {event.starts.month} {event.starts.year}
+            </p>
+          </footer>
         </div>
-
-        <footer className="mt-24 text-center">
-          <p className="text-[22px] leading-none [font-family:var(--ri-display)]">
-            {event.hostParts.length === 2 ? (
-              <>
-                {event.hostParts[0]!.charAt(0)}
-                <span className="mx-1.5 italic text-[var(--ri-accent)]">&amp;</span>
-                {event.hostParts[1]!.charAt(0)}
-              </>
-            ) : (
-              event.hostParts[0]
-            )}
-          </p>
-          <p className={cn(smallCaps, "mt-3 text-[10px] text-[var(--ri-ink-2)]")}>
-            {event.starts.day} {event.starts.month} {event.starts.year}
-          </p>
-        </footer>
       </div>
 
       {!rsvp.closed && (
@@ -291,6 +342,25 @@ const styles: SectionStyles = {
   link: "border-b border-[var(--ri-rule)] text-[13px] font-medium uppercase tracking-[0.16em] transition-colors hover:text-[var(--ri-accent)]",
 };
 
+/** Une rubrique : un fleuron, un titre grave, du contenu. Jamais un cadre. */
+function Section({ title, children }: { title: string | null; children: React.ReactNode }) {
+  return (
+    <section className="pc-inview mb-20">
+      {title ? (
+        <header className="mb-10 text-center">
+          <Fleuron />
+          <h2 className={cn(styles.heading, "mt-5 [overflow-wrap:anywhere]")}>{title}</h2>
+        </header>
+      ) : (
+        <div className="mb-10 flex justify-center">
+          <Fleuron />
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
 /**
  * Le cartouche : SAMEDI | 12 | DECEMBRE 2026.
  * Le jour en chiffres de titrage, les deux cotes en capitales gravees.
@@ -303,12 +373,8 @@ function DateCartouche({ view }: { view: InvitationView }) {
         {starts.long}, {starts.time}
       </p>
       <div aria-hidden className="grid grid-cols-[1fr_auto_1fr] items-center">
-        <span className={cn(smallCaps, "text-right text-[var(--ri-ink-2)]")}>
-          {starts.weekday}
-        </span>
-        <span
-          className="mx-5 border-x border-[var(--ri-rule)] px-5 text-[clamp(64px,19vw,88px)] leading-[0.9] tabular-nums [font-family:var(--ri-display)] [font-variant-numeric:lining-nums]"
-        >
+        <span className={cn(smallCaps, "text-right text-[var(--ri-ink-2)]")}>{starts.weekday}</span>
+        <span className="mx-5 border-x border-[var(--ri-rule)] px-5 text-[clamp(64px,19vw,88px)] leading-[0.9] tabular-nums [font-family:var(--ri-display)] [font-variant-numeric:lining-nums]">
           {starts.day}
         </span>
         <span className={cn(smallCaps, "text-left leading-[1.9] text-[var(--ri-ink-2)]")}>
@@ -331,16 +397,5 @@ function Fleuron() {
       <span className="size-[5px] rotate-45 bg-[var(--ri-rule)]" />
       <span className="h-px w-7 bg-[var(--ri-rule)]" />
     </span>
-  );
-}
-
-function Section({ title, children }: { title: string | null; children: React.ReactNode }) {
-  return (
-    <section className="pc-inview mb-20">
-      <Fleuron />
-      {title && <h2 className={cn(styles.heading, "mb-9 mt-5 text-center [overflow-wrap:anywhere]")}>{title}</h2>}
-      {!title && <div className="mb-9" />}
-      {children}
-    </section>
   );
 }
