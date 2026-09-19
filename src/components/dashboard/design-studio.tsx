@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "motion/react";
-import { ArrowUpRight, Check, Loader2, Maximize2, X } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { ArrowUpRight, Check, Loader2, Maximize2, RotateCw } from "lucide-react";
 import {
   FAMILIES,
   PREMIUM_ENGINES,
@@ -12,8 +12,8 @@ import {
   type EngineFamily,
   type PhotoFocus,
   type PremiumEngine,
-  type PremiumShape,
 } from "@/config/premium-themes";
+import { Device, EASE, FullscreenPreview, TWO_SIDED, previewUrl, type Settings } from "./design-preview";
 import { SectionTitle, Surface } from "@/components/app/ui";
 import { cn } from "@/lib/utils";
 
@@ -32,25 +32,6 @@ import { cn } from "@/lib/utils";
  * proportions, contrastes et animations appartiennent au design.
  */
 
-type Settings = {
-  engine: PremiumEngine;
-  variant: string;
-  accent: string | null;
-  shape: PremiumShape;
-  photo: PhotoFocus;
-};
-
-const EASE = [0.22, 1, 0.36, 1] as const;
-
-function previewUrl(s: Partial<Settings> & { engine: PremiumEngine }) {
-  const q = new URLSearchParams({ key: s.engine });
-  if (s.variant) q.set("variant", s.variant);
-  if (s.accent) q.set("accent", s.accent);
-  if (s.shape) q.set("shape", s.shape);
-  if (s.photo) q.set("photo", s.photo);
-  return `/preview/theme?${q.toString()}`;
-}
-
 export function DesignStudio({
   current,
   isLegacy,
@@ -68,13 +49,17 @@ export function DesignStudio({
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [family, setFamily] = useState<EngineFamily | "all">("all");
+  /** Design en cours d enregistrement, puis celui qui vient d etre applique. */
+  const [applying, setApplying] = useState<PremiumEngine | null>(null);
+  const [justApplied, setJustApplied] = useState<PremiumEngine | null>(null);
+  const reduced = useReducedMotion();
   const shown = PREMIUM_ENGINES.filter((e) => family === "all" || e.family === family);
 
   const engine = PREMIUM_ENGINES.find((e) => e.key === draft.engine)!;
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved) || isLegacy;
 
   const persist = useCallback(
-    async (next: Settings) => {
+    async (next: Settings): Promise<string | null> => {
       const def = PREMIUM_ENGINES.find((e) => e.key === next.engine)!;
       const variant = def.variants.find((v) => v.key === next.variant) ?? def.variants[0];
       setMessage(null);
@@ -98,19 +83,29 @@ export function DesignStudio({
 
       if (!response.ok) {
         const body = await response.json().catch(() => null);
-        setMessage({ ok: false, text: body?.error ?? "Enregistrement impossible." });
-        return false;
+        const text: string = body?.error ?? "Enregistrement impossible.";
+        setMessage({ ok: false, text });
+        return text;
       }
       setSaved(next);
       setMessage({ ok: true, text: "Design enregistré. Votre carte l’affiche dès maintenant." });
       startTransition(() => router.refresh());
-      return true;
+      return null;
     },
     [router],
   );
 
+  useEffect(() => {
+    if (!justApplied) return;
+    const t = window.setTimeout(() => setJustApplied(null), 2800);
+    return () => window.clearTimeout(t);
+  }, [justApplied]);
+
+  const toCustomize = () =>
+    document.getElementById("personnaliser")?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+
   /** "Utiliser ce design" : reglages par defaut du design, enregistres aussitot. */
-  function adopt(key: PremiumEngine, variant?: string) {
+  async function apply(key: PremiumEngine, variant?: string) {
     const def = PREMIUM_ENGINES.find((e) => e.key === key)!;
     const next: Settings =
       key === saved.engine && !isLegacy && (!variant || variant === saved.variant)
@@ -123,11 +118,34 @@ export function DesignStudio({
             photo: draft.photo,
           };
     setDraft(next);
-    setFullscreen(null);
-    startTransition(async () => {
-      const ok = await persist(next);
-      if (ok) document.getElementById("personnaliser")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    setApplying(key);
+    const error = await persist(next);
+    setApplying(null);
+    if (!error) setJustApplied(key);
+    return error;
+  }
+
+  /** Depuis le catalogue : on reste sur la carte, qui confirme sur place. */
+  function adopt(key: PremiumEngine) {
+    startTransition(async () => void (await apply(key)));
+  }
+
+  /**
+   * Depuis l apercu : le bouton confirme "Design applique" dans la scene,
+   * puis la scene se retire et on descend vers les reglages.
+   */
+  async function adoptFromPreview(key: PremiumEngine, variant: string) {
+    const error = await apply(key, variant);
+    if (!error) {
+      window.setTimeout(
+        () => {
+          setFullscreen(null);
+          window.setTimeout(toCustomize, 320);
+        },
+        reduced ? 500 : 1100,
+      );
+    }
+    return error;
   }
 
   return (
@@ -173,6 +191,7 @@ export function DesignStudio({
         <ul className="-mx-4 flex snap-x snap-mandatory gap-6 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-2 md:gap-x-8 md:gap-y-14 md:overflow-visible md:px-0 xl:grid-cols-3">
           {shown.map((e) => {
             const active = saved.engine === e.key && !isLegacy;
+            const busy = applying === e.key;
             return (
               <li key={e.key} className="group/card w-[280px] shrink-0 snap-center md:w-auto">
                 {/* La scene : le design pose sur SA propre matiere (le fond de sa
@@ -204,9 +223,31 @@ export function DesignStudio({
                   <span className="relative mx-auto block w-fit translate-y-2 transition-transform duration-500 ease-[var(--ease-settle)] group-hover/card:-translate-y-1">
                     <Device src={previewUrl(active ? saved : { engine: e.key })} width={220} height={430} interactive={false} lazy />
                   </span>
-                  <span className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full bg-black/40 text-white opacity-0 backdrop-blur transition-opacity duration-200 group-hover/card:opacity-100">
+                  {TWO_SIDED.has(e.key) && (
+                    <span className="absolute left-3 top-3 z-[4] flex h-6 items-center gap-1 rounded-full bg-black/45 px-2.5 text-[0.62rem] font-medium uppercase tracking-[0.12em] text-white backdrop-blur">
+                      <RotateCw aria-hidden className="size-3" />
+                      Recto · verso
+                    </span>
+                  )}
+                  <span className="absolute right-3 top-3 z-[4] flex size-8 items-center justify-center rounded-full bg-black/40 text-white opacity-0 backdrop-blur transition-opacity duration-200 group-hover/card:opacity-100 group-focus-within/card:opacity-100">
                     <Maximize2 className="size-3.5" />
                   </span>
+                  {/* Confirmation sur place : le design vient d etre applique. */}
+                  <AnimatePresence>
+                    {justApplied === e.key && (
+                      <motion.span
+                        role="status"
+                        className="absolute inset-x-0 bottom-5 z-[4] mx-auto flex h-9 w-fit items-center gap-1.5 rounded-full bg-[var(--brand-ink)] px-4 text-[0.78rem] font-semibold text-[var(--brand-paper)] shadow-[0_10px_30px_-12px_rgb(0_0_0/0.6)]"
+                        initial={reduced ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.94 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={reduced ? { duration: 0.2 } : { type: "spring", stiffness: 380, damping: 28 }}
+                      >
+                        <Check className="size-3.5 text-[var(--state-live)]" strokeWidth={3} />
+                        Design appliqué
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </button>
 
                 <div className="mt-4 flex items-baseline justify-between gap-3">
@@ -235,15 +276,20 @@ export function DesignStudio({
                   <button
                     type="button"
                     onClick={() => adopt(e.key)}
-                    disabled={pending || active}
-                    className="h-10 whitespace-nowrap rounded-full bg-[var(--brand-ink)] px-4 text-[0.82rem] font-semibold text-[var(--brand-paper)] transition-[transform,opacity] hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-40"
+                    disabled={pending || applying !== null || active}
+                    aria-busy={busy}
+                    className={cn(
+                      "flex h-11 items-center gap-2 whitespace-nowrap rounded-full bg-[var(--brand-ink)] px-4 text-[0.82rem] font-semibold text-[var(--brand-paper)] transition-[transform,opacity] hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-copper)] disabled:translate-y-0",
+                      !busy && "disabled:opacity-40",
+                    )}
                   >
-                    {active ? "Utilisé" : "Utiliser ce design"}
+                    {busy && <Loader2 className="size-3.5 animate-spin" />}
+                    {busy ? "Application…" : active ? "Utilisé" : "Utiliser ce design"}
                   </button>
                   <button
                     type="button"
                     onClick={() => setFullscreen(e.key)}
-                    className="h-10 text-[0.82rem] font-medium underline-offset-4 hover:underline"
+                    className="h-11 px-1 text-[0.82rem] font-medium underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-copper)]"
                   >
                     Aperçu
                   </button>
@@ -403,7 +449,11 @@ export function DesignStudio({
             <div className="flex flex-wrap items-center gap-3 border-t border-[var(--console-hairline)] pt-6">
               <button
                 type="button"
-                onClick={() => startTransition(async () => void (await persist(draft)))}
+                onClick={() =>
+                  startTransition(async () => {
+                    if (!(await persist(draft))) setJustApplied(draft.engine);
+                  })
+                }
                 disabled={!dirty || pending}
                 className="tap-target rounded-xl bg-[var(--brand-copper)] px-6 text-[0.9rem] font-semibold text-[#231206] transition-transform hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-45"
               >
@@ -448,11 +498,12 @@ export function DesignStudio({
       <AnimatePresence>
         {fullscreen && (
           <FullscreenPreview
+            key={fullscreen}
             engineKey={fullscreen}
             initialVariant={saved.engine === fullscreen ? saved.variant : undefined}
             onClose={() => setFullscreen(null)}
-            onUse={(variant) => adopt(fullscreen, variant)}
-            pending={pending}
+            onUse={(variant) => adoptFromPreview(fullscreen, variant)}
+            disabled={pending || applying !== null}
             active={saved.engine === fullscreen && !isLegacy}
           />
         )}
@@ -470,213 +521,5 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
       {hint && <p className="mt-0.5 text-[0.76rem] text-[var(--muted)]">{hint}</p>}
       <div className="mt-3">{children}</div>
     </div>
-  );
-}
-
-/**
- * Telephone contenant le rendu reel, a 390 px puis mis a l echelle.
- *
- * Au changement d adresse, l ancien rendu reste visible puis cede la place au
- * nouveau en fondu : passer d une variante a l autre se voit comme une
- * transition, jamais comme un ecran blanc.
- */
-function Device({
-  src,
-  width,
-  height,
-  interactive = true,
-  lazy = false,
-}: {
-  src: string;
-  width: number;
-  height: number;
-  /** Miniature d une carte : l iframe capterait le clic destine au bouton. */
-  interactive?: boolean;
-  /**
-   * Ne charger l apercu qu a l approche de l ecran. Douze iframes chargees
-   * d un coup, c est douze pages completes a rendre avant que le studio
-   * reponde.
-   */
-  lazy?: boolean;
-}) {
-  const scale = width / 390;
-  const holder = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(!lazy);
-
-  useEffect(() => {
-    if (visible || !holder.current) return;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
-          setVisible(true);
-          io.disconnect();
-        }
-      },
-      { rootMargin: "320px" },
-    );
-    io.observe(holder.current);
-    return () => io.disconnect();
-  }, [visible]);
-  // Deux calques a cle STABLE : changer la cle d une iframe la recree et la
-  // recharge. Le calque arriere charge la nouvelle adresse ; une fois pret,
-  // il passe devant et l ancien s efface.
-  const [slots, setSlots] = useState<{ a: string; b: string; front: "a" | "b" }>({
-    a: src,
-    b: "",
-    front: "a",
-  });
-
-  useEffect(() => {
-    setSlots((s) => {
-      if (s[s.front] === src) return s;
-      const back = s.front === "a" ? "b" : "a";
-      return s[back] === src ? s : { ...s, [back]: src };
-    });
-  }, [src]);
-
-  const layer = (slot: "a" | "b") =>
-    slots[slot] ? (
-      <iframe
-        key={slot}
-        src={slots[slot]}
-        title="Aperçu du design"
-        onLoad={() =>
-          setSlots((s) => (s[slot] === src && s.front !== slot ? { ...s, front: slot } : s))
-        }
-        className={cn(
-          "absolute left-0 top-0 origin-top-left border-0 bg-white transition-opacity duration-300",
-          !interactive && "pointer-events-none",
-          slots.front === slot ? "z-[1] opacity-100" : "z-0 opacity-0",
-        )}
-        style={{ width: 390, height: height / scale, transform: `scale(${scale})` }}
-      />
-    ) : null;
-
-  return (
-    <div
-      className="relative rounded-[2.4rem] bg-[#0b0b0d] p-[7px] shadow-[0_2px_6px_rgb(0_0_0/0.08),0_30px_70px_-34px_rgb(0_0_0/0.55)]"
-      style={{ width: width + 14 }}
-    >
-      <div ref={holder} className="relative overflow-hidden rounded-[2rem] bg-[#111]" style={{ width, height }}>
-        {visible ? (
-          <>
-            {layer("a")}
-            {layer("b")}
-          </>
-        ) : (
-          <span aria-hidden className="pc-skeleton absolute inset-0 text-white" />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function FullscreenPreview({
-  engineKey,
-  initialVariant,
-  onClose,
-  onUse,
-  pending,
-  active,
-}: {
-  engineKey: PremiumEngine;
-  initialVariant?: string;
-  onClose: () => void;
-  onUse: (variant: string) => void;
-  pending: boolean;
-  active: boolean;
-}) {
-  const engine = PREMIUM_ENGINES.find((e) => e.key === engineKey)!;
-  const [variant, setVariant] = useState(initialVariant ?? engine.variants[0].key);
-  const src = useMemo(() => previewUrl({ engine: engineKey, variant }), [engineKey, variant]);
-  const [viewport, setViewport] = useState({ w: 390, h: 844 });
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    const measure = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
-    measure();
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("resize", measure);
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", measure);
-      document.body.style.overflow = "";
-    };
-  }, [onClose]);
-
-  // Au telephone, l apercu occupe l ecran entier ; ailleurs, un appareil a
-  // taille reelle, borne par la hauteur disponible.
-  const mobile = viewport.w < 640;
-  const deviceHeight = Math.min(844, viewport.h - 180);
-  const deviceWidth = Math.round((deviceHeight * 390) / 844);
-
-  return (
-    <motion.div
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Aperçu de ${engine.name}`}
-      className="fixed inset-0 z-50 flex flex-col bg-[#0a0a0c]/92 backdrop-blur-xl"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.25, ease: EASE }}
-    >
-      <div className="flex items-center justify-between gap-3 px-4 py-3 text-white sm:px-6">
-        <div className="min-w-0">
-          <p className="font-[family-name:var(--font-display)] text-[1.15rem] font-semibold">{engine.name}</p>
-          <p className="text-[0.74rem] text-white/55">{engine.tags.join(" · ")}</p>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Fermer l’aperçu"
-          className="flex size-10 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-white/20"
-        >
-          <X className="size-4" />
-        </button>
-      </div>
-
-      <motion.div
-        className="flex min-h-0 flex-1 items-center justify-center"
-        initial={{ opacity: 0, y: 16, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.38, ease: EASE }}
-      >
-        {mobile ? (
-          <iframe key={src} src={src} title={`Aperçu de ${engine.name}`} className="size-full border-0 bg-white" />
-        ) : (
-          <Device src={src} width={deviceWidth} height={deviceHeight} />
-        )}
-      </motion.div>
-
-      <div className="flex flex-col items-center gap-3 px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3 sm:flex-row sm:justify-center">
-        <div className="flex gap-1.5 rounded-full bg-white/8 p-1">
-          {engine.variants.map((v) => (
-            <button
-              key={v.key}
-              type="button"
-              onClick={() => setVariant(v.key)}
-              aria-pressed={variant === v.key}
-              className={cn(
-                "flex h-9 items-center gap-2 rounded-full px-3 text-[0.78rem] font-medium transition-colors duration-200",
-                variant === v.key ? "bg-white text-[#0a0a0c]" : "text-white/70 hover:text-white",
-              )}
-            >
-              <span className="size-3 rounded-full ring-1 ring-white/25" style={{ background: v.tokens.bg }} />
-              {v.name}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => onUse(variant)}
-          disabled={pending || (active && variant === initialVariant)}
-          className="h-11 rounded-full bg-[var(--brand-copper)] px-6 text-[0.88rem] font-semibold text-[#231206] disabled:opacity-50"
-        >
-          {active && variant === initialVariant ? "Design actuel" : "Utiliser ce design"}
-        </button>
-      </div>
-    </motion.div>
   );
 }

@@ -437,7 +437,7 @@ export function FlipCard({
         </div>
       </motion.button>
       {hint && (
-        <p aria-hidden className="mt-3 text-center text-[10.5px] uppercase tracking-[0.24em] text-[var(--pc-ink-3)]">
+        <p aria-hidden className="mt-3 text-center text-[10.5px] uppercase tracking-[0.24em] text-[var(--pc-ink-2)]">
           {flipped ? "Recto" : hint}
         </p>
       )}

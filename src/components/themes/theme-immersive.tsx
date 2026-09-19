@@ -1,7 +1,5 @@
-import { ArrowUpRight, MapPin, UserRoundPlus } from "lucide-react";
-import { BrandIcon } from "@/components/profile/brand-icon";
+import { ArrowUpRight, UserRoundPlus } from "lucide-react";
 import { Portrait, SaveContact, ShareControl, TrackedLink } from "./premium/atoms";
-import { ActionIcon } from "./premium/action-icon";
 import { immersiveDisplay } from "./premium/font-immersive";
 import { buildCardModel } from "./premium/model";
 import { cn } from "@/lib/utils";
@@ -10,18 +8,22 @@ import type { ThemeProps } from "@/types/profile";
 /**
  * IMMERSIVE - Visual · Creative · Bold.
  *
- * Le parti pris : la photo EST la page. Elle occupe le premier ecran, le nom
- * se pose sur elle, et un panneau flottant garde le contact a portee de
- * pouce. En dessous, les liens deviennent des blocs visuels : tuiles de
- * reseaux, carte media pour la destination principale, mini-cartes pour le
- * reste.
+ * Le parti pris : un generique de film. La photo occupe tout le premier
+ * ecran ; le nom s y pose en tres grand, prenom et nom sur deux lignes, et
+ * le contact tient sur la photo meme - un bouton, puis trois mots separes
+ * par des filets. Aucun panneau, aucun verre : la photo n est jamais
+ * recouverte par autre chose qu un degrade.
  *
- * Lisibilite sur n importe quelle photo : un degrade bas assez dense pour un
- * texte blanc a 16 px, assez court pour ne pas eteindre l image. Le verre du
- * panneau reste leger - un flou, un voile, un filet - jamais un effet.
+ * En dessous, la page se lit comme la suite du generique : une phrase en
+ * grand, un second plan de la photo recadre en format cinema qui derive au
+ * defilement (la destination principale), puis les liens numerotes comme
+ * des credits, les reseaux en colonnes de texte.
  *
- * Variantes : Glass (verre fume), Dark (panneau plein), Clean et Editorial
- * (panneau clair). La composition ne change pas, seule la matiere du panneau.
+ * Lisibilite sur n importe quelle photo : un degrade bas assez dense pour
+ * un texte blanc (noir a 90 % sous le bouton), un voile haut pour le partage.
+ *
+ * Variantes : Glass et Dark (fond noir, la photo s y fond), Clean et
+ * Editorial (fond clair, la photo s arrete net comme un tirage).
  */
 export function ThemeImmersive({ profile, preview }: ThemeProps) {
   const m = buildCardModel(profile, "immersive");
@@ -30,29 +32,32 @@ export function ThemeImmersive({ profile, preview }: ThemeProps) {
   const intro = identity.bio ?? identity.tagline;
   const photo = identity.avatarUrl ?? identity.coverUrl;
   const variant = m.variant.key;
-  const lightPanel = variant === "clean" || variant === "editorial";
+  const light = variant === "clean" || variant === "editorial";
 
-  // La couverture sert de fond a la carte media, si elle n est pas deja la
-  // photo principale.
-  const mediaImage = identity.avatarUrl && identity.coverUrl ? identity.coverUrl : null;
+  // Le second plan : la couverture si elle existe, sinon la photo recadree.
+  const still = identity.avatarUrl && identity.coverUrl ? identity.coverUrl : photo;
   const rest = m.destinations.filter((d) => d.id !== m.featured?.id);
+
+  // Le nom se regle sur son mot le plus long : un nom court s affiche en
+  // tres grand, un nom compose ne deborde jamais.
+  const longest = Math.max(...m.name.full.split(/\s+/).map((w) => w.length));
+  const nameSize =
+    longest > 11 ? "text-[clamp(38px,11vw,54px)]" : longest > 7 ? "text-[clamp(50px,14.5vw,68px)]" : "text-[clamp(62px,19vw,86px)]";
+
+  // Sur la photo, le bouton reste clair ; sur une variante claire, il prend
+  // le papier de la page.
+  const onPhotoCta = light
+    ? "bg-[var(--pc-bg)] text-[var(--pc-ink)]"
+    : "bg-[var(--pc-cta)] text-[var(--pc-cta-ink)]";
 
   return (
     <main
-      style={
-        {
-          ...m.style,
-          "--pc-tile": "color-mix(in srgb, var(--pc-ink) 6%, transparent)",
-        } as React.CSSProperties
-      }
-      className={cn(
-        immersiveDisplay.variable,
-        "min-h-dvh bg-[var(--pc-bg)] text-[var(--pc-ink)] antialiased",
-      )}
+      style={m.style}
+      className={cn(immersiveDisplay.variable, "min-h-dvh overflow-x-clip bg-[var(--pc-bg)] text-[var(--pc-ink)] antialiased")}
     >
       <div className="mx-auto w-full max-w-[480px]">
-        {/* ---------------------------------------------------------- Heros */}
-        <section className="relative h-[min(94svh,880px)] min-h-[600px] overflow-hidden bg-[#111]">
+        {/* ------------------------------------------------------- Plan 1 */}
+        <section className="relative flex h-[max(100svh,640px)] max-h-[920px] flex-col justify-end overflow-hidden bg-[#0d0d0f] text-white">
           <div className="pc-settle absolute inset-0">
             <Portrait
               src={photo}
@@ -64,112 +69,91 @@ export function ThemeImmersive({ profile, preview }: ThemeProps) {
             />
           </div>
 
-          {/* Degrade haut : lisibilite des pastilles. Degrade bas : du nom. */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-32"
-            style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.38), transparent)" }}
+            className="pointer-events-none absolute inset-x-0 top-0 h-28"
+            style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.45), transparent)" }}
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-[62%]"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-[70%]"
             style={{
-              background:
-                "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.5) 34%, rgba(0,0,0,0.12) 66%, transparent 100%)",
+              background: light
+                ? "linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.72) 38%, rgba(0,0,0,0.25) 70%, transparent 100%)"
+                : "linear-gradient(to top, var(--pc-bg) 0%, rgba(0,0,0,0.78) 36%, rgba(0,0,0,0.25) 70%, transparent 100%)",
             }}
           />
 
-          <div className="absolute inset-x-4 top-[max(16px,env(safe-area-inset-top))] flex items-center justify-between">
-            {m.region ? (
-              <span
-                className="pc-fade inline-flex h-9 max-w-[70%] items-center gap-1.5 rounded-full border border-white/15 bg-black/25 px-3.5 text-[12.5px] font-medium text-white backdrop-blur-md"
-                style={{ "--d": "200ms" } as React.CSSProperties}
-              >
-                <MapPin aria-hidden className="size-[13px] shrink-0" strokeWidth={2} />
-                <span className="truncate">{m.region}</span>
-              </span>
-            ) : (
-              <span />
-            )}
+          {/* Bandeau haut : un intitule de generique, le partage. */}
+          <div className="absolute inset-x-0 top-[max(10px,env(safe-area-inset-top))] flex items-center justify-between gap-4 pl-5 pr-3">
+            <p
+              className="pc-fade min-w-0 truncate text-[11.5px] font-semibold uppercase tracking-[0.24em] text-white"
+              style={{ "--d": "200ms" } as React.CSSProperties}
+            >
+              {m.region ?? identity.company ?? ""}
+            </p>
             <ShareControl
               url={profile.canonicalUrl}
               title={identity.displayName}
               profileId={profile.id}
               preview={preview}
-              className="pc-fade size-9 rounded-full border border-white/15 bg-black/25 text-white backdrop-blur-md"
+              className="pc-fade size-11 shrink-0 rounded-full bg-black/30 text-white"
             />
           </div>
 
-          {/* Identite posee sur la photo, au-dessus du panneau. */}
-          <div
-            className={cn(
-              "absolute inset-x-6 text-white",
-              m.actions.length > 0 ? "bottom-[178px]" : "bottom-[116px]",
-            )}
-          >
+          <div className="relative px-5 pb-[max(20px,env(safe-area-inset-bottom))]">
             {m.availability && (
               <p
-                className="pc-rise mb-3 inline-flex items-center gap-2 text-[12.5px] font-medium text-white/85"
-                style={{ "--d": "180ms" } as React.CSSProperties}
+                className="pc-rise mb-4 flex items-center gap-2.5 text-[13px] font-medium text-white/90"
+                style={{ "--d": "160ms" } as React.CSSProperties}
               >
-                <span aria-hidden className="size-1.5 rounded-full bg-[#7EE3A6]" />
+                <span aria-hidden className="h-px w-6 bg-white/70" />
                 <span className="line-clamp-1">{m.availability}</span>
               </p>
             )}
             <Name
-              className="pc-rise font-[family-name:var(--pc-display)] text-[clamp(32px,9.4vw,40px)] font-bold leading-[0.98] tracking-[-0.04em] [text-wrap:balance]"
-              style={{ "--d": "220ms" } as React.CSSProperties}
+              className={cn(
+                nameSize,
+                "pc-rise font-[family-name:var(--pc-display)] font-extrabold leading-[0.86] tracking-[-0.055em] [overflow-wrap:anywhere]",
+              )}
+              style={{ "--d": "200ms" } as React.CSSProperties}
             >
-              {m.name.full}
+              {m.name.first}
+              {m.name.last && (
+                <>
+                  <br />
+                  {m.name.last}
+                </>
+              )}
             </Name>
-            {/* Fonction et entreprise sur deux lignes voulues : les joindre par
-                un point les faisait casser n importe ou, "Studio" d un cote et
-                "Mensah" de l autre. */}
-            {identity.title && (
+            {(identity.title || identity.company) && (
               <p
-                className="pc-rise mt-2.5 text-[16px] leading-[1.35] text-white/85 [text-wrap:balance]"
-                style={{ "--d": "270ms" } as React.CSSProperties}
+                className="pc-rise mt-4 max-w-[34ch] text-[15px] leading-[1.4] text-white/90 [text-wrap:balance]"
+                style={{ "--d": "260ms" } as React.CSSProperties}
               >
                 {identity.title}
+                {identity.title && identity.company && <span className="text-white/60"> — </span>}
+                {identity.company && <span className="font-semibold text-white">{identity.company}</span>}
               </p>
             )}
-            {identity.company && (
-              <p
-                className="pc-rise mt-1 text-[14px] font-medium tracking-[0.01em] text-white/60"
-                style={{ "--d": "300ms" } as React.CSSProperties}
-              >
-                {identity.company}
-              </p>
-            )}
-          </div>
 
-          {/* Panneau flottant : le contact a portee de pouce. */}
-          <div
-            className={cn(
-              "pc-lift absolute inset-x-3 bottom-3 rounded-[28px] p-2.5",
-              variant === "glass" &&
-                "border border-white/14 bg-[rgba(22,22,24,0.42)] backdrop-blur-2xl backdrop-saturate-150",
-              variant === "dark" && "border border-white/8 bg-[#161618]",
-              variant === "clean" && "bg-white shadow-[0_18px_50px_-24px_rgba(0,0,0,0.55)]",
-              variant === "editorial" && "bg-[#EFEAE2] shadow-[0_18px_50px_-24px_rgba(0,0,0,0.5)]",
-            )}
-            style={{ "--d": "300ms" } as React.CSSProperties}
-          >
-            <SaveContact
-              token={profile.cardToken}
-              profileId={profile.id}
-              name={identity.displayName}
-              preview={preview}
-              icon={<UserRoundPlus className="size-[18px]" strokeWidth={2} />}
-              className="h-[54px] w-full rounded-[var(--pc-radius)] bg-[var(--pc-cta)] text-[15px] font-semibold tracking-[-0.01em] text-[var(--pc-cta-ink)]"
-            />
+            <div className="pc-rise mt-6" style={{ "--d": "320ms" } as React.CSSProperties}>
+              <SaveContact
+                token={profile.cardToken}
+                profileId={profile.id}
+                name={identity.displayName}
+                preview={preview}
+                icon={<UserRoundPlus className="size-[18px]" strokeWidth={2} />}
+                className={cn("h-[54px] w-full rounded-[var(--pc-radius)] text-[15px] font-semibold tracking-[-0.01em]", onPhotoCta)}
+              />
+            </div>
             {m.actions.length > 0 && (
               <nav
                 aria-label="Contacter"
-                className="mt-2 grid gap-2"
-                style={{ gridTemplateColumns: `repeat(${m.actions.length}, minmax(0, 1fr))` }}
+                className="pc-rise mt-2 flex"
+                style={{ "--d": "360ms" } as React.CSSProperties}
               >
-                {m.actions.map((a) => (
+                {m.actions.map((a, i) => (
                   <TrackedLink
                     key={a.kind}
                     href={a.href}
@@ -179,13 +163,10 @@ export function ThemeImmersive({ profile, preview }: ThemeProps) {
                     preview={preview}
                     external={a.external}
                     className={cn(
-                      "flex h-[48px] items-center justify-center gap-2 rounded-[var(--pc-radius)] text-[13.5px] font-medium",
-                      lightPanel
-                        ? "bg-black/[0.05] text-[#141414]"
-                        : "bg-white/[0.09] text-white",
+                      "flex h-12 flex-1 items-center justify-center text-[14px] font-semibold text-white hover:bg-white/10",
+                      i > 0 && "border-l border-white/25",
                     )}
                   >
-                    <ActionIcon kind={a.kind} className="size-[17px]" strokeWidth={1.9} />
                     {a.label}
                   </TrackedLink>
                 ))}
@@ -194,18 +175,129 @@ export function ThemeImmersive({ profile, preview }: ThemeProps) {
           </div>
         </section>
 
-        {/* ------------------------------------------------ Sous la photo */}
-        <div className="px-5 pb-14 pt-9">
+        {/* ------------------------------------------------ Suite du film */}
+        <div className="px-5 pb-12 pt-14">
           {intro && (
-            <p className="pc-inview text-[16px] leading-[1.6] text-[var(--pc-ink-2)]">{intro}</p>
+            <p className="pc-inview font-[family-name:var(--pc-display)] text-[clamp(22px,6.4vw,27px)] font-semibold leading-[1.22] tracking-[-0.025em] [text-wrap:pretty]">
+              {intro}
+            </p>
+          )}
+
+          {/* Le second plan : la destination principale, en format cinema. */}
+          {m.featured && (
+            <TrackedLink
+              href={m.featured.href}
+              profileId={profile.id}
+              action="LINK"
+              linkId={m.featured.id.startsWith("profile-") ? null : m.featured.id}
+              preview={preview}
+              external={m.featured.external}
+              className={cn("pc-inview group -mx-5 block", intro ? "mt-14" : "mt-0")}
+            >
+              <div className="relative aspect-[2.1/1] overflow-hidden bg-[#111]">
+                {still ? (
+                  <div className="pc-parallax absolute inset-0">
+                    <Portrait
+                      src={still}
+                      alt=""
+                      sizes="(max-width: 480px) 100vw, 480px"
+                      position={still === photo ? "50% 30%" : "50% 50%"}
+                      priority={false}
+                      className="size-full"
+                      fallback={null}
+                    />
+                  </div>
+                ) : (
+                  <Poster initials={m.name.initials} />
+                )}
+              </div>
+              <div className="flex items-end justify-between gap-4 px-5 pt-4">
+                <span className="min-w-0">
+                  <span className="block text-[11.5px] font-semibold uppercase tracking-[0.24em] text-[var(--pc-ink-2)]">
+                    {m.featured.description ?? m.featured.kind}
+                  </span>
+                  <span className="mt-1.5 block font-[family-name:var(--pc-display)] text-[26px] font-bold leading-[1.05] tracking-[-0.03em]">
+                    {m.featured.label}
+                  </span>
+                </span>
+                <ArrowUpRight
+                  aria-hidden
+                  className="mb-1 size-6 shrink-0 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                  strokeWidth={1.75}
+                />
+              </div>
+            </TrackedLink>
+          )}
+
+          {/* Credits : les autres destinations. */}
+          {(rest.length > 0 || (m.place && m.mapHref)) && (
+            <section className="mt-14">
+              <Label>À découvrir</Label>
+              <ol className="mt-3 border-t border-[var(--pc-line)]">
+                {rest.map((link, i) => (
+                  <li key={link.id} className="pc-inview border-b border-[var(--pc-line)]">
+                    <TrackedLink
+                      href={link.href}
+                      profileId={profile.id}
+                      action="LINK"
+                      linkId={link.id.startsWith("profile-") ? null : link.id}
+                      preview={preview}
+                      external={link.external}
+                      className="group flex min-h-[68px] items-center gap-4 py-3"
+                    >
+                      <span aria-hidden className="w-6 shrink-0 text-[12px] font-semibold tabular-nums text-[var(--pc-ink-2)]">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-[family-name:var(--pc-display)] text-[21px] font-bold tracking-[-0.03em]">
+                          {link.label}
+                        </span>
+                        {link.detail && (
+                          <span className="block truncate text-[13px] text-[var(--pc-ink-2)]">{link.detail}</span>
+                        )}
+                      </span>
+                      <ArrowUpRight
+                        aria-hidden
+                        className="size-[18px] shrink-0 text-[var(--pc-ink-2)] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                      />
+                    </TrackedLink>
+                  </li>
+                ))}
+                {m.place && m.mapHref && (
+                  <li className="pc-inview border-b border-[var(--pc-line)]">
+                    <TrackedLink
+                      href={m.mapHref}
+                      profileId={profile.id}
+                      action="DIRECTIONS"
+                      preview={preview}
+                      external
+                      className="group flex min-h-[68px] items-center gap-4 py-3"
+                    >
+                      <span aria-hidden className="w-6 shrink-0 text-[12px] font-semibold tabular-nums text-[var(--pc-ink-2)]">
+                        {String(rest.length + 1).padStart(2, "0")}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-[family-name:var(--pc-display)] text-[21px] font-bold tracking-[-0.03em]">
+                          {m.place}
+                        </span>
+                        <span className="block truncate text-[13px] text-[var(--pc-ink-2)]">
+                          Itinéraire{profile.location.country ? ` · ${profile.location.country}` : ""}
+                        </span>
+                      </span>
+                      <ArrowUpRight aria-hidden className="size-[18px] shrink-0 text-[var(--pc-ink-2)]" />
+                    </TrackedLink>
+                  </li>
+                )}
+              </ol>
+            </section>
           )}
 
           {m.social.length > 0 && (
-            <section className={cn("pc-inview", intro && "mt-9")}>
-              <Label>Réseaux</Label>
-              <ul className="mt-3 grid grid-cols-4 gap-2.5">
+            <nav aria-label="Réseaux" className="pc-inview mt-12">
+              <Label>Suivre</Label>
+              <ul className="mt-3 grid grid-cols-2 gap-x-5">
                 {m.social.map((link) => (
-                  <li key={link.id}>
+                  <li key={link.id} className="border-t border-[var(--pc-line)]">
                     <TrackedLink
                       href={link.href}
                       profileId={profile.id}
@@ -213,149 +305,37 @@ export function ThemeImmersive({ profile, preview }: ThemeProps) {
                       linkId={link.id}
                       preview={preview}
                       external={link.external}
-                      className="flex aspect-square flex-col items-center justify-center gap-2 rounded-[20px] bg-[var(--pc-tile)]"
+                      className="group flex min-h-[60px] flex-col justify-center py-2"
                     >
-                      <BrandIcon name={link.icon ?? link.type} className="size-[22px]" />
-                      <span className="max-w-full truncate px-1 text-[11.5px] font-medium text-[var(--pc-ink-2)]">
+                      <span className="flex items-center justify-between gap-2 text-[16px] font-semibold tracking-[-0.01em]">
                         {link.label}
+                        <ArrowUpRight aria-hidden className="size-[14px] shrink-0 text-[var(--pc-ink-2)]" />
                       </span>
+                      {link.hint && <span className="truncate text-[12.5px] text-[var(--pc-ink-2)]">{link.hint}</span>}
                     </TrackedLink>
                   </li>
                 ))}
               </ul>
-            </section>
+            </nav>
           )}
 
-          {(m.featured || rest.length > 0 || (m.place && m.mapHref)) && (
-            <section className="mt-9">
-              <Label>À découvrir</Label>
-
-              {m.featured && (
-                <TrackedLink
-                  href={m.featured.href}
-                  profileId={profile.id}
-                  action="LINK"
-                  linkId={m.featured.id.startsWith("profile-") ? null : m.featured.id}
-                  preview={preview}
-                  external={m.featured.external}
-                  className="pc-inview group mt-3 block overflow-hidden rounded-[24px]"
-                >
-                  <div className="relative h-[168px] bg-[var(--pc-tile)]">
-                    {mediaImage ? (
-                      <Portrait
-                        src={mediaImage}
-                        alt=""
-                        sizes="(max-width: 480px) 92vw, 440px"
-                        position="50% 50%"
-                        priority={false}
-                        className="absolute inset-0"
-                        imageClassName="transition-transform duration-[450ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]"
-                        fallback={null}
-                      />
-                    ) : (
-                      <div
-                        aria-hidden
-                        className="absolute inset-0"
-                        style={{
-                          background:
-                            "radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--pc-accent) 38%, transparent), transparent 60%), linear-gradient(135deg, #1b1b1e, #0e0e10)",
-                        }}
-                      />
-                    )}
-                    <div
-                      aria-hidden
-                      className="absolute inset-0"
-                      style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0.05) 70%)" }}
-                    />
-                    <span className="absolute right-3 top-3 flex size-9 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-md">
-                      <ArrowUpRight aria-hidden className="size-[17px]" />
-                    </span>
-                    <div className="absolute inset-x-5 bottom-4 text-white">
-                      <p className="flex items-center gap-2 text-[12px] font-medium uppercase tracking-[0.14em] text-white/70">
-                        <BrandIcon name={m.featured.icon ?? m.featured.type} className="size-[14px]" />
-                        {m.featured.description ?? m.featured.kind}
-                      </p>
-                      <p className="mt-1.5 truncate font-[family-name:var(--pc-display)] text-[21px] font-bold tracking-[-0.02em]">
-                        {m.featured.label}
-                      </p>
-                    </div>
-                  </div>
-                </TrackedLink>
-              )}
-
-              {rest.length > 0 && (
-                <ul className="mt-2.5 grid grid-cols-2 gap-2.5">
-                  {rest.map((link) => (
-                    <li key={link.id} className="pc-inview">
-                      <TrackedLink
-                        href={link.href}
-                        profileId={profile.id}
-                        action="LINK"
-                        linkId={link.id.startsWith("profile-") ? null : link.id}
-                        preview={preview}
-                        external={link.external}
-                        className="flex h-full min-h-[108px] flex-col justify-between rounded-[20px] bg-[var(--pc-tile)] p-4"
-                      >
-                        <span className="flex items-start justify-between">
-                          <BrandIcon name={link.icon ?? link.type} className="size-[20px]" />
-                          <ArrowUpRight aria-hidden className="size-[15px] text-[var(--pc-ink-3)]" />
-                        </span>
-                        <span className="mt-4 min-w-0">
-                          <span className="block truncate text-[15px] font-semibold tracking-[-0.01em]">
-                            {link.label}
-                          </span>
-                          {link.detail && (
-                            <span className="mt-0.5 block truncate text-[12.5px] text-[var(--pc-ink-2)]">
-                              {link.detail}
-                            </span>
-                          )}
-                        </span>
-                      </TrackedLink>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {m.place && m.mapHref && (
-                <TrackedLink
-                  href={m.mapHref}
-                  profileId={profile.id}
-                  action="DIRECTIONS"
-                  preview={preview}
-                  external
-                  className="pc-inview mt-2.5 flex items-center gap-3.5 rounded-[20px] bg-[var(--pc-tile)] p-4"
-                >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--pc-tile)]">
-                    <MapPin aria-hidden className="size-[18px]" strokeWidth={1.9} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-semibold">{m.place}</span>
-                    {profile.location.country && (
-                      <span className="block truncate text-[12.5px] text-[var(--pc-ink-2)]">
-                        {profile.location.country}
-                      </span>
-                    )}
-                  </span>
-                  <span className="flex shrink-0 items-center gap-1 text-[13px] font-medium">
-                    Itinéraire
-                    <ArrowUpRight aria-hidden className="size-[14px] text-[var(--pc-ink-3)]" />
-                  </span>
-                </TrackedLink>
-              )}
-            </section>
-          )}
-
-          <footer className="mt-12 flex flex-col items-center gap-4">
-            <ShareControl
-              url={profile.canonicalUrl}
-              title={identity.displayName}
-              profileId={profile.id}
-              preview={preview}
-              showLabel
-              label="Partager ce profil"
-              className="h-12 rounded-full bg-[var(--pc-tile)] px-6 text-[14px] font-semibold"
-            />
-            <p className="text-[12px] text-[var(--pc-ink-3)]">Carte NFC · Tap</p>
+          {/* Carton de fin. */}
+          <footer className="mt-16 border-t border-[var(--pc-line)] pt-6">
+            <p aria-hidden className="font-[family-name:var(--pc-display)] text-[40px] font-extrabold leading-[0.9] tracking-[-0.055em]">
+              {m.name.full}
+            </p>
+            <div className="mt-6 flex items-center justify-between">
+              <span className="text-[12px] text-[var(--pc-ink-2)]">Carte NFC · Tap</span>
+              <ShareControl
+                url={profile.canonicalUrl}
+                title={identity.displayName}
+                profileId={profile.id}
+                preview={preview}
+                showLabel
+                label="Partager"
+                className="-mr-3 h-11 rounded-full px-3 text-[14px] font-semibold hover:bg-[var(--pc-press)]"
+              />
+            </div>
           </footer>
         </div>
       </div>
@@ -365,9 +345,7 @@ export function ThemeImmersive({ profile, preview }: ThemeProps) {
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-[13px] font-semibold tracking-[-0.005em] text-[var(--pc-ink-2)]">
-      {children}
-    </h2>
+    <h2 className="text-[11.5px] font-semibold uppercase tracking-[0.24em] text-[var(--pc-ink-2)]">{children}</h2>
   );
 }
 
