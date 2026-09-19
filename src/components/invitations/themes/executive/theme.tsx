@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import type { InvitationView, RsvpFormData } from "@/types/invitation";
+import { cormorant } from "../fonts";
 import { HeroCta, ThemeShell, countdownText, delay, salutation, type SectionStyles } from "../../shared";
 
 /**
@@ -73,7 +74,7 @@ export function Executive({ view, rsvpForm }: { view: InvitationView; rsvpForm?:
       view={view}
       rsvpForm={rsvpForm}
       dark={dark}
-      mainClassName="bg-[var(--ex-bg)] text-[var(--ex-ink)]"
+      mainClassName={cn(cormorant.variable, "bg-[var(--ex-bg)] text-[var(--ex-ink)]")}
       vars={{ "--ex-bg": p.bg, "--ex-panel": p.panel, "--ex-ink": p.ink, "--ex-ink-2": p.ink2, "--ex-line": p.line, "--ex-accent": p.accent, "--ex-accent-text": p.accentText, "--ex-on-accent": p.onAccent }}
       envelope={{
         "--env-bg": p.bg, "--env-ink": p.ink, "--env-ink-2": p.ink2, "--env-line": p.line,
@@ -99,37 +100,46 @@ export function Executive({ view, rsvpForm }: { view: InvitationView; rsvpForm?:
             {event.updatedNote && <p className={cn(caps, "pc-fade mb-5 text-[var(--ex-accent-text)]")}>{event.updatedNote}</p>}
             {dear && (
               <p className="pc-fade mb-4 text-[15px] text-[var(--ex-ink-2)]" style={delay(0)}>
-                {dear},
+                Pour {dear}
               </p>
             )}
-            <h1 className="text-[clamp(34px,9.5vw,44px)] font-semibold leading-[1.05] tracking-[-0.03em] [overflow-wrap:anywhere] [text-wrap:balance]">{event.title}</h1>
-            <p className="pc-fade mt-4 text-[15px] text-[var(--ex-ink-2)]" style={delay(120)}>
+            {/* Le titre en garalde de titrage : le ton d un rapport annuel ou d une soiree d hotel, pas d un formulaire. */}
+            <h1 className="text-[clamp(38px,11vw,52px)] font-normal leading-[1] tracking-[-0.02em] [font-family:var(--inv-cormorant)] [overflow-wrap:anywhere] [text-wrap:balance]">{event.title}</h1>
+            <p className="pc-fade mt-4 text-[14px] text-[var(--ex-ink-2)]" style={delay(120)}>
               Organisé par <span className="font-semibold text-[var(--ex-ink)]">{event.hosts}</span>
             </p>
 
             <p className="sr-only">
               {starts.long}, {starts.time}
             </p>
-            <dl aria-hidden className="mt-8 divide-y divide-[var(--ex-line)] border-y border-[var(--ex-line)] text-[15px]">
-              <Row label="Date">
-                {starts.weekday} {starts.day} {starts.month} {starts.year}
-              </Row>
-              <Row label="Heure">{starts.time}</Row>
-              {first && (
-                <Row label="Lieu">
-                  <span className="[overflow-wrap:anywhere]">{first.name}</span>
-                </Row>
-              )}
-              {theme.settings.countdown && event.daysLeft !== null && <Row label="Échéance">{countdownText(event.daysLeft)}</Row>}
-            </dl>
+            {/* Le bloc date : le quantieme en grand, le reste compose a cote, un filet d accent. */}
+            <div aria-hidden className="mt-9 flex items-stretch gap-5 border-t-2 border-[var(--ex-accent)] pt-5">
+              <span className="text-[clamp(64px,19vw,84px)] font-normal leading-[0.8] tabular-nums [font-family:var(--inv-cormorant)] [font-variant-numeric:lining-nums_tabular-nums]">{starts.day}</span>
+              <span className="flex min-w-0 flex-col justify-between">
+                <span className={cn(caps, "text-[var(--ex-ink)]")}>
+                  {starts.month} {starts.year}
+                </span>
+                <span className="text-[14px] text-[var(--ex-ink-2)] first-letter:uppercase">
+                  {starts.weekday} · {starts.time}
+                </span>
+                {first && <span className="truncate text-[14px] font-semibold">{first.name}</span>}
+              </span>
+            </div>
+            {theme.settings.countdown && event.daysLeft !== null && (
+              <p className={cn(caps, "pc-fade mt-4 text-[var(--ex-accent-text)]")} style={delay(400)}>
+                {countdownText(event.daysLeft)}
+              </p>
+            )}
           </div>
           <HeroCta view={view} id="ex-hero-cta" button={button} className="mt-8" noteClassName="text-[var(--ex-ink-2)]" />
         </header>
       }
       photo={
         <figure className="pc-inview mb-10 mt-4">
-          <div className="relative aspect-video w-full overflow-hidden rounded-md bg-[var(--ex-panel)]">
-            <Image src={event.heroImageUrl!} alt={event.hosts} fill sizes="(max-width: 460px) 100vw, 460px" className="object-cover" />
+          <div className="relative aspect-video w-full overflow-hidden bg-[var(--ex-panel)]">
+            <div className="pc-parallax absolute inset-0">
+              <Image src={event.heroImageUrl!} alt={event.hosts} fill sizes="(max-width: 460px) 100vw, 460px" className="object-cover" />
+            </div>
           </div>
         </figure>
       }
@@ -156,14 +166,5 @@ export function Executive({ view, rsvpForm }: { view: InvitationView; rsvpForm?:
       }
       venuesTitle={(n) => (n > 1 ? "Lieux" : "Lieu")}
     />
-  );
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-[6rem_1fr] gap-4 py-3">
-      <dt className={cn(caps, "pt-0.5 text-[var(--ex-ink-2)]")}>{label}</dt>
-      <dd className="font-medium">{children}</dd>
-    </div>
   );
 }

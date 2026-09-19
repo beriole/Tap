@@ -2,10 +2,20 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import type { InvitationView, RsvpFormData } from "@/types/invitation";
 import { HeroCta, ThemeShell, countdownText, delay, salutation, type SectionStyles } from "../../shared";
+import { monthNumber } from "../../stationery";
 import { manrope } from "../fonts";
 
 /**
- * CONFERENCE - l information d abord.
+ * CONFERENCE - l affiche d un evenement professionnel.
+ *
+ * Refonte : la date devient l affiche - jour et mois en chiffres geants dans
+ * l accent, sur un papier millimetre qui s efface vers le bas - puis le
+ * titre, puis une seule ligne de reperes (jour, heure, lieu). Les rubriques
+ * sont ouvertes et numerotees 01, 02... separees par des filets : on lit un
+ * programme imprime, plus une fiche d application.
+ *
+ * Ancienne note, conservee pour l historique : la page d un evenement
+ * professionnel se lit comme un programme.
  *
  * Le parti pris : la page d un evenement professionnel se lit comme un
  * programme. En haut, un BADGE (« Conférence », la date) ; le titre en
@@ -87,76 +97,92 @@ export function Conference({ view, rsvpForm }: { view: InvitationView; rsvpForm?
       containerClassName="pt-[max(16px,env(safe-area-inset-top))]"
       dockClassName="bg-[var(--cf-bg)]/95 px-5 pb-[max(12px,env(safe-area-inset-bottom))] pt-3"
       hero={
-        <header className="flex min-h-[calc(100svh-32px)] flex-col py-6">
-          <div className="flex flex-1 flex-col justify-center">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={cn(caps, "rounded-md bg-[var(--cf-soft)] px-2.5 py-1.5 text-[var(--cf-accent-text)]")}>{KIND[event.type]}</span>
-              {event.updatedNote && <span className={cn(caps, "pc-fade text-[10px] text-[var(--cf-ink-2)]")}>{event.updatedNote}</span>}
-            </div>
-            {dear && (
-              <p className="pc-fade mt-5 text-[15px] text-[var(--cf-ink-2)]" style={delay(0)}>
-                {dear},
-              </p>
-            )}
-            <h1 className="mt-4 text-[clamp(32px,9vw,42px)] font-extrabold leading-[1.05] tracking-[-0.03em] [font-family:var(--inv-manrope)] [overflow-wrap:anywhere] [text-wrap:balance]">{event.title}</h1>
-            <p className="pc-fade mt-3 text-[15px] font-medium text-[var(--cf-ink-2)]" style={delay(120)}>
-              {event.hosts}
-            </p>
+        <header className="relative flex min-h-[calc(100svh-32px)] flex-col justify-between overflow-hidden py-6">
+          {/* La grille de fond : des filets a 48 px, le papier millimetre d un programme technique. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-[0.5]"
+            style={{ backgroundImage: "linear-gradient(var(--cf-line) 1px, transparent 1px), linear-gradient(90deg, var(--cf-line) 1px, transparent 1px)", backgroundSize: "48px 48px", maskImage: "linear-gradient(to bottom, black, transparent 70%)" }}
+          />
 
+          <div className="relative flex items-center justify-between">
+            <span className={cn(caps, "text-[var(--cf-accent-text)]")}>{KIND[event.type]}</span>
+            {dear && (
+              <span className="pc-fade max-w-[60%] truncate text-right text-[13px] font-medium text-[var(--cf-ink-2)]" style={delay(0)}>
+                Pour {dear}
+              </span>
+            )}
+          </div>
+
+          <div className="relative">
+            {event.updatedNote && <p className={cn(caps, "pc-fade mb-4 text-[10px] text-[var(--cf-ink-2)]")}>{event.updatedNote}</p>}
+            {/* La date est l affiche : jour et mois en chiffres, tres grands, dans l accent. */}
+            <p aria-hidden className="text-[clamp(92px,30vw,130px)] font-extrabold leading-[0.82] tracking-[-0.06em] text-[var(--cf-accent)] [font-family:var(--inv-manrope)]">
+              {starts.day}
+              <span className="text-[var(--cf-ink)] opacity-20">.</span>
+              {monthNumber(starts.month)}
+            </p>
+            <h1 className="mt-6 text-[clamp(28px,8vw,38px)] font-extrabold leading-[1.05] tracking-[-0.03em] [font-family:var(--inv-manrope)] [overflow-wrap:anywhere] [text-wrap:balance]">{event.title}</h1>
+            <p className="pc-fade mt-3 text-[14px] font-medium text-[var(--cf-ink-2)]" style={delay(120)}>
+              Organisé par <span className="text-[var(--cf-ink)]">{event.hosts}</span>
+            </p>
+          </div>
+
+          <div className="relative">
             <p className="sr-only">
               {starts.long}, {starts.time}
             </p>
-            <div aria-hidden className="mt-7 grid grid-cols-3 divide-x divide-[var(--cf-line)] rounded-xl bg-[var(--cf-card)] ring-1 ring-[var(--cf-line)]">
-              {/* Le mois en entier, sur deux lignes s il le faut : « 15 octo » se lit mal. */}
-              <Cell label={starts.weekday}>
-                {starts.day} {starts.month}
-              </Cell>
-              <Cell label="Heure">{starts.time}</Cell>
-              <Cell label="Lieu">
-                <span className="line-clamp-2 [overflow-wrap:anywhere]">{first ? first.name : "À venir"}</span>
-              </Cell>
-            </div>
+            <p aria-hidden className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--cf-ink)] pt-4 text-[14px] font-semibold [font-family:var(--inv-manrope)]">
+              <span className="first-letter:uppercase">{starts.weekday}</span>
+              <span aria-hidden className="size-1 rounded-full bg-[var(--cf-accent)]" />
+              <span>{starts.time}</span>
+              {first && (
+                <>
+                  <span aria-hidden className="size-1 rounded-full bg-[var(--cf-accent)]" />
+                  <span className="min-w-0 truncate">{first.name}</span>
+                </>
+              )}
+            </p>
             {theme.settings.countdown && event.daysLeft !== null && (
-              <p className="pc-fade mt-3 text-[13px] font-semibold text-[var(--cf-accent-text)]" style={delay(400)}>
+              <p className={cn(caps, "pc-fade mt-2 text-[10.5px] text-[var(--cf-accent-text)]")} style={delay(400)}>
                 {countdownText(event.daysLeft)}
               </p>
             )}
+            <HeroCta view={view} id="cf-hero-cta" button={button} className="mt-5" noteClassName="text-[var(--cf-ink-2)]" />
           </div>
-          <HeroCta view={view} id="cf-hero-cta" button={button} className="mt-6" noteClassName="text-[var(--cf-ink-2)]" />
         </header>
       }
       photo={
-        <figure className="pc-inview mb-6 mt-2">
-          <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-[var(--cf-card)]">
-            <Image src={event.heroImageUrl!} alt={event.hosts} fill sizes="(max-width: 460px) 100vw, 460px" className="object-cover" />
+        <figure className="pc-inview -mx-5 mb-10 mt-2">
+          <div className="relative aspect-[16/10] w-full overflow-hidden bg-[var(--cf-card)]">
+            <div className="pc-parallax absolute inset-0">
+              <Image src={event.heroImageUrl!} alt={event.hosts} fill sizes="(max-width: 460px) 100vw, 460px" className="object-cover" />
+            </div>
           </div>
         </figure>
       }
-      section={({ key, title, children }) => (
-        <section key={key} className="pc-inview mb-4 rounded-xl border-l-4 border-[var(--cf-accent)] bg-[var(--cf-card)] px-5 py-6 ring-1 ring-[var(--cf-line)]">
-          {title ? <h2 className={cn(styles.heading, "mb-5 [overflow-wrap:anywhere]")}>{title}</h2> : null}
+      section={({ key, index, title, children }) => (
+        <section key={key} className="pc-inview border-t border-[var(--cf-line)] py-9">
+          <div className="mb-6 flex items-baseline gap-3">
+            <span className={cn(caps, "text-[10.5px] text-[var(--cf-accent-text)] tabular-nums")}>{String(index + 1).padStart(2, "0")}</span>
+            {title && <h2 className={cn(styles.heading, "[overflow-wrap:anywhere]")}>{title}</h2>}
+          </div>
           {children}
         </section>
       )}
       sectionAlign="left"
       rsvpAlign="left"
-      rsvpWrapperClassName="mb-4 rounded-xl bg-[var(--cf-card)] px-5 py-8 ring-1 ring-[var(--cf-line)]"
-      rsvpTitle={<h2 className={cn(styles.heading, "text-[26px]")}>Inscription</h2>}
+      rsvpWrapperClassName="border-t-2 border-[var(--cf-ink)] pt-9"
+      rsvpTitle={<h2 className={cn(styles.heading, "text-[30px]")}>Inscription</h2>}
       footer={
-        <footer className="mt-12 text-[13px] text-[var(--cf-ink-2)]">
-          <span className="font-bold text-[var(--cf-ink)]">{event.hosts}</span> · {starts.day} {starts.month} {starts.year}
+        <footer className="mt-14 flex items-center justify-between border-t border-[var(--cf-line)] pt-4 text-[13px] text-[var(--cf-ink-2)]">
+          <span className="font-bold text-[var(--cf-ink)]">{event.hosts}</span>
+          <span className="tabular-nums">
+            {starts.day}.{monthNumber(starts.month)}.{starts.year}
+          </span>
         </footer>
       }
       venuesTitle={(n) => (n > 1 ? "Accès et lieux" : "Accès")}
     />
-  );
-}
-
-function Cell({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="min-w-0 px-3 py-3.5">
-      <p className={cn(caps, "text-[10px] text-[var(--cf-ink-2)]")}>{label}</p>
-      <p className="mt-1 text-[14px] font-bold leading-snug [font-family:var(--inv-manrope)]">{children}</p>
-    </div>
   );
 }
