@@ -134,14 +134,14 @@ export function DesignStudio({
     <div className="space-y-10">
       {isLegacy && (
         <p className="rounded-2xl border border-[var(--state-warn)]/25 bg-[var(--state-warn-bg)] px-4 py-3 text-[0.85rem] text-[var(--state-warn)]">
-          Votre carte utilise encore un design de l’ancienne collection. Choisissez l’un des douze
+          Votre carte utilise encore un design de l’ancienne collection. Choisissez l’un des treize
           designs ci-dessous : vos informations et vos liens restent exactement les mêmes.
         </p>
       )}
 
       {/* ------------------------------------------ 1. Choisir une direction */}
       <section>
-        <SectionTitle hint="Avec vos propres informations">Douze designs</SectionTitle>
+        <SectionTitle hint="Avec vos propres informations">Treize designs</SectionTitle>
 
         {/* Douze designs se choisissent mieux par intention que par defilement. */}
         <div role="tablist" aria-label="Familles de designs" className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0">

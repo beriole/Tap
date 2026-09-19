@@ -93,6 +93,7 @@ export type ThemeKey =
   | "terminal"
   | "table"
   | "instant"
+  | "heritage"
   | "corporate"
   // Collection historique, conservee pour les profils qui l utilisent deja.
   | "minimal"

@@ -166,6 +166,18 @@ export const THEMES: ThemeDefinition[] = [
     mvp: true,
   },
   {
+    key: "heritage",
+    code: "HRT",
+    name: "Héritage",
+    direction: "Carte a deux faces tissee d un trait fin : references africaines contemporaines, serif dense, indigo ou terre.",
+    target: "Entrepreneurs, dirigeants, createurs qui revendiquent leurs racines.",
+    defaultAccent: "#D9A441",
+    defaultMode: "DARK",
+    variants: ["indigo", "terre"],
+    uses: ["avatar", "logo"],
+    mvp: false,
+  },
+  {
     key: "corporate",
     code: "CRP",
     name: "Corporate",

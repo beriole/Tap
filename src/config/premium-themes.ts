@@ -29,7 +29,8 @@ export type PremiumEngine =
   | "terminal"
   | "table"
   | "instant"
-  | "corporate";
+  | "corporate"
+  | "heritage";
 
 /** Familles affichees en filtre dans le studio : douze designs se choisissent mieux par intention. */
 export type EngineFamily = "professionnel" | "prestige" | "creatif" | "accueil" | "tech";
@@ -793,6 +794,57 @@ export const PREMIUM_ENGINES: PremiumEngineDefinition[] = [
           ctaBg: "#F2EDE4",
           ctaInk: "#141312",
           scheme: "dark"
+        },
+      },
+    ],
+  },
+  {
+    key: "heritage",
+    name: "Héritage",
+    family: "prestige",
+    audience: "Entrepreneurs, dirigeants, créateurs qui revendiquent leurs racines",
+    tags: ["African", "Premium", "Contemporary"],
+    pitch:
+      "Une carte a deux faces, tissee d un trait fin : les references graphiques du continent tenues comme une identite de marque, jamais comme un folklore.",
+    defaultShape: "sharp",
+    palette: ["#C4792C", "#2E3F8F", "#A8543A", "#1F6B4A"],
+    variants: [
+      {
+        key: "indigo",
+        name: "Indigo",
+        mood: "Indigo profond, or vieilli",
+        tokens: {
+          bg: "#0F1533",
+          surface: "#171E44",
+          ink: "#F4EAD8",
+          ink2: "#B8B0A0",
+          ink3: "#7F7A70",
+          line: "rgba(244, 234, 216, 0.14)",
+          press: "rgba(244, 234, 216, 0.06)",
+          accent: "#D9A441",
+          ctaBg: "#F4EAD8",
+          ctaInk: "#0F1533",
+          scheme: "dark",
+          extra: { card: "#141B3F", cardInk: "#F4EAD8", weave: "#D9A441" },
+        },
+      },
+      {
+        key: "terre",
+        name: "Terre",
+        mood: "Sable chaud, terre cuite",
+        tokens: {
+          bg: "#F3E6D2",
+          surface: "#FBF3E7",
+          ink: "#24160F",
+          ink2: "#6B5343",
+          ink3: "#9A8574",
+          line: "rgba(36, 22, 15, 0.14)",
+          press: "rgba(36, 22, 15, 0.06)",
+          accent: "#A8543A",
+          ctaBg: "#24160F",
+          ctaInk: "#F3E6D2",
+          scheme: "light",
+          extra: { card: "#24160F", cardInk: "#F4EAD8", weave: "#C4792C" },
         },
       },
     ],

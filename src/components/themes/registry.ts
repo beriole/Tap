@@ -19,6 +19,7 @@ export const THEME_COMPONENTS: Record<ThemeKey, ComponentType<ThemeProps>> = {
   terminal: dynamic(() => import("./theme-terminal").then((m) => m.ThemeTerminal)),
   table: dynamic(() => import("./theme-table").then((m) => m.ThemeTable)),
   instant: dynamic(() => import("./theme-instant").then((m) => m.ThemeInstant)),
+  heritage: dynamic(() => import("./theme-heritage").then((m) => m.ThemeHeritage)),
   corporate: dynamic(() => import("./theme-corporate").then((m) => m.ThemeCorporate)),
   minimal: dynamic(() => import("./theme-minimal").then((m) => m.ThemeMinimal)),
   executive: dynamic(() => import("./theme-executive").then((m) => m.ThemeExecutive)),

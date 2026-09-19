@@ -15,9 +15,9 @@ export const metadata: Metadata = { title: "Design" };
 /**
  * §6.2 - Choix du design et personnalisation encadree.
  *
- * Seuls les douze moteurs premium sont proposes. Un profil encore habille par
+ * Seuls les treize moteurs premium sont proposes. Un profil encore habille par
  * un theme de l ancienne collection continue de s afficher tel quel au scan ;
- * le studio l invite simplement a choisir l un des douze.
+ * le studio l invite simplement a choisir l un des treize.
  */
 export default async function ThemePage() {
   const user = await requireUser();
@@ -60,7 +60,7 @@ export default async function ThemePage() {
       <PageHeader
         eyebrow="Espace client"
         title="Choisissez votre design"
-        description="Douze directions, montrées avec vos propres informations. Touchez un design pour le voir en plein écran, puis ajustez-le : vos contenus restent les mêmes, seule la mise en scène change."
+        description="Treize directions, montrées avec vos propres informations. Touchez un design pour le voir en plein écran, puis ajustez-le : vos contenus restent les mêmes, seule la mise en scène change."
       />
       <PageBody>
         <DesignStudio
