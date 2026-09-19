@@ -4,6 +4,7 @@ import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { LogoMark, Wordmark } from "@/components/brand/logo";
 import { EnvelopeScene } from "@/components/marketing/envelope-scene";
 import { PhoneFrame, RippleArcs } from "@/components/marketing/phone";
+import { ScrollScenes } from "@/components/marketing/scroll-scenes";
 import { ThemeRenderer } from "@/components/themes/theme-renderer";
 import { demoProfile } from "@/config/demo-profile";
 import { COLLECTION_LABELS, themesOf, type InvitationCollection } from "@/config/invitation-themes";
@@ -83,6 +84,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-dvh overflow-x-clip bg-[var(--brand-ink)] text-[var(--brand-paper)]">
+      <ScrollScenes />
       <header className="app-shell flex items-center justify-between py-6">
         <Wordmark />
         <nav aria-label="Principale" className="flex items-center gap-1 text-[0.85rem]">

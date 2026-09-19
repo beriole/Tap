@@ -697,6 +697,17 @@ body {
   .mk-scene .mk-caption { animation: mk-caption linear both; animation-timeline: --mk-scene; animation-range: contain 4% contain 72%; }
 }
 
+/* Relais JavaScript (components/marketing/scroll-scenes.tsx) pour les
+ * navigateurs sans animation-timeline : memes keyframes, mises en pause et
+ * positionnees par le script (currentTime de chaque animation). */
+.mk-js .mk-layer-slow { animation: mk-drift-slow 1s linear both paused; }
+.mk-js .mk-layer-mid { animation: mk-drift-mid 1s linear both paused; }
+.mk-js .mk-layer-fast { animation: mk-drift-fast 1s linear both paused; }
+.mk-js .mk-scene .mk-seal { animation: mk-seal 1s linear both paused; }
+.mk-js .mk-scene .mk-flap { animation: mk-flap 1s linear both paused; }
+.mk-js .mk-scene .mk-card { animation: mk-card 1s linear both paused; }
+.mk-js .mk-scene .mk-caption { animation: mk-caption 1s linear both paused; }
+
 /* Sous pli : tant que l enveloppe est fermee, la page dessous garde ses
  * entrees en attente. Sans cela, l invite ouvre le pli sur une page deja
  * animee - donc figee - et le geste ne revele rien. L attribut est pose par le
