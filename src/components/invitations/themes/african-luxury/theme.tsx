@@ -203,14 +203,14 @@ export function AfricanLuxury({ view, rsvpForm }: { view: InvitationView; rsvpFo
             <h1 className="[font-family:var(--al-display)]">
               {event.hostParts.length === 2 ? (
                 <>
-                  <span className={cn("block leading-[0.9] tracking-[-0.02em] [overflow-wrap:anywhere]", nameSize(longest))}>{event.hostParts[0]}</span>
+                  <span className={cn(nameSize(longest), "block leading-[0.9] tracking-[-0.02em] [overflow-wrap:anywhere]")}>{event.hostParts[0]}</span>
                   <span className="pc-fade my-1 block text-[clamp(28px,8vw,38px)] italic leading-none text-[var(--al-accent-text)]" style={delay(200)}>
                     &amp;
                   </span>
-                  <span className={cn("block leading-[0.9] tracking-[-0.02em] [overflow-wrap:anywhere]", nameSize(longest))}>{event.hostParts[1]}</span>
+                  <span className={cn(nameSize(longest), "block leading-[0.9] tracking-[-0.02em] [overflow-wrap:anywhere]")}>{event.hostParts[1]}</span>
                 </>
               ) : (
-                <span className={cn("block leading-[0.95] tracking-[-0.02em] [overflow-wrap:anywhere] [text-wrap:balance]", nameSize(longest))}>{event.hostParts[0]}</span>
+                <span className={cn(nameSize(longest), "block leading-[0.95] tracking-[-0.02em] [overflow-wrap:anywhere] [text-wrap:balance]")}>{event.hostParts[0]}</span>
               )}
             </h1>
             <p className={cn(caps, "pc-fade mt-6 max-w-[280px] leading-[1.9] text-[var(--al-ink-2)]")} style={delay(120)}>

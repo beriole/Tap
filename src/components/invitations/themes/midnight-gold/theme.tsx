@@ -189,14 +189,14 @@ export function MidnightGold({ view, rsvpForm }: { view: InvitationView; rsvpFor
           <h1 className="font-light [font-family:var(--mg-display)]">
             {event.hostParts.length === 2 ? (
               <>
-                <span className={cn("block leading-[0.94] [overflow-wrap:anywhere]", nameSize(longest))}>{event.hostParts[0]}</span>
+                <span className={cn(nameSize(longest), "block leading-[0.94] [overflow-wrap:anywhere]")}>{event.hostParts[0]}</span>
                 <span className="pc-fade my-1 block text-[28px] italic leading-none text-[var(--mg-accent)]" style={delay(200)}>
                   &amp;
                 </span>
-                <span className={cn("block leading-[0.94] [overflow-wrap:anywhere]", nameSize(longest))}>{event.hostParts[1]}</span>
+                <span className={cn(nameSize(longest), "block leading-[0.94] [overflow-wrap:anywhere]")}>{event.hostParts[1]}</span>
               </>
             ) : (
-              <span className={cn("block leading-[1] [overflow-wrap:anywhere] [text-wrap:balance]", nameSize(longest))}>{event.hostParts[0]}</span>
+              <span className={cn(nameSize(longest), "block leading-[1] [overflow-wrap:anywhere] [text-wrap:balance]")}>{event.hostParts[0]}</span>
             )}
           </h1>
 

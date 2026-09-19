@@ -1,185 +1,408 @@
 import Image from "next/image";
+import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { InvitationView, RsvpFormData } from "@/types/invitation";
-import { HeroCta, HostNames, NAME_SCALE, ThemeShell, countdownText, delay, longestHost, nameSizeClass, salutation, type SectionStyles } from "../../shared";
-import { greatVibes, playfair } from "../fonts";
+import type { InvitationSection, InvitationView, RsvpFormData } from "@/types/invitation";
+import { Envelope } from "../../envelope";
+import { RsvpDock } from "../../rsvp-dock";
+import { HeroCta, RsvpBlock, SectionBody, countdownText, delay, monogram, salutation, type SectionStyles } from "../../shared";
+import { cityOf, monthNumber } from "../../stationery";
+import { playfair } from "../fonts";
+import { Bloom, Loop, Spray } from "./flora";
+import { romanticScript } from "./font";
 
 /**
- * ROMANTIC - poudre et calligraphie.
+ * ROMANTIC - poudre, pivoines au trait, une seule plume.
  *
- * Le parti pris : la calligraphie est LIMITEE a un seul mot par ecran - "Ensemble"
- * au-dessus des noms, "Merci" au pied - jamais un paragraphe (cahier §13).
- * Les noms sont en Playfair italique ; le corps reste en Geist.
+ * Le parti pris : un premier ecran SANS photo, tout en papier poudre - un
+ * halo rose derriere les prenoms, deux bouquets de pivoines dessines au trait
+ * qui se tracent a l ouverture. La photographie vient plus tard, dans un
+ * medaillon ovale, comme un portrait qu on garde.
  *
- * La signature : une branche fleurie dessinee au trait (SVG en ligne, une
- * couleur) qui descend du coin superieur et revient, renversee, en bas de la
- * page. Entre les deux, du papier poudre et beaucoup d air.
+ * La calligraphie (Ballet, une anglaise contemporaine) est LIMITEE : les
+ * prenoms, puis la signature sous le mot des maries. Rien d autre. Titres en
+ * Playfair italique, texte en Geist.
  *
- * Les sections sont centrees, separees par un petit bouton de fleur.
+ * Signatures : le calendrier du mois avec le jour entoure a la main ; les
+ * lieux et la reponse sous des arches douces (ellipses, sans bordure ni
+ * ombre) ; le programme centre, heure en italique.
+ *
+ * Parcours : ouverture -> mot des maries -> calendrier -> lieux -> programme
+ * -> portrait -> reponse -> informations.
  */
 
-type Palette = { bg: string; paper: string; ink: string; ink2: string; line: string; accent: string; accentText: string; onAccent: string };
+type Palette = { bg: string; paper: string; blush: string; ink: string; ink2: string; line: string; accent: string; accentText: string; onAccent: string; flower: string };
 
-const VARIANTS: Record<string, Pick<Palette, "bg" | "paper" | "ink" | "ink2" | "line">> = {
-  poudre: { bg: "#F8EEEA", paper: "#FDF7F4", ink: "#3A2A2E", ink2: "#7A6368", line: "#EBD9D4" },
-  bordeaux: { bg: "#3B1F26", paper: "#46272F", ink: "#F8EEEA", ink2: "#D3B9BE", line: "#5A3540" },
+const VARIANTS: Record<string, Pick<Palette, "bg" | "paper" | "blush" | "ink" | "ink2" | "line">> = {
+  poudre: { bg: "#F8EEEA", paper: "#FCF6F3", blush: "#F1DCD5", ink: "#3B2A2F", ink2: "#6E5760", line: "#E8D5CF" },
+  bordeaux: { bg: "#3A1E25", paper: "#452630", blush: "#532E38", ink: "#F8EDEA", ink2: "#D8BFC5", line: "#5C3842" },
 };
 
-/** [aplat / trait, texte d accent, texte sur aplat] par variante */
-const ACCENTS: Record<string, { poudre: [string, string, string]; bordeaux: [string, string, string] }> = {
-  rose: { poudre: ["#9F4E5A", "#9A4C58", "#FFFFFF"], bordeaux: ["#E29AA6", "#F0BAC3", "#3B1F26"] },
-  peche: { poudre: ["#A55B39", "#A55B39", "#FFFFFF"], bordeaux: ["#E8A886", "#F2C1A8", "#3B1F26"] },
-  mauve: { poudre: ["#75587C", "#75587C", "#FFFFFF"], bordeaux: ["#C9AFD1", "#DCC8E2", "#3B1F26"] },
+/** [aplat du bouton, texte d accent, texte sur bouton, trait des fleurs] - textes >= 4,5:1. */
+const ACCENTS: Record<string, { poudre: [string, string, string, string]; bordeaux: [string, string, string, string] }> = {
+  rose: { poudre: ["#9C4A57", "#914250", "#FFFFFF", "#C98A93"], bordeaux: ["#EBA6B1", "#F2BCC5", "#3A1E25", "#D78E9A"] },
+  peche: { poudre: ["#A2552F", "#94492A", "#FFFFFF", "#D39A7C"], bordeaux: ["#EDAE8C", "#F4C4AA", "#3A1E25", "#DB9A78"] },
+  mauve: { poudre: ["#73567B", "#6A4E72", "#FFFFFF", "#AD93B4"], bordeaux: ["#CDB2D5", "#DDC8E3", "#3A1E25", "#B79BC0"] },
 };
 
-function palette(variant: string, accent: string): Palette {
+function palette(variant: string, accent: string): Palette & { dark: boolean } {
   const v = (VARIANTS[variant] ? variant : "poudre") as "poudre" | "bordeaux";
-  const [acc, accentText, onAccent] = (ACCENTS[accent] ?? ACCENTS.rose!)[v];
-  return { ...VARIANTS[v]!, accent: acc, accentText, onAccent };
+  const [a, accentText, onAccent, flower] = (ACCENTS[accent] ?? ACCENTS.rose!)[v];
+  return { ...VARIANTS[v]!, accent: a, accentText, onAccent, flower, dark: v === "bordeaux" };
 }
 
-const SCRIPT: Record<InvitationView["event"]["type"], string> = {
-  WEDDING: "Ensemble",
-  BIRTHDAY: "Célébrons",
-  CORPORATE: "Bienvenue",
-  MEMORIAL: "Souvenir",
-  OTHER: "Bienvenue",
+const EYEBROW: Record<InvitationView["event"]["type"], string> = {
+  WEDDING: "Nous nous marions",
+  BIRTHDAY: "Vous êtes invité",
+  CORPORATE: "Invitation",
+  MEMORIAL: "En mémoire de",
+  OTHER: "Invitation",
 };
+
+const WELCOME: Record<InvitationView["event"]["type"], string> = {
+  WEDDING: "De tous les jours que nous partagerons, celui-ci sera le premier d’une longue histoire. Nous aimerions l’écrire entourés de vous.",
+  BIRTHDAY: "Une année de plus, et l’envie de la fêter avec vous, tout simplement.",
+  CORPORATE: "Nous serions honorés de vous compter parmi nos invités.",
+  MEMORIAL: "Votre présence et vos prières nous accompagnent.",
+  OTHER: "Nous serions heureux de vous compter parmi nous.",
+};
+
+const serif = "[font-family:var(--inv-playfair)]";
+/** Axe optique au plus bas : les deliés s epaississent, la plume reste lisible en grand. */
+const script = "[font-family:var(--ro-script)] font-normal [font-variation-settings:'opsz'_16]";
+const caps = "text-[11px] font-semibold uppercase tracking-[0.26em]";
+
+/** La plume prend de la place : l echelle reste plus sage qu une serif. */
+function nameSize(longest: number): string {
+  if (longest <= 7) return "text-[clamp(52px,15.5vw,70px)]";
+  if (longest <= 10) return "text-[clamp(44px,12.5vw,58px)]";
+  if (longest <= 15) return "text-[clamp(34px,9.6vw,44px)]";
+  if (longest <= 22) return "text-[clamp(28px,7.8vw,36px)]";
+  return "text-[clamp(25px,6.8vw,30px)]";
+}
 
 const button =
-  "flex min-h-[52px] w-full items-center justify-center rounded-full bg-[var(--ro-accent)] px-6 text-[14px] font-medium text-[var(--ro-on-accent)] transition-[transform,opacity] duration-150 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--ro-accent)]";
+  "flex min-h-[54px] w-full items-center justify-center rounded-full bg-[var(--ro-accent)] px-6 text-[14.5px] font-medium tracking-[0.02em] text-[var(--ro-on-accent)] transition-[transform,opacity] duration-150 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--ro-accent)]";
 
 const styles: SectionStyles = {
-  heading: "text-[30px] italic leading-tight [font-family:var(--inv-playfair)]",
+  heading: cn(serif, "text-[32px] italic leading-[1.1]"),
   body: "text-[16px] leading-relaxed text-[var(--ro-ink)]",
   muted: "text-[15px] leading-relaxed text-[var(--ro-ink-2)]",
-  label: "text-[11px] font-semibold uppercase tracking-[0.26em] text-[var(--ro-accent-text)]",
+  label: cn(caps, "text-[10.5px] text-[var(--ro-accent-text)]"),
   rule: "divide-[var(--ro-line)] border-[var(--ro-line)]",
-  emphasis: "text-[22px] leading-[1.2] [font-family:var(--inv-playfair)]",
-  link: "border-b border-[var(--ro-accent)] text-[13px] font-medium tracking-[0.04em] transition-colors hover:text-[var(--ro-accent-text)]",
+  emphasis: cn(serif, "text-[22px] leading-[1.2]"),
+  link: "inline-flex items-center gap-1.5 text-[13px] font-medium underline decoration-[var(--ro-accent)] underline-offset-[6px] transition-opacity hover:opacity-70",
 };
 
+/** Arche douce : une ellipse en tete, aucun cadre. */
+const arch = "rounded-b-[28px] rounded-tl-[50%_120px] rounded-tr-[50%_120px] bg-[var(--ro-paper)]";
+
+const DRAW_CSS =
+  ".ro-draw{stroke-dasharray:1;stroke-dashoffset:1;animation:ro-draw 1.9s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--i,0)*35ms + 200ms)}@keyframes ro-draw{to{stroke-dashoffset:0}}[data-sealed] .ro-draw{animation-play-state:paused}";
+
 export function Romantic({ view, rsvpForm }: { view: InvitationView; rsvpForm?: RsvpFormData | null }) {
-  const { event, theme } = view;
+  const { event, venues, sections, rsvp, theme } = view;
   const p = palette(theme.settings.variant, theme.settings.accent);
   const dear = salutation(view);
   const { starts } = event;
-  const dark = theme.settings.variant === "bordeaux";
+  const city = cityOf(view);
+  const longest = Math.max(...event.hostParts.map((h) => h.length));
+
+  const wordSection = sections.find((s) => s.kind === "custom" && !s.title);
+  const word = wordSection?.kind === "custom" ? wordSection.data.text : WELCOME[event.type];
+  const programs = sections.filter((s) => s.kind === "program");
+  const infos = sections.filter((s) => s !== wordSection && s.kind !== "program");
+
+  const style = {
+    "--ro-bg": p.bg,
+    "--ro-paper": p.paper,
+    "--ro-blush": p.blush,
+    "--ro-ink": p.ink,
+    "--ro-ink-2": p.ink2,
+    "--ro-line": p.line,
+    "--ro-accent": p.accent,
+    "--ro-accent-text": p.accentText,
+    "--ro-on-accent": p.onAccent,
+    "--ro-flower": p.flower,
+  } as React.CSSProperties;
+
+  const envelopeStyle = {
+    "--env-bg": p.bg,
+    "--env-ink": p.ink,
+    "--env-ink-2": p.ink2,
+    "--env-line": p.line,
+    "--env-paper": p.dark ? "#4A2A33" : "#F0DDD7",
+    "--env-fold": p.dark ? "#42252D" : "#EAD3CC",
+    "--env-flap": p.dark ? "#55343E" : "#E3C8C0",
+    "--env-edge": p.dark ? "#6B4550" : "#D1B0A7",
+    "--env-card": "#FCF6F3",
+    "--env-card-ink": "#3B2A2F",
+    "--env-liner": p.flower,
+    "--env-seal": p.accent,
+    "--env-seal-ink": p.onAccent,
+    "--env-font": "var(--inv-playfair)",
+    "--env-script": "var(--ro-script)",
+  } as React.CSSProperties;
+
+  const rsvpStyle = {
+    "--rsvp-bg": p.paper,
+    "--rsvp-ink": p.ink,
+    "--rsvp-ink-2": p.ink2,
+    "--rsvp-line": p.line,
+    "--rsvp-rule": p.accent,
+    "--rsvp-accent": p.accentText,
+    "--rsvp-error": p.dark ? "#F0A39C" : "#A8342D",
+    "--rsvp-font": "var(--inv-playfair)",
+  } as React.CSSProperties;
 
   return (
-    <ThemeShell
-      view={view}
-      rsvpForm={rsvpForm}
-      dark={dark}
-      mainClassName={cn(playfair.variable, greatVibes.variable, "bg-[var(--ro-bg)] text-[var(--ro-ink)]")}
-      vars={{ "--ro-bg": p.bg, "--ro-paper": p.paper, "--ro-ink": p.ink, "--ro-ink-2": p.ink2, "--ro-line": p.line, "--ro-accent": p.accent, "--ro-accent-text": p.accentText, "--ro-on-accent": p.onAccent }}
-      envelope={{
-        "--env-bg": p.bg, "--env-ink": p.ink, "--env-ink-2": p.ink2, "--env-line": p.line,
-        "--env-paper": dark ? "#4A2A33" : "#F0DDD7", "--env-fold": dark ? "#42252D" : "#EAD3CC", "--env-flap": dark ? "#55343E" : "#E3C8C0", "--env-edge": dark ? "#6B4550" : "#D1B0A7",
-        "--env-card": "#FDF7F4", "--env-card-ink": "#3A2A2E", "--env-liner": p.accent, "--env-seal": p.accent, "--env-seal-ink": p.onAccent, "--env-font": "var(--inv-playfair)",
-      }}
-      rsvp={{ "--rsvp-bg": p.bg, "--rsvp-ink": p.ink, "--rsvp-ink-2": p.ink2, "--rsvp-line": p.line, "--rsvp-rule": p.accent, "--rsvp-accent": p.accentText, "--rsvp-error": dark ? "#F0A39C" : "#A8342D", "--rsvp-font": "var(--inv-playfair)" }}
-      styles={styles}
-      button={button}
-      heroCtaId="ro-hero-cta"
-      containerClassName="pt-[max(16px,env(safe-area-inset-top))]"
-      dockClassName="bg-[var(--ro-bg)]/92 px-6 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur"
-      before={<Branch className="pointer-events-none absolute right-[-30px] top-[-10px] h-[220px] w-auto text-[var(--ro-accent)] opacity-70" />}
-      hero={
-        <header className="relative flex min-h-[calc(100svh-32px)] flex-col items-center justify-center py-10 text-center">
-          {event.updatedNote && <p className="pc-fade mb-6 text-[11px] font-semibold uppercase tracking-[0.26em] text-[var(--ro-accent-text)]">{event.updatedNote}</p>}
-          {dear && (
-            <p className="pc-fade mb-5 text-[15px] italic text-[var(--ro-ink-2)] [font-family:var(--inv-playfair)]" style={delay(0)}>
-              Pour {dear}
-            </p>
-          )}
-          {/* Le seul mot calligraphie du premier ecran. */}
-          <p className="pc-fade text-[clamp(40px,11vw,52px)] leading-none text-[var(--ro-accent-text)] [font-family:var(--inv-script)]" style={delay(80)}>
-            {SCRIPT[event.type]}
-          </p>
-          <h1 className="mt-5 italic [font-family:var(--inv-playfair)]">
-            <HostNames view={view} sizeClass={nameSizeClass(longestHost(view), NAME_SCALE)} lineClassName="leading-[1.02]" separator={<span className="my-1 block text-[22px] not-italic text-[var(--ro-accent-text)]">&amp;</span>} />
-          </h1>
-          <div className="mt-8 w-full">
-            <p className="sr-only">
-              {starts.long}, {starts.time}
-            </p>
-            <div aria-hidden className="flex items-center justify-center gap-3 text-[var(--ro-accent)]">
-              <span className="pc-draw h-px w-10 bg-current" style={{ ...delay(300), transformOrigin: "right" }} />
-              <Bud className="size-4" />
-              <span className="pc-draw h-px w-10 bg-current" style={delay(300)} />
-            </div>
-            <p aria-hidden className="mt-4 text-[clamp(20px,5.8vw,24px)] leading-tight [font-family:var(--inv-playfair)]">
-              {starts.weekday} {starts.day} {starts.month} {starts.year}
-            </p>
-            <p aria-hidden className="pc-fade mt-1 text-[15px] italic text-[var(--ro-ink-2)] [font-family:var(--inv-playfair)]" style={delay(480)}>
-              à {starts.time}
-            </p>
-          </div>
-          {theme.settings.countdown && event.daysLeft !== null && (
-            <p className="pc-fade mt-4 text-[13.5px] font-medium text-[var(--ro-accent-text)]" style={delay(560)}>
-              {countdownText(event.daysLeft)}
-            </p>
-          )}
-          <HeroCta view={view} id="ro-hero-cta" button={button} className="mt-9 max-w-[320px]" noteClassName="text-[var(--ro-ink-2)]" />
-        </header>
-      }
-      photo={
-        <figure className="pc-inview mb-16 mt-4">
-          <div className="relative mx-auto aspect-[4/5] w-[86%] overflow-hidden rounded-t-[999px] rounded-b-[24px] bg-[var(--ro-paper)] ring-8 ring-[var(--ro-paper)]">
-            <Image src={event.heroImageUrl!} alt={event.hosts} fill sizes="(max-width: 460px) 86vw, 400px" className="object-cover" />
-          </div>
-        </figure>
-      }
-      section={({ key, title, children }) => (
-        <section key={key} className="pc-inview mb-16 text-center">
-          <Bud className="mx-auto size-4 text-[var(--ro-accent)]" />
-          {title ? <h2 className={cn(styles.heading, "mb-8 mt-4 [overflow-wrap:anywhere]")}>{title}</h2> : <div className="mb-8" />}
-          {children}
-        </section>
+    <main
+      style={style}
+      className={cn(
+        playfair.variable,
+        romanticScript.variable,
+        "relative min-h-dvh overflow-x-clip bg-[var(--ro-bg)] font-[family-name:var(--app-font-sans)] text-[var(--ro-ink)] antialiased",
+        p.dark ? "[color-scheme:dark]" : "[color-scheme:light]",
       )}
-      rsvpWrapperClassName="pc-inview rounded-[28px] bg-[var(--ro-paper)] px-5 py-9"
-      rsvpTitle={
-        <>
-          <p className="text-[clamp(34px,9vw,42px)] leading-none text-[var(--ro-accent-text)] [font-family:var(--inv-script)]">Répondre</p>
-          <h2 className={cn(styles.heading, "mt-2 text-[22px]")}>Votre réponse</h2>
-        </>
-      }
-      footer={
-        <footer className="relative mt-20 text-center">
-          <Branch className="pointer-events-none absolute left-[-40px] top-[-30px] h-[160px] w-auto rotate-180 text-[var(--ro-accent)] opacity-60" />
-          <p className="relative text-[clamp(34px,9vw,42px)] leading-none text-[var(--ro-accent-text)] [font-family:var(--inv-script)]">Merci</p>
-          <p className="relative mt-3 text-[13px] text-[var(--ro-ink-2)]">
-            {event.hostParts.join(" & ")} · {starts.day} {starts.month} {starts.year}
+    >
+      <style>{DRAW_CSS}</style>
+      {view.envelope && (
+        <div style={envelopeStyle}>
+          <Envelope recipient={dear ? `Pour ${dear}` : null} monogram={monogram(view)} hosts={event.hosts} />
+        </div>
+      )}
+
+      <div data-sealed={view.envelope ? "" : undefined} className="mx-auto w-full max-w-[460px] break-words pb-28">
+        {/* ------------------------------------------------ OUVERTURE -- */}
+        <header className="relative isolate flex min-h-[100svh] flex-col items-center px-6 pb-6 pt-[max(20px,env(safe-area-inset-top))] text-center">
+          <span
+            aria-hidden
+            className="absolute left-1/2 top-[20%] -z-10 size-[min(96vw,420px)] -translate-x-1/2 rounded-full"
+            style={{ background: "radial-gradient(circle, var(--ro-blush) 0%, color-mix(in srgb, var(--ro-blush) 60%, transparent) 42%, transparent 70%)" }}
+          />
+          <Spray draw className="pointer-events-none absolute -right-14 -top-4 -z-10 w-[200px] rotate-[100deg] text-[var(--ro-flower)]" />
+          <Spray draw className="pointer-events-none absolute -left-16 bottom-[20%] -z-10 w-[170px] -rotate-[70deg] text-[var(--ro-flower)]" />
+
+          {dear ? (
+            <p className={cn(serif, "pc-fade mt-2 flex max-w-[82%] items-center gap-3 text-[16px] italic leading-snug text-[var(--ro-ink-2)]")} style={delay(0)}>
+              {dear.length <= 26 && <span aria-hidden className="h-px w-6 shrink-0 bg-[var(--ro-flower)]" />}
+              <span className="[text-wrap:balance]">Pour {dear}</span>
+              {dear.length <= 26 && <span aria-hidden className="h-px w-6 shrink-0 bg-[var(--ro-flower)]" />}
+            </p>
+          ) : (
+            <span />
+          )}
+          {event.updatedNote && <p className={cn(caps, "pc-fade mt-3 text-[10px] text-[var(--ro-accent-text)]")}>{event.updatedNote}</p>}
+
+          <div className="min-h-6 flex-1" />
+
+          <p className={cn(caps, "pc-fade text-[var(--ro-accent-text)]")} style={delay(80)}>
+            {EYEBROW[event.type]}
           </p>
-        </footer>
-      }
-    />
+          <h1 className={cn(script, "mt-5 w-full")}>
+            {event.hostParts.length === 2 ? (
+              <>
+                <span className={cn(nameSize(longest), "block leading-[1.15] [overflow-wrap:anywhere]")}>{event.hostParts[0]}</span>
+                <span className={cn(serif, "block text-[26px] italic leading-none text-[var(--ro-accent-text)]")}>&amp;</span>
+                <span className={cn(nameSize(longest), "block leading-[1.15] [overflow-wrap:anywhere]")}>{event.hostParts[1]}</span>
+              </>
+            ) : (
+              <span className={cn(nameSize(longest), "block leading-[1.2] [overflow-wrap:anywhere] [text-wrap:balance]")}>{event.hostParts[0]}</span>
+            )}
+          </h1>
+
+          <p className={cn(serif, "mt-6 text-[clamp(20px,5.8vw,23px)] leading-snug")}>
+            {starts.weekday} {starts.day} {starts.month} {starts.year}
+          </p>
+          <p className={cn(serif, "mt-1 text-[16px] italic text-[var(--ro-ink-2)]")}>
+            à {starts.time}
+            {city && <> · {city}</>}
+          </p>
+          {theme.settings.countdown && event.daysLeft !== null && (
+            <p className={cn(caps, "mt-3 text-[10px] text-[var(--ro-accent-text)]")}>{countdownText(event.daysLeft)}</p>
+          )}
+
+          <div className="min-h-6 flex-1" />
+          <HeroCta view={view} id="ro-hero-cta" button={button} className="max-w-[340px]" noteClassName="text-[var(--ro-ink-2)]" />
+        </header>
+
+        {/* ---------------------------------------------------- LE MOT -- */}
+        <section className="pc-inview px-8 pb-16 pt-16 text-center">
+          <Bloom className="mx-auto size-9 text-[var(--ro-flower)]" />
+          <p className={cn(serif, "mx-auto mt-7 max-w-[19rem] whitespace-pre-line text-[clamp(21px,5.8vw,24px)] italic leading-[1.55] [text-wrap:pretty]")}>{word}</p>
+          {event.type === "WEDDING" && <p className={cn(script, "mt-7 text-[34px] leading-[1.3] text-[var(--ro-accent-text)]")}>{event.hostParts.join(" & ")}</p>}
+        </section>
+
+        <div className="px-5">
+          {/* ------------------------------------------- CALENDRIER -- */}
+          <section className="pc-inview mb-20 text-center">
+            <Heading kicker="Réservez la date" title="Le jour" />
+            <Calendar view={view} />
+            <p className={cn(serif, "mt-7 text-[20px]")}>
+              {starts.weekday} {starts.day} {starts.month}, <span className="italic text-[var(--ro-ink-2)]">à {starts.time}</span>
+            </p>
+            {theme.settings.countdown && event.daysLeft !== null && <p className={cn(caps, "mt-2 text-[10px] text-[var(--ro-accent-text)]")}>{countdownText(event.daysLeft)}</p>}
+          </section>
+
+          {/* ------------------------------------------------ LIEUX -- */}
+          {venues.length > 0 && (
+            <section className="pc-inview mb-20 text-center">
+              <Heading kicker={venues.length > 1 ? "Où nous retrouver" : "Où nous retrouver"} title={venues.length > 1 ? "Les lieux" : "Le lieu"} />
+              <ul className="space-y-5">
+                {venues.map((venue) => (
+                  <li key={`${venue.label}-${venue.name}`} className={cn(arch, "px-6 pb-9 pt-14")}>
+                    <p className={styles.label}>
+                      {venue.label}
+                      {venue.time && <span className="tracking-[0.14em]"> · {venue.time}</span>}
+                    </p>
+                    <p className={cn(serif, "mt-3 text-[23px] leading-[1.2] [overflow-wrap:anywhere]")}>{venue.name}</p>
+                    <p className={cn("mt-2", styles.muted)}>{venue.address}</p>
+                    {venue.landmark && <p className={cn("mt-1 italic", styles.muted)}>{venue.landmark}</p>}
+                    <a href={view.preview ? undefined : venue.directionsUrl} target="_blank" rel="noopener noreferrer" className={cn("mt-3 min-h-11", styles.link)}>
+                      Itinéraire
+                      <ArrowUpRight aria-hidden className="size-3.5" strokeWidth={1.5} />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {/* --------------------------------------------- PROGRAMME -- */}
+          {programs.map((s) => (
+            <section key={s.id} className="pc-inview mb-20 text-center">
+              <Heading kicker="Au fil de la journée" title={s.title} />
+              <Program section={s} />
+            </section>
+          ))}
+        </div>
+
+        {/* ------------------------------------------------ PORTRAIT -- */}
+        {event.heroImageUrl && (
+          <figure className="pc-inview relative mb-20 px-5 pt-4">
+            <div className="relative mx-auto aspect-[3/4] w-[78%] overflow-hidden rounded-[50%] bg-[var(--ro-blush)]">
+              <div className="pc-parallax absolute inset-0">
+                <Image src={event.heroImageUrl} alt={event.hosts} fill sizes="(max-width: 460px) 78vw, 340px" className="object-cover" />
+              </div>
+            </div>
+            <Spray className="pointer-events-none absolute bottom-12 left-1 w-[140px] text-[var(--ro-flower)]" />
+            <Spray className="pointer-events-none absolute -top-2 right-0 w-[120px] rotate-180 text-[var(--ro-flower)]" />
+            <figcaption className={cn(serif, "mt-8 text-center text-[16px] italic text-[var(--ro-ink-2)]")}>{event.hostParts.join(" & ")}</figcaption>
+          </figure>
+        )}
+
+        {/* ------------------------------------------------- REPONSE -- */}
+        <div className={cn(arch, "pc-inview mx-3 px-6 pb-12 pt-16")}>
+          <RsvpBlock
+            view={view}
+            rsvpForm={rsvpForm}
+            rsvpStyle={rsvpStyle}
+            styles={styles}
+            button={button}
+            title={
+              <>
+                <Bloom className="mx-auto size-9 text-[var(--ro-flower)]" />
+                <p className={cn(caps, "mt-4 text-[10px] text-[var(--ro-accent-text)]")}>R.S.V.P.</p>
+                <h2 className={cn(styles.heading, "mt-2 text-[34px]")}>Votre réponse</h2>
+              </>
+            }
+          />
+        </div>
+
+        {/* ------------------------------------------- INFORMATIONS -- */}
+        <div className="px-5 pt-20">
+          {infos.map((s, i) => (
+            <section key={s.id} className="pc-inview mb-16 text-center">
+              <Heading kicker={i === 0 ? "À savoir" : undefined} title={s.title} />
+              <SectionBody section={s} styles={styles} />
+            </section>
+          ))}
+
+          <footer className="relative mt-8 pb-4 text-center">
+            <Bloom className="mx-auto size-10 text-[var(--ro-flower)]" />
+            <p className={cn(serif, "mt-4 text-[30px] italic leading-none")}>Merci</p>
+            <p className={cn(caps, "mt-3 text-[10px] text-[var(--ro-ink-2)]")}>
+              {event.hostParts.join(" & ")} · {starts.day} {starts.month} {starts.year}
+            </p>
+          </footer>
+        </div>
+      </div>
+
+      {!rsvp.closed && (
+        <RsvpDock
+          heroId="ro-hero-cta"
+          targetId="rsvp"
+          label="Répondre à l’invitation"
+          className="bg-[color-mix(in_srgb,var(--ro-bg)_90%,transparent)] px-6 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur"
+          buttonClassName={cn(button, "mx-auto max-w-[412px]")}
+        />
+      )}
+    </main>
   );
 }
 
-/** Une branche fleurie au trait : tige, cinq feuilles, trois boutons. */
-function Branch({ className }: { className?: string }) {
+function Heading({ kicker, title }: { kicker?: string; title: string | null }) {
   return (
-    <svg aria-hidden viewBox="0 0 160 220" fill="none" className={className} stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
-      <path d="M150 5C120 60 95 120 70 215" />
-      <path d="M128 46c-18-2-30 8-34 22 16 2 28-8 34-22Z" />
-      <path d="M118 78c-16-8-30-4-38 6 14 8 28 4 38-6Z" />
-      <path d="M105 112c-18 0-30 10-32 24 16 0 28-10 32-24Z" />
-      <path d="M96 140c-16-6-30 0-36 12 14 6 28 0 36-12Z" />
-      <path d="M84 176c-14-2-26 6-30 18 14 2 26-6 30-18Z" />
-      <circle cx="140" cy="28" r="6" />
-      <circle cx="118" cy="98" r="5" />
-      <circle cx="100" cy="160" r="4" />
-    </svg>
+    <header className="mb-9">
+      <span aria-hidden className="mx-auto flex items-center justify-center gap-3 text-[var(--ro-flower)]">
+        <span className="h-px w-8 bg-current" />
+        <Bloom className="size-6" />
+        <span className="h-px w-8 bg-current" />
+      </span>
+      {kicker && <p className={cn(caps, "mt-4 text-[10px] text-[var(--ro-accent-text)]")}>{kicker}</p>}
+      {title && <h2 className={cn(styles.heading, "mt-2 [overflow-wrap:anywhere]")}>{title}</h2>}
+    </header>
   );
 }
 
-/** Un bouton de fleur, quatre petales. */
-function Bud({ className }: { className?: string }) {
+/** Le mois en grille, le jour entoure d un trait de plume. */
+function Calendar({ view }: { view: InvitationView }) {
+  const { starts } = view.event;
+  const m = Number(monthNumber(starts.month));
+  const y = Number(starts.year);
+  const day = Number(starts.day);
+  if (!Number.isFinite(m) || !Number.isFinite(y)) return null;
+  const offset = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
+  const count = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const cells: (number | null)[] = [...Array.from({ length: offset }, () => null), ...Array.from({ length: count }, (_, i) => i + 1)];
   return (
-    <svg aria-hidden viewBox="0 0 16 16" fill="none" className={className} stroke="currentColor" strokeWidth="1.2">
-      <path d="M8 2c2 2 2 5 0 6-2-1-2-4 0-6ZM8 14c-2-2-2-5 0-6 2 1 2 4 0 6ZM2 8c2-2 5-2 6 0-1 2-4 2-6 0ZM14 8c-2 2-5 2-6 0 1-2 4-2 6 0Z" />
-    </svg>
+    <div className="mx-auto max-w-[320px]">
+      <p className="sr-only">
+        {starts.long}, {starts.time}
+      </p>
+      <div aria-hidden>
+        <p className={cn(serif, "text-[22px] italic")}>
+          {starts.month} {starts.year}
+        </p>
+        <div className="mt-5 grid grid-cols-7 gap-y-1.5 border-t border-[var(--ro-line)] pt-4">
+          {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
+            <span key={i} className={cn(caps, "pb-2 text-[10px] tracking-[0.1em] text-[var(--ro-ink-2)]")}>
+              {d}
+            </span>
+          ))}
+          {cells.map((c, i) => (
+            <span key={i} className={cn("relative flex h-9 items-center justify-center text-[15px] tabular-nums", serif, c === day ? "font-semibold text-[var(--ro-accent-text)]" : "text-[var(--ro-ink)]")}>
+              {c}
+              {c === day && <Loop className="absolute left-1/2 top-1/2 w-[46px] -translate-x-1/2 -translate-y-1/2 text-[var(--ro-accent)]" />}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Programme centre : l heure en italique, le libelle dessous, un point entre deux. */
+function Program({ section }: { section: InvitationSection }) {
+  if (section.kind !== "program") return null;
+  return (
+    <ol className="mx-auto max-w-[320px]">
+      {section.data.items.map((item, i) => (
+        <li key={i} className="flex flex-col items-center">
+          {i > 0 && <span aria-hidden className="my-4 size-1 rounded-full bg-[var(--ro-flower)]" />}
+          <span className={cn(serif, "whitespace-nowrap text-[22px] italic leading-none tabular-nums text-[var(--ro-accent-text)]")}>{item.time.replace(":", " h ")}</span>
+          <span className={cn("mt-2 [overflow-wrap:anywhere] [text-wrap:balance]", styles.body)}>{item.label}</span>
+        </li>
+      ))}
+    </ol>
   );
 }

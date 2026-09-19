@@ -2,8 +2,9 @@ import { Fraunces } from "next/font/google";
 
 /**
  * Botanical : une serif "molle" (axe SOFT de Fraunces), aux formes arrondies,
- * qui va avec les feuillages. L axe optique garde les italiques lisibles en
- * petit corps sur Android.
+ * qui repond au trait des feuillages. Composee en graisse legere (300) pour
+ * les noms : la modernite vient de la finesse, pas d une calligraphie.
+ * L axe optique garde les italiques lisibles en petit corps sur Android.
  */
 export const botanicalDisplay = Fraunces({
   subsets: ["latin"],

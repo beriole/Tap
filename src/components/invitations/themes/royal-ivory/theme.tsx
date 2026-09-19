@@ -188,7 +188,7 @@ export function RoyalIvory({ view, rsvpForm }: { view: InvitationView; rsvpForm?
             <h1 className="mt-7 font-normal [font-family:var(--ri-display)] [font-optical-sizing:auto]">
               {event.hostParts.length === 2 ? (
                 <>
-                  <span className={cn("block leading-[0.92] tracking-[-0.02em] [overflow-wrap:anywhere]", nameSize(longest))}>
+                  <span className={cn(nameSize(longest), "block leading-[0.92] tracking-[-0.02em] [overflow-wrap:anywhere]")}>
                     {event.hostParts[0]}
                   </span>
                   <span className="pc-fade my-1.5 flex items-center justify-center gap-4" style={delay(260)}>
@@ -196,12 +196,12 @@ export function RoyalIvory({ view, rsvpForm }: { view: InvitationView; rsvpForm?
                     <span className="text-[30px] italic leading-none text-[var(--ri-accent)]">&amp;</span>
                     <span aria-hidden className="pc-draw h-px w-12 bg-[var(--ri-rule)]" style={delay(320)} />
                   </span>
-                  <span className={cn("block leading-[0.92] tracking-[-0.02em] [overflow-wrap:anywhere]", nameSize(longest))}>
+                  <span className={cn(nameSize(longest), "block leading-[0.92] tracking-[-0.02em] [overflow-wrap:anywhere]")}>
                     {event.hostParts[1]}
                   </span>
                 </>
               ) : (
-                <span className={cn("block leading-[1] tracking-[-0.02em] [overflow-wrap:anywhere] [text-wrap:balance]", nameSize(longest))}>
+                <span className={cn(nameSize(longest), "block leading-[1] tracking-[-0.02em] [overflow-wrap:anywhere] [text-wrap:balance]")}>
                   {event.hostParts[0]}
                 </span>
               )}
