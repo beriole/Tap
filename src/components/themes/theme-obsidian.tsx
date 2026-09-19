@@ -1,5 +1,9 @@
 import { ArrowUpRight, MapPin, Plus } from "lucide-react";
-import { Portrait, SaveContact, ShareControl, TrackedLink } from "./premium/atoms";
+import Image from "next/image";
+import { FlipCard, Portrait, SaveContact, ShareControl, TrackedLink } from "./premium/atoms";
+import { GRAIN } from "./premium/paper";
+import { formatPhone, normalizePhone } from "@/lib/events/phone";
+import { isValidCardToken } from "@/lib/tokens";
 import { ActionIcon } from "./premium/action-icon";
 import { obsidianDisplay } from "./premium/font-obsidian";
 import { buildCardModel } from "./premium/model";
@@ -23,11 +27,24 @@ import type { ThemeProps } from "@/types/profile";
  * Rien ne bouge en continu. Les entrees sont plus lentes que dans Signature
  * (450 ms, deplacements de quelques pixels) : l elegance est dans la retenue.
  */
+/** Dorure a chaud : un degrade sur le texte, jamais un aplat d or. */
+const foil = "bg-[linear-gradient(135deg,var(--pc-accent)_0%,color-mix(in_srgb,var(--pc-accent)_55%,white)_45%,var(--pc-accent)_75%)] bg-clip-text text-transparent";
+
 export function ThemeObsidian({ profile, preview }: ThemeProps) {
   const m = buildCardModel(profile, "obsidian");
   const { identity } = profile;
   const Name = preview ? "p" : "h1";
   const intro = identity.bio ?? identity.tagline;
+  const { contact, location } = profile;
+  const token = profile.cardToken;
+  const qrReady = !preview && isValidCardToken(token);
+  // Les coordonnees ecrites au verso, comme sur une carte imprimee.
+  const cardLines = [
+    (contact.phone && formatPhone(normalizePhone(contact.phone).e164)) || contact.phone,
+    contact.email,
+    contact.website?.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""),
+    [location.city, location.country].filter(Boolean).join(", ") || null,
+  ].filter((l): l is string => Boolean(l));
 
   return (
     <main
@@ -65,56 +82,74 @@ export function ThemeObsidian({ profile, preview }: ThemeProps) {
           />
         </header>
 
-        {/* Le tirage : passe-partout d un pixel, angles marques. */}
-        <section className="mt-5 flex justify-center">
-          <div className="relative w-[70%] max-w-[292px]">
-            <div
-              aria-hidden
-              className="pc-fade pointer-events-none absolute -inset-[11px] border border-[var(--pc-line)]"
-              style={{ "--d": "140ms" } as React.CSSProperties}
-            />
-            <CornerMarks />
-            <div className="pc-fade relative aspect-[4/5] overflow-hidden bg-[var(--pc-surface)]">
-              <div className="pc-settle absolute inset-0">
-                <Portrait
-                  src={identity.avatarUrl}
-                  alt={identity.displayName}
-                  sizes="(max-width: 440px) 70vw, 292px"
-                  position={m.photoPosition}
-                  className="size-full"
-                  fallback={
-                    <div className="flex size-full items-center justify-center font-[family-name:var(--pc-display)] text-[72px] italic text-[var(--pc-ink-2)]">
-                      {m.name.initials}
-                    </div>
-                  }
-                />
+        {/* La carte : un objet noir a deux faces. Recto, l identite seule ;
+            verso, les coordonnees ecrites et le QR. On la retourne du doigt. */}
+        <section className="pc-lift mt-4" style={{ "--d": "120ms" } as React.CSSProperties}>
+          <FlipCard
+            className="aspect-[85/55] rounded-[10px]"
+            front={
+              <div className="relative flex size-full flex-col items-center justify-center overflow-hidden rounded-[10px] bg-[var(--pc-x-card)] shadow-[0_1px_0_rgba(255,255,255,0.08)_inset,0_0_0_1px_rgba(255,255,255,0.07),0_30px_60px_-30px_rgba(0,0,0,0.9)]">
+                <span aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.16] mix-blend-overlay" style={{ backgroundImage: GRAIN }} />
+                {/* Une lumiere rasante, d un seul cote : le mat se lit par elle. */}
+                <span aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(115deg, rgba(255,255,255,0.07) 0%, transparent 38%, transparent 62%, rgba(255,255,255,0.03) 100%)" }} />
+                {identity.logoUrl ? (
+                  <Portrait src={identity.logoUrl} alt="" sizes="72px" position="50% 50%" priority={false} className="size-[68px] rounded-[8px]" imageClassName="object-contain" fallback={null} />
+                ) : (
+                  <span aria-hidden className={cn(foil, "font-[family-name:var(--pc-display)] text-[clamp(44px,13vw,56px)] italic leading-none")}>
+                    {m.name.initials}
+                  </span>
+                )}
+                <Name className="mt-4 text-center text-[11px] font-medium uppercase tracking-[0.34em] text-[var(--pc-ink)]">{m.name.full}</Name>
+                {identity.company && <p className="mt-1.5 text-[9.5px] uppercase tracking-[0.28em] text-[var(--pc-ink-3)]">{identity.company}</p>}
               </div>
-              {/* Le bas du tirage se fond dans le noir : l image n est pas
-                  collee sur la page, elle en sort. */}
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3"
-                style={{
-                  background: "linear-gradient(to top, color-mix(in srgb, var(--pc-bg) 55%, transparent), transparent)",
-                }}
-              />
-            </div>
-          </div>
+            }
+            back={
+              <div className="relative flex size-full overflow-hidden rounded-[10px] bg-[var(--pc-x-card)] shadow-[0_1px_0_rgba(255,255,255,0.08)_inset,0_0_0_1px_rgba(255,255,255,0.07),0_30px_60px_-30px_rgba(0,0,0,0.9)]">
+                <span aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.16] mix-blend-overlay" style={{ backgroundImage: GRAIN }} />
+                <div className="flex min-w-0 flex-1 flex-col justify-between p-[18px]">
+                  <div>
+                    <p className="font-[family-name:var(--pc-display)] text-[clamp(19px,5.6vw,23px)] leading-[1.05] tracking-[-0.01em]">{m.name.full}</p>
+                    {identity.title && <p className="mt-1.5 line-clamp-2 text-[10.5px] leading-[1.4] text-[var(--pc-ink-2)]">{identity.title}</p>}
+                  </div>
+                  <ul className="space-y-[3px] text-[10px] leading-[1.4] text-[var(--pc-ink-2)]">
+                    {cardLines.map((line) => (
+                      <li key={line} className="truncate">
+                        <span aria-hidden className="mr-2 inline-block h-px w-2.5 translate-y-[-3px] bg-[var(--pc-accent)]" />
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {qrReady && (
+                  <div className="flex shrink-0 flex-col items-end justify-between p-[18px] pl-0">
+                    <span className={cn(foil, "font-[family-name:var(--pc-display)] text-[20px] italic leading-none")}>{m.name.initials}</span>
+                    <span className="block size-[60px] overflow-hidden rounded-[4px] bg-[#F7F4EE] p-1">
+                      <Image src={`/api/qr/${profile.cardToken}`} alt="" width={52} height={52} unoptimized className="size-full" />
+                    </span>
+                  </div>
+                )}
+              </div>
+            }
+          />
         </section>
 
-        <section className="mt-10 text-center">
-          <Name
-            className="pc-rise font-[family-name:var(--pc-display)] text-[clamp(34px,10vw,40px)] font-normal leading-[1] tracking-[-0.012em]"
-            style={{ "--d": "200ms" } as React.CSSProperties}
-          >
-            {m.name.full}
-          </Name>
+        {/* L epreuve : le portrait, plus petit que la carte, sous passe-partout. */}
+        {identity.avatarUrl && (
+          <section className="mt-9 flex justify-center">
+            <div className="relative w-[46%] max-w-[200px]">
+              <div aria-hidden className="pc-fade pointer-events-none absolute -inset-[9px] border border-[var(--pc-line)]" style={{ "--d": "300ms" } as React.CSSProperties} />
+              <div className="pc-fade relative aspect-[4/5] overflow-hidden bg-[var(--pc-surface)]" style={{ "--d": "260ms" } as React.CSSProperties}>
+                <div className="pc-settle absolute inset-0">
+                  <Portrait src={identity.avatarUrl} alt={identity.displayName} sizes="(max-width: 440px) 46vw, 200px" position={m.photoPosition} className="size-full" fallback={null} />
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
+        <section className="mt-7 text-center">
           {m.role.length > 0 && (
-            <p
-              className="pc-rise mt-3 text-[15px] leading-[1.5] text-[var(--pc-ink-2)]"
-              style={{ "--d": "250ms" } as React.CSSProperties}
-            >
+            <p className="pc-rise text-[15px] leading-[1.5] text-[var(--pc-ink-2)]" style={{ "--d": "250ms" } as React.CSSProperties}>
               {identity.title}
               {identity.title && identity.company && (
                 <span aria-hidden className="mx-2 text-[var(--pc-accent)]">
@@ -124,12 +159,7 @@ export function ThemeObsidian({ profile, preview }: ThemeProps) {
               {identity.company}
             </p>
           )}
-
-          <div
-            aria-hidden
-            className="pc-draw mx-auto mt-6 h-px w-10 bg-[var(--pc-accent)]"
-            style={{ "--d": "320ms", transformOrigin: "center" } as React.CSSProperties}
-          />
+          <div aria-hidden className="pc-draw mx-auto mt-5 h-px w-10 bg-[var(--pc-accent)]" style={{ "--d": "320ms", transformOrigin: "center" } as React.CSSProperties} />
         </section>
 
         <div className="pc-rise mt-7" style={{ "--d": "360ms" } as React.CSSProperties}>

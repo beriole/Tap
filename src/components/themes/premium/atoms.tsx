@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { AnimatePresence, motion, useMotionTemplate, useMotionValue, useSpring } from "motion/react";
+import { AnimatePresence, motion, useMotionTemplate, useMotionValue, useReducedMotion, useSpring } from "motion/react";
 import type { ClickAction } from "@prisma/client";
 import { Check, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -384,6 +384,63 @@ export function TiltCard({ children, className }: { children: React.ReactNode; c
           style={{ background }}
         />
       </motion.div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Recto / verso
+// ---------------------------------------------------------------------------
+
+/**
+ * Une carte a deux faces, qu on retourne d un toucher.
+ *
+ * C est l objet qu un designer de marque dessine en premier : un recto qui ne
+ * porte que l identite (monogramme, nom, logo), un verso qui porte les
+ * coordonnees. Les deux faces sont dans le DOM ; la face cachee est retiree de
+ * l arbre d accessibilite. Aucun lien dedans - la carte est un bouton, et les
+ * actions sont en dessous.
+ *
+ * Retournement par ressort (Motion) ; avec "reduire les animations", la face
+ * change sans rotation.
+ */
+export function FlipCard({
+  front,
+  back,
+  className,
+  hint = "Toucher pour retourner",
+}: {
+  front: React.ReactNode;
+  back: React.ReactNode;
+  className?: string;
+  hint?: string | null;
+}) {
+  const [flipped, setFlipped] = useState(false);
+  const reduced = useReducedMotion();
+  return (
+    <div className="[perspective:1600px]">
+      <motion.button
+        type="button"
+        aria-pressed={flipped}
+        aria-label={flipped ? "Voir le recto de la carte" : "Voir le verso de la carte"}
+        onClick={() => setFlipped((f) => !f)}
+        animate={{ rotateY: flipped ? 180 : 0 }}
+        transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 150, damping: 20, mass: 0.9 }}
+        style={{ transformStyle: "preserve-3d" }}
+        className={cn("relative block w-full cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--pc-accent)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--pc-bg)]", className)}
+      >
+        <div aria-hidden={flipped} className="relative [backface-visibility:hidden]">
+          {front}
+        </div>
+        <div aria-hidden={!flipped} className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+          {back}
+        </div>
+      </motion.button>
+      {hint && (
+        <p aria-hidden className="mt-3 text-center text-[10.5px] uppercase tracking-[0.24em] text-[var(--pc-ink-3)]">
+          {flipped ? "Recto" : hint}
+        </p>
+      )}
     </div>
   );
 }

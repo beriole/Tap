@@ -240,6 +240,7 @@ export const PREMIUM_ENGINES: PremiumEngineDefinition[] = [
           ctaBg: "#F7F4EE",
           ctaInk: "#08090A",
           scheme: "dark",
+          extra: { card: "#111214" },
         },
       },
       {
@@ -258,6 +259,7 @@ export const PREMIUM_ENGINES: PremiumEngineDefinition[] = [
           ctaBg: "#F4F4F2",
           ctaInk: "#0A0A0B",
           scheme: "dark",
+          extra: { card: "#121214" },
         },
       },
       {
@@ -276,6 +278,7 @@ export const PREMIUM_ENGINES: PremiumEngineDefinition[] = [
           ctaBg: "#F6F0EC",
           ctaInk: "#0B0809",
           scheme: "dark",
+          extra: { card: "#141012" },
         },
       },
       {
@@ -294,6 +297,7 @@ export const PREMIUM_ENGINES: PremiumEngineDefinition[] = [
           ctaBg: "#F1F4F8",
           ctaInk: "#070A10",
           scheme: "dark",
+          extra: { card: "#0F131B" },
         },
       },
     ],
