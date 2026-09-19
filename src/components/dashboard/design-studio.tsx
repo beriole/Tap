@@ -170,70 +170,83 @@ export function DesignStudio({
           })}
         </div>
 
-        <ul className="-mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
+        <ul className="-mx-4 flex snap-x snap-mandatory gap-6 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-2 md:gap-x-8 md:gap-y-14 md:overflow-visible md:px-0 xl:grid-cols-3">
           {shown.map((e) => {
             const active = saved.engine === e.key && !isLegacy;
             return (
-              <li key={e.key} className="w-[272px] shrink-0 snap-center md:w-auto">
-                <div
+              <li key={e.key} className="group/card w-[280px] shrink-0 snap-center md:w-auto">
+                {/* La scene : le design pose sur SA propre matiere (le fond de sa
+                    premiere variante), avec un grain et une lumiere rasante. Pas
+                    une carte blanche a bordure : c est le design qu on regarde. */}
+                <button
+                  type="button"
+                  onClick={() => setFullscreen(e.key)}
+                  aria-label={`Aperçu plein écran de ${e.name}`}
                   className={cn(
-                    "rounded-[28px] border p-4 transition-colors duration-300",
-                    active
-                      ? "border-[var(--brand-copper)] bg-[var(--console-card)] shadow-[0_24px_60px_-40px_rgb(180_112_63/0.8)]"
-                      : "border-[var(--console-hairline)] bg-[var(--console-card)]",
+                    "relative block w-full overflow-hidden rounded-[22px] px-6 pb-0 pt-7 outline-none transition-[box-shadow,transform] duration-500 ease-[var(--ease-settle)] focus-visible:ring-2 focus-visible:ring-[var(--brand-copper)] focus-visible:ring-offset-4",
+                    active ? "shadow-[0_0_0_2px_var(--brand-copper)]" : "hover:-translate-y-1",
                   )}
+                  style={{
+                    // Sur une matiere sombre, le chassis noir du telephone disparaitrait : on eclaircit la scene.
+                    background:
+                      e.variants[0]!.tokens.scheme === "dark"
+                        ? `color-mix(in srgb, ${e.variants[0]!.tokens.bg} 80%, white)`
+                        : e.variants[0]!.tokens.bg,
+                  }}
                 >
+                  <span aria-hidden className="grain absolute inset-0 opacity-[0.1] mix-blend-multiply" />
+                  <span
+                    aria-hidden
+                    className="absolute inset-0"
+                    style={{ background: "linear-gradient(160deg, rgba(255,255,255,0.14) 0%, transparent 40%, rgba(0,0,0,0.10) 100%)" }}
+                  />
+                  {/* Le telephone sort du bas de la scene : on voit le haut de la carte, le reste se devine. */}
+                  <span className="relative mx-auto block w-fit translate-y-2 transition-transform duration-500 ease-[var(--ease-settle)] group-hover/card:-translate-y-1">
+                    <Device src={previewUrl(active ? saved : { engine: e.key })} width={220} height={430} interactive={false} lazy />
+                  </span>
+                  <span className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full bg-black/40 text-white opacity-0 backdrop-blur transition-opacity duration-200 group-hover/card:opacity-100">
+                    <Maximize2 className="size-3.5" />
+                  </span>
+                </button>
+
+                <div className="mt-4 flex items-baseline justify-between gap-3">
+                  <h3 className="font-[family-name:var(--font-display)] text-[1.45rem] leading-none tracking-[-0.02em]">{e.name}</h3>
+                  {active ? (
+                    <span className="inline-flex items-center gap-1 text-[0.72rem] font-medium text-[var(--state-live)]">
+                      <Check className="size-3" strokeWidth={3} />
+                      Votre design
+                    </span>
+                  ) : (
+                    <span className="text-[0.7rem] uppercase tracking-[0.16em] text-[var(--muted)]">{e.tags[0]}</span>
+                  )}
+                </div>
+                <p className="mt-1.5 text-[0.8rem] leading-snug text-[var(--muted)]">{e.audience}</p>
+                {/* Les variantes : la matiere de chacune, en pastilles. */}
+                <div className="mt-3 flex items-center gap-1.5">
+                  {e.variants.map((v) => (
+                    <span key={v.key} title={v.name} className="size-4 rounded-full ring-1 ring-black/10" style={{ background: `linear-gradient(135deg, ${v.tokens.bg} 50%, ${v.tokens.accent} 50%)` }} />
+                  ))}
+                  <span className="ml-1 text-[0.72rem] text-[var(--muted)]">
+                    {e.variants.length} variante{e.variants.length > 1 ? "s" : ""}
+                  </span>
+                </div>
+
+                <div className="mt-4 flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => adopt(e.key)}
+                    disabled={pending || active}
+                    className="h-10 whitespace-nowrap rounded-full bg-[var(--brand-ink)] px-4 text-[0.82rem] font-semibold text-[var(--brand-paper)] transition-[transform,opacity] hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-40"
+                  >
+                    {active ? "Utilisé" : "Utiliser ce design"}
+                  </button>
                   <button
                     type="button"
                     onClick={() => setFullscreen(e.key)}
-                    className="group relative mx-auto block"
-                    aria-label={`Aperçu plein écran de ${e.name}`}
+                    className="h-10 text-[0.82rem] font-medium underline-offset-4 hover:underline"
                   >
-                    <Device
-                      src={previewUrl(active ? saved : { engine: e.key })}
-                      width={232}
-                      height={476}
-                      interactive={false}
-                      lazy
-                    />
-                    <span className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full bg-black/45 text-white opacity-0 backdrop-blur transition-opacity duration-200 group-hover:opacity-100">
-                      <Maximize2 className="size-3.5" />
-                    </span>
+                    Aperçu
                   </button>
-
-                  <div className="mt-4 flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-[family-name:var(--font-display)] text-[1.25rem] font-semibold tracking-[-0.01em]">
-                        {e.name}
-                      </h3>
-                      <p className="mt-0.5 text-[0.78rem] text-[var(--muted)]">{e.tags.join(" · ")}</p>
-                      <p className="mt-2 text-[0.76rem] leading-snug text-[var(--muted)]">{e.audience}</p>
-                    </div>
-                    {active && (
-                      <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-[var(--state-live-bg)] px-2.5 py-1 text-[0.7rem] font-medium text-[var(--state-live)]">
-                        <Check className="size-3" strokeWidth={3} />
-                        Actuel
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-[auto_1fr] gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFullscreen(e.key)}
-                      className="h-11 rounded-xl border border-[var(--console-hairline)] px-4 text-[0.85rem] font-medium transition-colors hover:bg-[var(--console-paper)]"
-                    >
-                      Aperçu
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => adopt(e.key)}
-                      disabled={pending || active}
-                      className="h-11 whitespace-nowrap rounded-xl bg-[var(--brand-ink)] px-3 text-[0.85rem] font-semibold text-[var(--brand-paper)] transition-transform hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-40"
-                    >
-                      {active ? "Utilisé" : "Utiliser ce design"}
-                    </button>
-                  </div>
                 </div>
               </li>
             );
