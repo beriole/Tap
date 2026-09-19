@@ -334,15 +334,3 @@ function Rule({ children }: { children?: React.ReactNode }) {
  * Les quatre angles du passe-partout, en accent. Dix pixels de trait : assez
  * pour signaler le cadre, trop peu pour le decorer.
  */
-function CornerMarks() {
-  const corner = "absolute size-[10px] border-[var(--pc-accent)]";
-  const style = { "--d": "260ms" } as React.CSSProperties;
-  return (
-    <div aria-hidden className="pc-fade pointer-events-none absolute -inset-[11px]" style={style}>
-      <span className={cn(corner, "left-0 top-0 border-l border-t")} />
-      <span className={cn(corner, "right-0 top-0 border-r border-t")} />
-      <span className={cn(corner, "bottom-0 left-0 border-b border-l")} />
-      <span className={cn(corner, "bottom-0 right-0 border-b border-r")} />
-    </div>
-  );
-}
