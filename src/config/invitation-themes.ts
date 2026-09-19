@@ -248,7 +248,7 @@ export const INVITATION_THEMES: Record<InvitationThemeKey, InvitationThemeDefini
     "CORPORATE",
     "Produit en heros, moderne, dynamique : la date comme un compte a rebours.",
     [sw("blanc", "Blanc", "#FAFAFA"), sw("noir", "Noir", "#0A0A0A")],
-    [sw("electrique", "Electrique", "#2B5CFF"), sw("orange", "Orange", "#F2542D"), sw("vert", "Vert", "#12B76A")],
+    [sw("electrique", "Electrique", "#2B5CFF"), sw("orange", "Orange", "#C43E1B"), sw("vert", "Vert", "#0B7A4B")],
   ),
 
   // ---------------------------------------------------------------- Memorial
@@ -274,7 +274,7 @@ export const INVITATION_THEMES: Record<InvitationThemeKey, InvitationThemeDefini
     "MEMORIAL",
     "Blanc, gris doux, une photographie et un texte minimal.",
     [sw("blanc", "Blanc", "#FFFFFF"), sw("nuage", "Nuage", "#F1F2F4")],
-    [sw("gris", "Gris", "#71757C"), sw("sable", "Sable", "#9A8B76"), sw("ciel", "Ciel", "#7590A8")],
+    [sw("gris", "Gris", "#62656C"), sw("sable", "Sable", "#76664F"), sw("ciel", "Ciel", "#526C85")],
   ),
 };
 
