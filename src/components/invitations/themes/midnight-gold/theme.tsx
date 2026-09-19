@@ -7,20 +7,22 @@ import { RsvpBlock, SectionBody, VenueList, countdownText, ctaLabel, monogram, s
 import { midnightGoldDisplay } from "./font";
 
 /**
- * MIDNIGHT GOLD - carton de gala.
+ * MIDNIGHT GOLD - Black tie.
  *
- * Le parti pris : une carte sombre a lisere d or, comme celles que l on pose
- * sur une nappe noire. La page entiere est le carton ; le premier ecran est
- * encadre par un double filet d or qui ne se referme qu apres le bouton.
+ * Le parti pris : la nuit, et presque rien dedans. Pas de carton encadre d or
+ * - ce cadre-la se voit sur tous les modeles du marche. Ici, la page est noire
+ * du bord au bord, la composition flotte, et l or ne sert qu a SIGNALER :
+ * un filet, un chiffre, une heure, un mot. Jamais un aplat, jamais un cadre.
  *
- * La signature est le SCEAU : le monogramme dans un cercle d or, pose sur le
- * cadre, qui revient en pied de page. La date est une ligne gravee sous les
- * noms, le jour en chiffre de titrage entre deux filets. Les sections sont
- * numerotees en chiffres romains, alignees a gauche sur un filet : on lit un
- * programme de soiree, pas un site.
+ * Trois signatures :
+ *  - le sceau suspendu a un filet vertical, en haut de la page - comme le
+ *    cachet d un carton qu on tiendrait par un ruban ;
+ *  - la date ecrite 12.12.26, en tres larges approches, sous les noms ;
+ *  - le programme de la soiree en chiffres romains, cales sur un filet, sans
+ *    boite ni fond.
  *
- * L or ne remplit jamais une surface, sauf le bouton : c est la seule masse
- * claire de la page, donc la seule chose que l oeil cherche.
+ * Le bouton est un filet d or, pas un pave : sur une page noire, une masse
+ * claire ecrase tout ce qui l entoure.
  *
  * Pas de variante claire : une garalde en graisse 300 ne tient pas sur du
  * blanc. Les variantes sont trois nuits (bleu, noir, emeraude).
@@ -29,12 +31,12 @@ import { midnightGoldDisplay } from "./font";
 type Palette = { bg: string; paper: string; ink: string; ink2: string; line: string; rule: string; accentText: string; onAccent: string };
 
 const VARIANTS: Record<string, Pick<Palette, "bg" | "paper" | "ink" | "ink2" | "line">> = {
-  minuit: { bg: "#0F1521", paper: "#161D2B", ink: "#F4EEE0", ink2: "#B3ACA0", line: "#28303F" },
-  encre: { bg: "#121212", paper: "#1A1A1A", ink: "#F3EFE6", ink2: "#B0ABA2", line: "#2C2C2C" },
-  emeraude: { bg: "#0E221E", paper: "#132C27", ink: "#F1EFE3", ink2: "#AEB5A7", line: "#22403A" },
+  minuit: { bg: "#0B111C", paper: "#121A27", ink: "#F4EEE0", ink2: "#ACA79C", line: "#232B3A" },
+  encre: { bg: "#0C0C0C", paper: "#161616", ink: "#F3EFE6", ink2: "#A9A59C", line: "#262626" },
+  emeraude: { bg: "#0A1D19", paper: "#102723", ink: "#F1EFE3", ink2: "#A6AE9F", line: "#1D3832" },
 };
 
-/** [filet, texte d accent, texte sur bouton] */
+/** [filet, texte d accent, texte sur or plein] */
 const ACCENTS: Record<string, [string, string, string]> = {
   or: ["#C9A75A", "#E0C57C", "#1A1407"],
   cuivre: ["#C1845A", "#E2A57A", "#1D120A"],
@@ -55,18 +57,27 @@ const EYEBROW: Record<InvitationView["event"]["type"], string> = {
   OTHER: "Vous convie",
 };
 
+const WELCOME: Record<InvitationView["event"]["type"], string> = {
+  WEDDING: "Il y a des soirées qu’on ne raconte pas : on les vit. Nous aimerions que vous soyez là pour celle-là.",
+  BIRTHDAY: "Nous serions heureux de vous compter parmi nous pour cette soirée.",
+  CORPORATE: "Nous serions honorés de vous compter parmi nos invités.",
+  MEMORIAL: "Votre présence nous accompagne.",
+  OTHER: "Nous serions heureux de vous compter parmi nous.",
+};
+
 const caps = "text-[11px] font-medium uppercase tracking-[0.32em]";
 const delay = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
 
 function nameSize(longest: number): string {
-  if (longest <= 8) return "text-[clamp(56px,17vw,74px)]";
-  if (longest <= 12) return "text-[clamp(44px,13vw,60px)]";
-  if (longest <= 18) return "text-[clamp(36px,10vw,46px)]";
+  if (longest <= 8) return "text-[clamp(58px,18vw,80px)]";
+  if (longest <= 12) return "text-[clamp(46px,13.5vw,62px)]";
+  if (longest <= 18) return "text-[clamp(36px,10vw,48px)]";
   return "text-[clamp(30px,8vw,38px)]";
 }
 
+/** Le bouton : un filet d or. La seule masse pleine de la page est la photo. */
 const button =
-  "flex min-h-[52px] w-full items-center justify-center rounded-[2px] bg-[var(--mg-rule)] px-6 text-[13px] font-semibold uppercase tracking-[0.2em] text-[var(--mg-on-accent)] transition-[transform,opacity] duration-150 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--mg-rule)]";
+  "flex min-h-[54px] w-full items-center justify-center border border-[var(--mg-rule)] bg-transparent px-6 text-[12px] font-medium uppercase tracking-[0.28em] text-[var(--mg-accent)] transition-[background-color,color,transform] duration-200 hover:bg-[var(--mg-rule)] hover:text-[var(--mg-on-accent)] active:scale-[0.985] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--mg-rule)]";
 
 const styles: SectionStyles = {
   heading: "text-[30px] font-light leading-tight [font-family:var(--mg-display)]",
@@ -75,7 +86,7 @@ const styles: SectionStyles = {
   label: cn(caps, "text-[var(--mg-accent)]"),
   rule: "divide-[var(--mg-line)] border-[var(--mg-line)]",
   emphasis: "text-[23px] font-normal leading-[1.15] [font-family:var(--mg-display)]",
-  link: "border-b border-[var(--mg-rule)] text-[13px] font-medium uppercase tracking-[0.16em] transition-colors hover:text-[var(--mg-accent)]",
+  link: "border-b border-[var(--mg-rule)] text-[12px] font-medium uppercase tracking-[0.18em] transition-colors hover:text-[var(--mg-accent)]",
 };
 
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
@@ -86,6 +97,11 @@ export function MidnightGold({ view, rsvpForm }: { view: InvitationView; rsvpFor
   const longest = Math.max(...event.hostParts.map((h) => h.length));
   const dear = salutation(view);
   const seal = monogram(view);
+
+  // Le premier texte libre sans titre devient le mot, compose seul sur sa page.
+  const wordSection = sections.find((s) => s.kind === "custom" && !s.title);
+  const word = wordSection?.kind === "custom" ? wordSection.data.text : null;
+  const rest = sections.filter((s) => s !== wordSection);
 
   const style = {
     "--mg-bg": p.bg,
@@ -126,70 +142,77 @@ export function MidnightGold({ view, rsvpForm }: { view: InvitationView; rsvpFor
     "--rsvp-font": "var(--mg-display)",
   } as React.CSSProperties;
 
-  // Sections numerotees I, II, III... dans l ordre d affichage.
+  // Rubriques numerotees I, II, III... dans l ordre d affichage.
   const blocks: { key: string; title: string | null; body: React.ReactNode }[] = [];
   if (venues.length > 0) {
-    blocks.push({ key: "venues", title: venues.length > 1 ? "Les lieux" : "Le lieu", body: <VenueList venues={venues} styles={styles} preview={view.preview} align="left" /> });
+    blocks.push({
+      key: "venues",
+      title: venues.length > 1 ? "Les lieux" : "Le lieu",
+      body: <VenueList venues={venues} styles={styles} preview={view.preview} align="left" />,
+    });
   }
-  for (const section of sections) blocks.push({ key: section.id, title: section.title, body: <SectionBody section={section} styles={styles} align="left" /> });
+  for (const section of rest) blocks.push({ key: section.id, title: section.title, body: <SectionBody section={section} styles={styles} align="left" /> });
 
   return (
     <main
       style={style}
-      className={cn(midnightGoldDisplay.variable, "min-h-dvh bg-[var(--mg-bg)] font-[family-name:var(--app-font-sans)] text-[var(--mg-ink)] antialiased [color-scheme:dark]")}
+      className={cn(
+        midnightGoldDisplay.variable,
+        "min-h-dvh overflow-x-clip bg-[var(--mg-bg)] font-[family-name:var(--app-font-sans)] text-[var(--mg-ink)] antialiased [color-scheme:dark]",
+      )}
     >
       {view.envelope && (
         <div style={envelopeStyle}>
-          <Envelope recipient={dear} monogram={seal} />
+          <Envelope recipient={dear ? `Pour ${dear}` : null} monogram={seal} hosts={event.hosts} />
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-[460px] break-words px-5 pb-28 pt-[max(16px,env(safe-area-inset-top))]">
-        {/* --------------------------------------------- PREMIER ECRAN -- */}
-        {/* Double filet : bordure + outline decalee, un seul element. */}
-        <header className="relative mt-7 flex min-h-[calc(100svh-60px)] flex-col items-center justify-center border border-[var(--mg-rule)] px-5 py-12 text-center outline outline-1 outline-offset-[3px] outline-[var(--mg-line)]">
-          <span
-            aria-hidden
-            className="absolute left-1/2 top-0 flex size-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--mg-rule)] bg-[var(--mg-bg)] text-[18px] leading-none text-[var(--mg-accent)] [font-family:var(--mg-display)]"
-          >
-            {seal}
+      <div data-sealed={view.envelope ? "" : undefined} className="mx-auto w-full max-w-[460px] break-words pb-28">
+        {/* --------------------------------------------- L OUVERTURE -- */}
+        <header className="flex min-h-[100svh] flex-col items-center justify-center px-6 pb-10 pt-[max(16px,env(safe-area-inset-top))] text-center">
+          {/* Le sceau, suspendu a son filet. */}
+          <span aria-hidden className="mb-9 flex flex-col items-center">
+            <span className="pc-draw h-14 w-px bg-[var(--mg-rule)] opacity-70" style={{ transformOrigin: "top" }} />
+            <span className="mt-3 flex size-12 items-center justify-center rounded-full border border-[var(--mg-rule)] text-[15px] leading-none text-[var(--mg-accent)] [font-family:var(--mg-display)]">
+              {seal}
+            </span>
           </span>
 
           {event.updatedNote && <p className={cn(caps, "pc-fade mb-6 text-[10px] text-[var(--mg-accent)]")}>{event.updatedNote}</p>}
 
           {dear && (
             <p className="pc-fade mb-6 text-[17px] italic text-[var(--mg-ink-2)] [font-family:var(--mg-display)]" style={delay(0)}>
-              {dear},
+              Pour {dear}
             </p>
           )}
 
           <h1 className="font-light [font-family:var(--mg-display)]">
             {event.hostParts.length === 2 ? (
               <>
-                <span className={cn("block leading-[0.95] [overflow-wrap:anywhere]", nameSize(longest))}>{event.hostParts[0]}</span>
-                <span className="pc-fade my-1 block text-[30px] italic leading-none text-[var(--mg-accent)]" style={delay(200)}>
+                <span className={cn("block leading-[0.94] [overflow-wrap:anywhere]", nameSize(longest))}>{event.hostParts[0]}</span>
+                <span className="pc-fade my-1 block text-[28px] italic leading-none text-[var(--mg-accent)]" style={delay(200)}>
                   &amp;
                 </span>
-                <span className={cn("block leading-[0.95] [overflow-wrap:anywhere]", nameSize(longest))}>{event.hostParts[1]}</span>
+                <span className={cn("block leading-[0.94] [overflow-wrap:anywhere]", nameSize(longest))}>{event.hostParts[1]}</span>
               </>
             ) : (
               <span className={cn("block leading-[1] [overflow-wrap:anywhere] [text-wrap:balance]", nameSize(longest))}>{event.hostParts[0]}</span>
             )}
           </h1>
 
-          <p className={cn(caps, "pc-fade mt-7 max-w-[300px] text-[10.5px] leading-[1.9] text-[var(--mg-ink-2)]")} style={delay(120)}>
+          <DateLine view={view} />
+
+          <p className={cn(caps, "pc-fade mt-8 max-w-[290px] text-[10px] leading-[2] text-[var(--mg-ink-2)]")} style={delay(120)}>
             {EYEBROW[event.type]}
           </p>
 
-          <DateLine view={view} />
-
           {theme.settings.countdown && event.daysLeft !== null && (
-            <p className="pc-fade mt-3 text-[16px] italic text-[var(--mg-accent)] [font-family:var(--mg-display)]" style={delay(560)}>
+            <p className="pc-fade mt-2 text-[15px] italic text-[var(--mg-accent)] [font-family:var(--mg-display)]" style={delay(560)}>
               {countdownText(event.daysLeft)}
             </p>
           )}
 
-          <div id="mg-hero-cta" data-hero-cta className="mt-9 w-full max-w-[300px]">
+          <div id="mg-hero-cta" data-hero-cta className="mt-10 w-full max-w-[300px]">
             <a href="#rsvp" className={button}>
               {ctaLabel(view)}
             </a>
@@ -201,45 +224,73 @@ export function MidnightGold({ view, rsvpForm }: { view: InvitationView; rsvpFor
           </div>
         </header>
 
+        {/* ------------------------------------------------- LE MOT -- */}
+        <section className="pc-inview px-8 pb-16 text-center">
+          <span aria-hidden className="mx-auto mb-8 block h-10 w-px bg-[var(--mg-line)]" />
+          <p className="mx-auto max-w-[19rem] whitespace-pre-line text-[clamp(19px,5.4vw,23px)] font-light italic leading-[1.6] [font-family:var(--mg-display)] [text-wrap:pretty]">
+            {word ?? WELCOME[event.type]}
+          </p>
+        </section>
+
         {/* --------------------------------------------------- PHOTO -- */}
-        {event.heroImageUrl ? (
-          <figure className="pc-inview mb-16 mt-10 border border-[var(--mg-line)] p-2">
+        {event.heroImageUrl && (
+          <figure className="pc-inview relative mb-16">
             <div className="relative aspect-[4/5] w-full overflow-hidden bg-[var(--mg-paper)]">
-              <Image src={event.heroImageUrl} alt={event.hosts} fill sizes="(max-width: 460px) 100vw, 460px" className="object-cover" />
+              <div className="pc-parallax absolute inset-0">
+                <Image src={event.heroImageUrl} alt={event.hosts} fill sizes="(max-width: 460px) 100vw, 460px" className="object-cover" />
+              </div>
+              {/* La photographie se fond dans la nuit, en haut comme en bas. */}
+              <span
+                aria-hidden
+                className="absolute inset-0"
+                style={{ background: "linear-gradient(to bottom, var(--mg-bg) 0%, transparent 18%, transparent 78%, var(--mg-bg) 100%)" }}
+              />
             </div>
           </figure>
-        ) : (
-          <div className="mt-16" />
         )}
 
-        {blocks.map((block, i) => (
-          <section key={block.key} className="pc-inview mb-16 border-l border-[var(--mg-line)] pl-5">
-            <p className={cn(caps, "text-[var(--mg-accent)]")}>{ROMAN[i] ?? String(i + 1)}</p>
-            {block.title ? <h2 className={cn(styles.heading, "mb-7 mt-2 [overflow-wrap:anywhere]")}>{block.title}</h2> : <div className="mb-7" />}
-            {block.body}
-          </section>
-        ))}
+        <div className="px-6">
+          {blocks.map((block, i) => (
+            <section key={block.key} className="pc-inview mb-16">
+              <div className="mb-6 flex items-center gap-4">
+                <span className={cn(caps, "text-[10px] text-[var(--mg-accent)]")}>{ROMAN[i] ?? String(i + 1)}</span>
+                <span aria-hidden className="h-px flex-1 bg-[var(--mg-line)]" />
+              </div>
+              {block.title && <h2 className={cn(styles.heading, "mb-8 [overflow-wrap:anywhere]")}>{block.title}</h2>}
+              {block.body}
+            </section>
+          ))}
 
-        {/* -------------------------------------------------- REPONSE -- */}
-        <div className="border-t border-[var(--mg-rule)] pt-12">
-          <RsvpBlock
-            view={view}
-            rsvpForm={rsvpForm}
-            rsvpStyle={rsvpStyle}
-            styles={styles}
-            button={button}
-            title={<h2 className={cn(styles.heading, "text-[34px] italic")}>Votre réponse</h2>}
-          />
+          {/* -------------------------------------------------- REPONSE -- */}
+          <div className="pt-6">
+            <RsvpBlock
+              view={view}
+              rsvpForm={rsvpForm}
+              rsvpStyle={rsvpStyle}
+              styles={styles}
+              button={button}
+              align="left"
+              title={
+                <>
+                  <span aria-hidden className="mb-6 block h-px w-full bg-[var(--mg-rule)] opacity-60" />
+                  <h2 className={cn(styles.heading, "text-[34px] italic")}>Votre réponse</h2>
+                </>
+              }
+            />
+          </div>
+
+          <footer className="mt-24 flex flex-col items-center text-center">
+            <span
+              aria-hidden
+              className="flex size-14 items-center justify-center rounded-full border border-[var(--mg-rule)] text-[18px] leading-none text-[var(--mg-accent)] [font-family:var(--mg-display)]"
+            >
+              {seal}
+            </span>
+            <p className={cn(caps, "mt-4 text-[10px] text-[var(--mg-ink-2)]")}>
+              {event.starts.day} {event.starts.month} {event.starts.year}
+            </p>
+          </footer>
         </div>
-
-        <footer className="mt-24 flex flex-col items-center text-center">
-          <span aria-hidden className="flex size-14 items-center justify-center rounded-full border border-[var(--mg-rule)] text-[18px] leading-none text-[var(--mg-accent)] [font-family:var(--mg-display)]">
-            {seal}
-          </span>
-          <p className={cn(caps, "mt-4 text-[10px] text-[var(--mg-ink-2)]")}>
-            {event.starts.day} {event.starts.month} {event.starts.year}
-          </p>
-        </footer>
       </div>
 
       {!rsvp.closed && (
@@ -247,7 +298,7 @@ export function MidnightGold({ view, rsvpForm }: { view: InvitationView; rsvpFor
           heroId="mg-hero-cta"
           targetId="rsvp"
           label="Répondre à l’invitation"
-          className="border-t border-[var(--mg-line)] bg-[var(--mg-bg)] px-6 pb-[max(12px,env(safe-area-inset-bottom))] pt-3"
+          className="border-t border-[var(--mg-line)] bg-[color-mix(in_srgb,var(--mg-bg)_88%,transparent)] px-6 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md"
           buttonClassName={cn(button, "mx-auto max-w-[412px]")}
         />
       )}
@@ -255,24 +306,25 @@ export function MidnightGold({ view, rsvpForm }: { view: InvitationView; rsvpFor
   );
 }
 
-/** ——— 12 ——— puis SAMEDI · DÉCEMBRE 2026, puis l heure en italique. */
+/** 12.12.26 en tres larges approches, entre deux filets, puis l heure. */
 function DateLine({ view }: { view: InvitationView }) {
   const { starts } = view.event;
+  const iso = starts.iso.slice(0, 10).split("-");
+  const compact = `${starts.day}.${iso[1] ?? ""}.${starts.year.slice(2)}`;
   return (
-    <div className="mt-8 w-full">
+    <div className="mt-9 w-full">
       <p className="sr-only">
         {starts.long}, {starts.time}
       </p>
       <div aria-hidden className="flex items-center justify-center gap-4">
-        <span className="pc-draw h-px flex-1 bg-[var(--mg-rule)]" style={{ ...delay(300), transformOrigin: "right" }} />
-        <span className="text-[clamp(56px,16vw,72px)] font-light leading-[0.9] tabular-nums text-[var(--mg-accent)] [font-family:var(--mg-display)]">{starts.day}</span>
-        <span className="pc-draw h-px flex-1 bg-[var(--mg-rule)]" style={delay(300)} />
+        <span className="pc-draw h-px flex-1 bg-[var(--mg-line)]" style={{ ...delay(300), transformOrigin: "right" }} />
+        <span className="text-[clamp(22px,6.4vw,28px)] font-light leading-none tracking-[0.22em] tabular-nums text-[var(--mg-accent)] [font-family:var(--mg-display)]">
+          {compact}
+        </span>
+        <span className="pc-draw h-px flex-1 bg-[var(--mg-line)]" style={delay(300)} />
       </div>
-      <p aria-hidden className={cn(caps, "mt-4 text-[var(--mg-ink)]")}>
-        {starts.weekday} · {starts.month} {starts.year}
-      </p>
-      <p aria-hidden className="pc-fade mt-2 text-[16px] italic text-[var(--mg-ink-2)] [font-family:var(--mg-display)]" style={delay(480)}>
-        {starts.time.replace(" h 00", " heures")}
+      <p aria-hidden className={cn(caps, "mt-4 text-[10.5px] text-[var(--mg-ink)]")}>
+        {starts.weekday} · {starts.time.replace(" h 00", " heures")}
       </p>
     </div>
   );

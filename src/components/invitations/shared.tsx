@@ -232,6 +232,14 @@ export type ThemeShellProps = {
   hero: React.ReactNode;
   /** Photo, si le theme ne la met pas deja dans le premier ecran */
   photo?: React.ReactNode;
+  /**
+   * Le mot des hotes, compose seul entre le premier ecran et la photo. Le
+   * premier texte libre SANS titre est promu ici (et retire des rubriques) ;
+   * a defaut, `welcome` du theme. Sans `word`, rien ne change : le texte
+   * reste une rubrique comme une autre.
+   */
+  word?: (text: string) => React.ReactNode;
+  welcome?: string;
   /** Habillage d une section (lieux compris) */
   section: (props: { key: string; index: number; title: string | null; children: React.ReactNode }) => React.ReactNode;
   rsvpTitle: React.ReactNode;
@@ -256,11 +264,16 @@ export function ThemeShell(p: ThemeShellProps) {
   const dear = salutation(view);
   const align = p.sectionAlign ?? "center";
   const blocks: { key: string; title: string | null; body: React.ReactNode }[] = [];
+  const wordSection = p.word ? sections.find((s) => s.kind === "custom" && !s.title) : undefined;
+  const wordText = wordSection?.kind === "custom" ? wordSection.data.text : (p.welcome ?? null);
   if (venues.length > 0) {
     const title = p.venuesTitle ? p.venuesTitle(venues.length) : venues.length > 1 ? "Les lieux" : "Le lieu";
     blocks.push({ key: "venues", title, body: <VenueList venues={venues} styles={p.styles} preview={view.preview} align={align} /> });
   }
-  for (const s of sections) blocks.push({ key: s.id, title: s.title, body: <SectionBody section={s} styles={p.styles} align={align} /> });
+  for (const s of sections) {
+    if (s === wordSection) continue;
+    blocks.push({ key: s.id, title: s.title, body: <SectionBody section={s} styles={p.styles} align={align} /> });
+  }
 
   return (
     <main style={p.vars as React.CSSProperties} className={cn("relative min-h-dvh overflow-x-clip font-[family-name:var(--app-font-sans)] antialiased", p.dark ? "[color-scheme:dark]" : "[color-scheme:light]", p.mainClassName)}>
@@ -273,6 +286,7 @@ export function ThemeShell(p: ThemeShellProps) {
       {/* data-sealed : les entrees attendent l ouverture du pli (globals.css). */}
       <div data-sealed={view.envelope ? "" : undefined} className={cn("mx-auto w-full max-w-[460px] break-words px-5 pb-28", p.containerClassName)}>
         {p.hero}
+        {p.word && wordText && p.word(wordText)}
         {event.heroImageUrl && p.photo}
         {blocks.map((b, i) => p.section({ key: b.key, index: i, title: b.title, children: b.body }))}
         <div className={p.rsvpWrapperClassName}>
