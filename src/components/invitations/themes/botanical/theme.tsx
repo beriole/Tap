@@ -134,11 +134,11 @@ export function Botanical({ view, rsvpForm }: { view: InvitationView; rsvpForm?:
     >
       {view.envelope && (
         <div style={envelopeStyle}>
-          <Envelope recipient={dear} monogram={monogram(view)} />
+          <Envelope recipient={dear ? `Pour ${dear}` : null} monogram={monogram(view)} hosts={event.hosts} />
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-[460px] break-words px-5 pb-28 pt-[max(16px,env(safe-area-inset-top))]">
+      <div data-sealed={view.envelope ? "" : undefined} className="mx-auto w-full max-w-[460px] break-words px-5 pb-28 pt-[max(16px,env(safe-area-inset-top))]">
         {/* --------------------------------------------- PREMIER ECRAN -- */}
         <header className="flex min-h-[calc(100svh-32px)] flex-col items-center justify-center py-4 text-center">
           <Arch view={view} />

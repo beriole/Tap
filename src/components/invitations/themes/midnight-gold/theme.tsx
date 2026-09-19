@@ -171,8 +171,8 @@ export function MidnightGold({ view, rsvpForm }: { view: InvitationView; rsvpFor
         {/* --------------------------------------------- L OUVERTURE -- */}
         <header className="flex min-h-[100svh] flex-col items-center justify-center px-6 pb-10 pt-[max(16px,env(safe-area-inset-top))] text-center">
           {/* Le sceau, suspendu a son filet. */}
-          <span aria-hidden className="mb-9 flex flex-col items-center">
-            <span className="pc-draw h-14 w-px bg-[var(--mg-rule)] opacity-70" style={{ transformOrigin: "top" }} />
+          <span aria-hidden className="mb-7 flex flex-col items-center">
+            <span className="pc-draw h-10 w-px bg-[var(--mg-rule)] opacity-70" style={{ transformOrigin: "top" }} />
             <span className="mt-3 flex size-12 items-center justify-center rounded-full border border-[var(--mg-rule)] text-[15px] leading-none text-[var(--mg-accent)] [font-family:var(--mg-display)]">
               {seal}
             </span>
@@ -202,7 +202,7 @@ export function MidnightGold({ view, rsvpForm }: { view: InvitationView; rsvpFor
 
           <DateLine view={view} />
 
-          <p className={cn(caps, "pc-fade mt-8 max-w-[290px] text-[10px] leading-[2] text-[var(--mg-ink-2)]")} style={delay(120)}>
+          <p className={cn(caps, "pc-fade mt-6 max-w-[290px] text-[10px] leading-[2] text-[var(--mg-ink-2)]")} style={delay(120)}>
             {EYEBROW[event.type]}
           </p>
 
@@ -212,7 +212,7 @@ export function MidnightGold({ view, rsvpForm }: { view: InvitationView; rsvpFor
             </p>
           )}
 
-          <div id="mg-hero-cta" data-hero-cta className="mt-10 w-full max-w-[300px]">
+          <div id="mg-hero-cta" data-hero-cta className="mt-8 w-full max-w-[300px]">
             <a href="#rsvp" className={button}>
               {ctaLabel(view)}
             </a>

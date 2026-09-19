@@ -142,11 +142,11 @@ export function Editorial({ view, rsvpForm }: { view: InvitationView; rsvpForm?:
     >
       {view.envelope && (
         <div style={envelopeStyle}>
-          <Envelope recipient={dear} monogram={monogram(view)} />
+          <Envelope recipient={dear ? `Pour ${dear}` : null} monogram={monogram(view)} hosts={event.hosts} />
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-[460px] break-words px-5 pb-28 pt-[max(14px,env(safe-area-inset-top))]">
+      <div data-sealed={view.envelope ? "" : undefined} className="mx-auto w-full max-w-[460px] break-words px-5 pb-28 pt-[max(14px,env(safe-area-inset-top))]">
         {/* --------------------------------------------- PREMIER ECRAN -- */}
         <header className="flex min-h-[calc(100svh-28px)] flex-col">
           <p className={cn(caps, "flex items-center justify-between gap-3 border-b-2 border-[var(--ed-ink)] pb-3 text-[10.5px]")}>
